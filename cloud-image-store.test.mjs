@@ -24,7 +24,7 @@ async function readMultipart(request) {
   return {metadata: JSON.parse(body.subarray(metadataStart, metadataEnd).toString('utf8')), bytes: body.subarray(mediaStart, mediaEnd)};
 }
 
-function fakeDrive({checksum = 'immediate', manifestResponseLost = false} = {}) {
+function fakeDrive({checksum = 'immediate', manifestResponseLost = false, maxFilesPerPage = 100} = {}) {
   const files = new Map();
   const events = [];
   const send = async (href, request) => {
@@ -55,8 +55,14 @@ function fakeDrive({checksum = 'immediate', manifestResponseLost = false} = {}) 
     if (url.pathname === '/drive/v3/files') {
       assert.equal(url.searchParams.get('spaces'), 'appDataFolder');
       assert.match(url.searchParams.get('q'), /moonlightImageManifest/);
-      events.push(['list']);
-      return Response.json({files: [...files.values()].filter(file => file.kind === 'manifest').map(file => file.saved)});
+      assert.equal(url.searchParams.get('orderBy'), 'createdTime desc');
+      const requested = Number(url.searchParams.get('pageSize'));
+      const offset = Number(url.searchParams.get('pageToken') || 0);
+      const candidates = [...files.values()].filter(file => file.kind === 'manifest').map(file => file.saved)
+        .sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime));
+      const end = Math.min(offset + requested, offset + maxFilesPerPage, candidates.length);
+      events.push(['list', requested, offset]);
+      return Response.json({files: candidates.slice(offset, end), nextPageToken: end < candidates.length ? String(end) : undefined});
     }
     const id = url.pathname.split('/').at(-1);
     const file = files.get(id);
@@ -165,4 +171,47 @@ test('polling caches authenticated manifests, evicts absent IDs, and rechecks fa
   files.set(manifestId, manifest);
   assert.equal((await client.listBatches()).records.length, 1);
   assert.equal(reads(), 3);
+});
+
+test('gallery capacity caps Drive pages and manifest reads even when more files are available', async () => {
+  const {send, files, events} = fakeDrive({maxFilesPerPage: 2});
+  const client = createCloudImageStore(auth, password, {send});
+  const uploaded = [];
+  for (let index = 0; index < 5; index++) {
+    const time = record.time + index * 1000;
+    const cloud = await client.putBatch({...record, id: `batch-${index}`, time}, renditions);
+    files.get(cloud.manifestId).saved.createdTime = new Date(time).toISOString();
+    uploaded.unshift(cloud.manifestId);
+  }
+  const otherDevice = createCloudImageStore(auth, password, {send});
+  assert.deepEqual(await otherDevice.listBatches({limit: 0}), {records: [], skipped: 0});
+  assert(!events.some(([operation]) => operation === 'list'));
+
+  const listing = await otherDevice.listBatches({limit: 3});
+  assert.deepEqual(listing.records.map(item => item.id), ['batch-4', 'batch-3', 'batch-2']);
+  assert.deepEqual(events.filter(([operation]) => operation === 'list'), [['list', 3, 0], ['list', 1, 2]]);
+  assert.deepEqual(events.filter(([operation]) => operation === 'media').map(([, id]) => id), uploaded.slice(0, 3));
+
+  const incorrect = createCloudImageStore(auth, 'wrong passphrase', {send});
+  const beforeWrong = events.length;
+  assert.equal(await incorrect.probePassword(), 'invalid');
+  assert.deepEqual(events.slice(beforeWrong).filter(([operation]) => operation === 'media').map(([, id]) => id), uploaded.slice(0, 3));
+
+  const unlocked = createCloudImageStore(auth, password, {send});
+  const beforeCorrect = events.length;
+  assert.equal(await unlocked.probePassword(), 'verified');
+  assert.deepEqual(events.slice(beforeCorrect).filter(([operation]) => operation === 'media').map(([, id]) => id), uploaded.slice(0, 1));
+  const beforeRestore = events.length;
+  await unlocked.listBatches({limit: 1});
+  assert.deepEqual(events.slice(beforeRestore), [['list', 1, 0]]);
+});
+
+test('unlock probe distinguishes an empty vault from unreadable manifest metadata', async () => {
+  const {send, files, events} = fakeDrive();
+  const client = createCloudImageStore(auth, password, {send});
+  assert.equal(await client.probePassword(), 'empty');
+  files.set('empty-manifest', {kind: 'manifest', saved: {id: 'empty-manifest', name: 'cloud.moonlight-image-manifest.enc',
+    createdTime: new Date(record.time).toISOString(), size: '0'}});
+  assert.equal(await client.probePassword(), 'invalid');
+  assert.deepEqual(events, [['list', 3, 0], ['list', 3, 0]]);
 });

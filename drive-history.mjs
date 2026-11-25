@@ -88,36 +88,47 @@ function fileRecord(item, kind) {
 }
 
 export async function listDriveBackups(auth, {send = globalThis.fetch} = {}) {
-  return listAppDataFiles(auth, fileKinds.backup, send);
+  const {files} = await listAppDataFiles(auth, fileKinds.backup, send);
+  return files;
 }
 
-export async function listDriveImageManifests(auth, {send = globalThis.fetch} = {}) {
-  return listAppDataFiles(auth, fileKinds.manifest, send);
+export async function listDriveImageManifests(auth, {limit, send = globalThis.fetch} = {}) {
+  if (!Number.isSafeInteger(limit) || limit < 0) throw new Error('云图库读取数量无效。');
+  return listAppDataFiles(auth, fileKinds.manifest, send, limit);
 }
 
-async function listAppDataFiles(auth, kind, send) {
+async function listAppDataFiles(auth, kind, send, limit = Infinity) {
+  if (limit === 0) return {files: [], skipped: 0};
+  const pageCapacity = 100;
+  // Drive can return short or empty pages even when more results exist.
+  const pageLimit = Number.isFinite(limit) ? Math.ceil(limit / pageCapacity) + 4 : 100;
   const url = driveURL(filesPath, {
     spaces: 'appDataFolder', q: `trashed = false and appProperties has { key='${kind.property}' and value='1' }`,
-    fields: `nextPageToken,files(${backupFields})`, orderBy: 'createdTime desc', pageSize: '100',
+    fields: `nextPageToken,files(${backupFields})`, orderBy: 'createdTime desc',
   });
-  const backups = new Map();
+  const files = new Map();
   const tokens = new Set();
+  let seen = 0;
+  let skipped = 0;
   for (;;) {
+    url.searchParams.set('pageSize', Math.min(pageCapacity, limit - seen));
     const page = await driveJSON(await driveRequest(auth, url, send));
     if (!page || typeof page !== 'object' || Array.isArray(page)
       || (page.files !== undefined && !Array.isArray(page.files))) throw new Error('Google Drive 返回的备份列表无效。');
-    for (const item of page.files || []) {
-      const backup = fileRecord(item, kind);
-      if (backup) backups.set(backup.id, backup);
+    for (const item of (page.files || []).slice(0, limit - seen)) {
+      seen++;
+      const file = fileRecord(item, kind);
+      if (file) files.set(file.id, file);
+      else skipped++;
     }
-    if (!page.nextPageToken) break;
-    if (typeof page.nextPageToken !== 'string' || tokens.has(page.nextPageToken) || tokens.size >= 99) {
+    if (seen >= limit || !page.nextPageToken) break;
+    if (typeof page.nextPageToken !== 'string' || tokens.has(page.nextPageToken) || tokens.size >= pageLimit - 1) {
       throw new Error('无法读取完整的 Google Drive 备份列表。');
     }
     tokens.add(page.nextPageToken);
     url.searchParams.set('pageToken', page.nextPageToken);
   }
-  return [...backups.values()].sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime));
+  return {files: [...files.values()].sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime)), skipped};
 }
 
 function uploadURL(type, kind) {

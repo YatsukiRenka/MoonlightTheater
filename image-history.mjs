@@ -59,24 +59,34 @@ export async function readImageHistory() {
   }
 }
 
-function retainImageHistory(existing, incoming, limits) {
-  const byId = new Map();
+function cloudBacked(record) {
+  const cloud = record.cloud;
+  return cloud?.version === 1 && typeof cloud.manifestId === 'string' && Boolean(cloud.manifestId)
+    && Array.isArray(cloud.renditions) && cloud.renditions.length > 0;
+}
+
+function retainImageHistory(existing, incoming, limits, {preserveOriginals, cloudOnly}) {
+  // Cloud sync may only reclaim space from the cache. Local originals can be the only copy.
+  const protectedRows = preserveOriginals ? existing.filter(entry => !cloudBacked(entry.record)) : [];
+  const kept = new Set(protectedRows);
+  const byId = new Map(protectedRows.map(entry => [entry.record.id, entry]));
   // When a backup contains an existing generation, preserve the local version.
   for (const entry of existing) {
     if (!byId.has(entry.record.id)) byId.set(entry.record.id, entry);
   }
   let duplicates = 0;
   for (const record of incoming) {
+    if (cloudOnly && !cloudBacked(record)) continue;
     if (byId.has(record.id)) duplicates++;
     else byId.set(record.id, {record});
   }
 
   const maxBytes = imageHistoryByteLimit(limits);
   const ordered = [...byId.values()].sort((a, b) => newestFirst(a.record, b.record));
-  const kept = new Set();
-  let bytes = 0;
+  let bytes = protectedRows.reduce((total, entry) => total + entry.record.size, 0);
   for (const entry of ordered) {
     if (kept.size >= limits.imageCount) break;
+    if (kept.has(entry)) continue;
     const {size} = entry.record;
     if (size > maxBytes - bytes) continue;
     kept.add(entry);
@@ -96,7 +106,7 @@ function retainImageHistory(existing, incoming, limits) {
   return {removed, added, migrated, summary};
 }
 
-async function writeImageHistory(incoming, limits) {
+async function writeImageHistory(incoming, limits, policy = {}) {
   const db = await openHistory();
   try {
     return await new Promise((resolve, reject) => {
@@ -115,7 +125,7 @@ async function writeImageHistory(incoming, limits) {
             cursor.continue();
             return;
           }
-          const {removed, added, migrated, summary} = retainImageHistory(existing, incoming, limits);
+          const {removed, added, migrated, summary} = retainImageHistory(existing, incoming, limits, policy);
           for (const entry of removed) store.delete(entry.key);
           for (const entry of migrated) store.put({...entry.record, storageVersion: entry.storageVersion}, entry.key);
           for (const entry of added) store.add({...entry.record, storageVersion: crypto.randomUUID()});
@@ -133,17 +143,21 @@ async function writeImageHistory(incoming, limits) {
   }
 }
 
-export async function saveImageHistory(record, limits = readHistoryLimits()) {
+export async function saveImageHistory(record, limits = readHistoryLimits(), {preserveOriginals = false} = {}) {
   if (!limits.imageCount) return {saved: false, disabled: true};
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id});
   if (entry.size > imageHistoryByteLimit(limits)) throw new Error('图片超过生图记录的存储上限。');
-  const result = await writeImageHistory([entry], limits);
+  const result = await writeImageHistory([entry], limits, {preserveOriginals});
   return {saved: result.added === 1, disabled: false};
 }
 
 export function mergeImageHistory(records, limits = readHistoryLimits()) {
   return writeImageHistory(records.map(historyRecord), limits);
+}
+
+export function mergeCloudImageHistory(records, limits = readHistoryLimits()) {
+  return writeImageHistory(records.map(historyRecord), limits, {preserveOriginals: true, cloudOnly: true});
 }
 
 export function pruneImageHistory(limits = readHistoryLimits()) {
@@ -190,9 +204,7 @@ export async function replaceImageHistoryWithCloud(originalRecord, thinRecord, l
   if (!limits.imageCount) return false;
   const original = historyRecord(originalRecord);
   const thin = historyRecord(thinRecord);
-  if (thin.id !== original.id || original.cloud || !original.images.length || thin.cloud?.version !== 1
-    || typeof thin.cloud.manifestId !== 'string' || !thin.cloud.manifestId
-    || !Array.isArray(thin.cloud.renditions) || !thin.cloud.renditions.length
+  if (thin.id !== original.id || original.cloud || !original.images.length || !cloudBacked(thin)
     || thin.size > original.size || thin.size > imageHistoryByteLimit(limits)) return false;
 
   const db = await openHistory();

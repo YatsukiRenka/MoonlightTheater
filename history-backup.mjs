@@ -63,6 +63,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const restore = byId('restoreFromDrive');
   const cloudEnabled = byId('cloudGalleryEnabled');
   const cloudInterval = byId('cloudGalleryInterval');
+  const cloudSchedule = byId('cloudGallerySchedule');
   const galleryPassword = byId('cloudGalleryPassword');
   const galleryConfirm = byId('cloudGalleryConfirm');
   const cloudUnlock = byId('unlockCloudGallery');
@@ -103,6 +104,9 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     restore.disabled = !backupList.value;
     cloudEnabled.disabled = busy;
     cloudInterval.disabled = busy || !cloud.enabled;
+    cloudSchedule.textContent = cloud.enabled && connected && cloud.interval * 60_000 >= auth.expires - Date.now()
+      ? '间隔超过当前授权剩余时间。可手动同步，或缩短间隔。授权到期后需重新连接并解锁。'
+      : '定时同步在本次 Drive 授权有效时运行。授权到期后需重新连接并解锁。';
     galleryPassword.disabled = galleryConfirm.disabled = busy || !connected || cloud.ready;
     cloudUnlock.disabled = busy || !connected;
     cloudUnlock.textContent = cloud.ready ? '锁定云图库' : '解锁云图库';
@@ -314,7 +318,10 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   async function syncCloud() {
     const result = await cloud.restore((completed, total) => status(driveStatus, '正在同步缩略图 · ' + completed + ' / ' + total));
     if (result.added || result.removed) refreshHistory();
-    return '已同步 ' + result.added + ' 批缩略图。' + (result.unavailable ? '有 ' + result.unavailable + ' 批暂不可恢复。' : '');
+    return '已同步 ' + result.added + ' 批缩略图。'
+      + (result.limited ? '已按本机上限保留原图，剩余缩略图可待有空间时同步。' : '')
+      + (result.removed ? '移除了 ' + result.removed + ' 批较旧的本地缩略图缓存。' : '')
+      + (result.unavailable ? '有 ' + result.unavailable + ' 批暂不可恢复。' : '');
   }
 
   function restartSync() {

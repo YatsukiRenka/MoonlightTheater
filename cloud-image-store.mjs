@@ -2,13 +2,15 @@ import {
   discardDriveImageRendition, downloadDriveImageObject, driveImageHeader, listDriveImageManifests, readDriveImageChecksum,
   uploadDriveImageObject,
 } from './drive-history.mjs';
+import {defaultHistoryLimits, historyLimitRanges} from './history-limits.mjs';
 import {sha256} from './vendor/noble-sha256.mjs';
 
 const mib = 1024 * 1024;
 const version = 1;
 const chunkSize = mib;
 const manifestLimit = 2 * mib;
-const manifestCacheLimit = 256;
+const manifestCacheLimit = historyLimitRanges.imageCount.max;
+const passwordProbeLimit = 3;
 const tierLimits = {thumbnail: 8 * mib, preview: 32 * mib, original: 512 * mib};
 const tiers = Object.keys(tierLimits);
 const rasterTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -245,24 +247,35 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
     } catch { return null; }
   }
 
-  async function listBatches() {
-    const files = await listDriveImageManifests(auth, options);
-    const activeIds = new Set(files.slice(0, manifestCacheLimit).map(file => file.id));
+  async function cachedManifest(file) {
+    const cached = manifests.get(file.id);
+    if (cached?.size === file.size && cached.createdTime === file.createdTime) return cached.record;
+    if (cached) manifests.delete(file.id);
+    const record = await readManifest(file);
+    if (record) {
+      if (manifests.size >= manifestCacheLimit) manifests.delete(manifests.keys().next().value);
+      manifests.set(file.id, {size: file.size, createdTime: file.createdTime, record});
+    }
+    return record;
+  }
+
+  async function probePassword() {
+    const {files, skipped} = await listDriveImageManifests(auth, {...options, limit: passwordProbeLimit});
+    if (!files.length && !skipped) return 'empty';
+    for (const file of files) if (await cachedManifest(file)) return 'verified';
+    return 'invalid';
+  }
+
+  async function listBatches({limit = defaultHistoryLimits.imageCount} = {}) {
+    if (!Number.isInteger(limit) || limit < 0 || limit > manifestCacheLimit) throw new Error('云图库读取数量无效。');
+    const listing = await listDriveImageManifests(auth, {...options, limit});
+    const {files} = listing;
+    const activeIds = new Set(files.map(file => file.id));
     for (const id of manifests.keys()) if (!activeIds.has(id)) manifests.delete(id);
     const records = new Map();
-    let skipped = 0;
+    let skipped = listing.skipped;
     for (let offset = 0; offset < files.length; offset += 4) {
-      const batch = await Promise.all(files.slice(offset, offset + 4).map(async file => {
-        const cached = manifests.get(file.id);
-        if (cached?.size === file.size && cached.createdTime === file.createdTime) return cached.record;
-        if (cached) manifests.delete(file.id);
-        const record = await readManifest(file);
-        if (record && activeIds.has(file.id)) {
-          if (manifests.size >= manifestCacheLimit && !manifests.has(file.id)) manifests.delete(manifests.keys().next().value);
-          manifests.set(file.id, {size: file.size, createdTime: file.createdTime, record});
-        }
-        return record;
-      }));
+      const batch = await Promise.all(files.slice(offset, offset + 4).map(cachedManifest));
       for (const record of batch) {
         if (!record) skipped++;
         else if (!records.has(record.id)) records.set(record.id, record);
@@ -271,5 +284,5 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
     return {records: [...records.values()].sort((a, b) => b.time - a.time || a.id.localeCompare(b.id, 'en')), skipped};
   }
 
-  return {putBatch, listBatches, getImage};
+  return {putBatch, listBatches, getImage, probePassword};
 }

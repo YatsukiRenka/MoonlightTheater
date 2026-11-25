@@ -1,7 +1,7 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
 import {initializeImageControls} from './image-controls.mjs';
 import {mountImageDeck} from './image-deck.mjs';
-import {readImageHistory, saveImageHistory} from './image-history.mjs';
+import {mergeCloudImageHistory, readImageHistory, replaceImageHistoryWithCloud, saveImageHistory} from './image-history.mjs';
 import {money} from './image-usage.mjs';
 import {
   authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
@@ -65,6 +65,7 @@ export function initializeImages(getPrompt, cloud) {
   const generate = byId('imageGenerate');
   const connection = byId('imageConnection');
   const status = byId('imageStatus');
+  const cloudStatus = byId('imageCloudStatus');
   const metricsBox = byId('imageMetrics');
   const empty = byId('imageEmpty');
   const gallery = byId('imageGallery');
@@ -85,11 +86,14 @@ export function initializeImages(getPrompt, cloud) {
   let authorization;
   let expiryTimer;
   let galleryDeck;
+  let currentResultId;
   let historyDecks = [];
   let activePreview;
   let partialURL;
   let historyOpen = false;
   let historyRead = 0;
+  let uploadQueue = Promise.resolve();
+  let uploadsPending = 0;
 
   const imageSettings = initializeImageSettings({
     verify: (id, values) => verifyImageResource(id, values, {authorization}),
@@ -108,6 +112,40 @@ export function initializeImages(getPrompt, cloud) {
   function showStatus(message, error = false) {
     status.textContent = message;
     status.classList.toggle('image-error', error);
+  }
+
+  function showCloudStatus(message, error = false) {
+    cloudStatus.textContent = (uploadsPending ? '正在同步 ' + uploadsPending + ' 批图片到云图库。' : '') + message;
+    cloudStatus.classList.toggle('image-error', error);
+    cloudStatus.hidden = !cloudStatus.textContent;
+  }
+
+  function queueCloudUpload(record, localSaved, upload) {
+    uploadsPending++;
+    showCloudStatus('');
+    uploadQueue = uploadQueue.then(async () => {
+      let message = '图片已保存到云图库。';
+      let warning = false;
+      try {
+        const thin = await upload(record);
+        try {
+          if (localSaved) await replaceImageHistoryWithCloud(record, thin);
+          else await mergeCloudImageHistory([thin]);
+          if (historyOpen) void showHistory();
+        } catch {
+          message += '暂时无法更新本机历史。';
+          warning = true;
+        }
+      } catch (error) {
+        message = '云图库同步失败。' + error.message;
+        if (!localSaved) message += '本机也未保存这一批原图。'
+          + (currentResultId === record.id ? '可从当前生图结果下载。' : '');
+        warning = true;
+      } finally {
+        uploadsPending--;
+        showCloudStatus(message, warning);
+      }
+    });
   }
 
   function refreshControls() {
@@ -231,6 +269,7 @@ export function initializeImages(getPrompt, cloud) {
   }
 
   function renderImages(record) {
+    currentResultId = record.id;
     galleryDeck?.dispose();
     galleryDeck = mountImageDeck(gallery, record, {openPreview});
     renderMetrics(metricsBox, record.metrics);
@@ -367,24 +406,18 @@ export function initializeImages(getPrompt, cloud) {
       const completed = '已生成 ' + record.images.length + ' 张图片。'
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');
       showStatus(completed, Boolean(result.warning));
+      const autoSync = cloud.enabled;
+      const upload = autoSync && cloud.ready ? cloud.prepareUpload() : undefined;
+      let localSaved = false;
       try {
-        let stored = record;
-        let syncError;
-        if (cloud.enabled) {
-          try {
-            if (!cloud.ready) throw new Error('请在历史设置中解锁 Google Drive。');
-            showStatus(completed + ' 正在同步到云图库…');
-            stored = await cloud.transfer(record);
-          } catch (error) { syncError = error; }
-        }
-        const saved = await saveImageHistory(stored);
-        if (syncError) showStatus(completed + ' 云图库同步失败。' + syncError.message
-          + (saved.saved ? ' 本地已保留原图。' : ' 当前保留设置未写入本地历史。'), true);
-        else if (stored.cloud) showStatus(completed + ' 已保存在云图库。', Boolean(result.warning));
-        if (saved.saved && historyOpen) void showHistory();
+        localSaved = (await saveImageHistory(record, undefined, {preserveOriginals: Boolean(upload)})).saved;
+        if (localSaved && historyOpen) void showHistory();
       } catch {
         showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
       }
+      if (upload) queueCloudUpload(record, localSaved, upload);
+      else if (autoSync) showCloudStatus('请在历史设置中解锁 Google Drive。', true);
+      else if (!uploadsPending) showCloudStatus('');
     } catch (error) {
       showStatus(error.message, true);
       if (selectedProvider === 'gemini-oauth' && error.status === 401) authorization = undefined;

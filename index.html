@@ -52,6 +52,7 @@
     </form>
     <div class="image-results">
       <p id="imageStatus" class="image-status" role="status" aria-live="polite"></p>
+      <p id="imageCloudStatus" class="image-status" role="status" hidden></p>
       <div id="imageMetrics" class="image-metrics" hidden></div>
       <div id="imageEmpty" class="image-empty"><i data-icon="image"></i><span>生成的角色图将在这里显示</span></div>
       <figure class="image-partial" id="imagePartial" hidden><img id="imagePartialAsset" alt="生成中的图片预览"><figcaption>生成中 · 流式预览</figcaption></figure>
@@ -225,6 +226,7 @@
           <h4>云端图库</h4>
           <label class="cloud-gallery-mode"><input type="checkbox" id="cloudGalleryEnabled">自动同步云图库，新图上传后本机只存缩略图</label>
           <label class="settinglabel">同步间隔（分钟）<input id="cloudGalleryInterval" type="number" min="1" max="1440" step="1" required></label>
+          <p class="note" id="cloudGallerySchedule">定时同步在本次 Drive 授权有效时运行。授权到期后需重新连接并解锁。</p>
           <label class="settinglabel">云图库口令<input id="cloudGalleryPassword" type="password" maxlength="256" autocomplete="off"></label>
           <label class="settinglabel">重复云图库口令（首次使用）<input id="cloudGalleryConfirm" type="password" maxlength="256" autocomplete="off"></label>
           <p class="note">各设备使用同一个云图库口令。同步只下载缩略图，点开后再按需加载预览图或原图。</p>
@@ -233,6 +235,7 @@
             <button class="secondary" type="button" id="restoreCloudGallery" disabled>合并云端生图</button>
             <button class="secondary" type="button" id="optimizeCloudGallery" disabled>用缩略图替换本地原图</button>
           </div>
+          <details class="note"><summary>管理 Drive 储存空间</summary><p>本地清理保留 Drive 副本。如需清空云端，在 Google Drive 的「设置 → 管理应用」找到用于授权的应用，删除隐藏应用数据。这会同时清空云图库和整库备份。</p></details>
         </div>
         <p class="resource-message" id="driveHistoryStatus" role="status"></p>
       </section>
