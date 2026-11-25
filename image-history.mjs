@@ -65,9 +65,10 @@ function cloudBacked(record) {
     && Array.isArray(cloud.renditions) && cloud.renditions.length > 0;
 }
 
-function retainImageHistory(existing, incoming, limits, {preserveOriginals, cloudOnly}) {
+function retainImageHistory(existing, incoming, limits, {preserveOriginals, preserveStaged, cloudOnly, stageOriginal}) {
   // Cloud sync may only reclaim space from the cache. Local originals can be the only copy.
-  const protectedRows = preserveOriginals ? existing.filter(entry => !cloudBacked(entry.record)) : [];
+  const protectedRows = existing.filter(entry => (preserveOriginals && !cloudBacked(entry.record))
+    || (preserveStaged && entry.stagedOriginal));
   const kept = new Set(protectedRows);
   const byId = new Map(protectedRows.map(entry => [entry.record.id, entry]));
   // When a backup contains an existing generation, preserve the local version.
@@ -77,13 +78,27 @@ function retainImageHistory(existing, incoming, limits, {preserveOriginals, clou
   let duplicates = 0;
   for (const record of incoming) {
     if (cloudOnly && !cloudBacked(record)) continue;
-    if (byId.has(record.id)) duplicates++;
-    else byId.set(record.id, {record});
+    if (byId.has(record.id)) {
+      duplicates++;
+      continue;
+    }
+    const entry = {record, stagedOriginal: stageOriginal};
+    byId.set(record.id, entry);
+    if (stageOriginal) kept.add(entry);
   }
 
   const maxBytes = imageHistoryByteLimit(limits);
   const ordered = [...byId.values()].sort((a, b) => newestFirst(a.record, b.record));
-  let bytes = protectedRows.reduce((total, entry) => total + entry.record.size, 0);
+  let bytes = [...kept].reduce((total, entry) => total + entry.record.size, 0);
+  if (cloudOnly && limits.imageCount > 0) {
+    // Keep the latest locally generated thumbnail visible when the originals alone leave no room for it.
+    const latestLocalCloud = ordered.find(entry => entry.localCloud);
+    if (latestLocalCloud && !kept.has(latestLocalCloud)
+      && (kept.size >= limits.imageCount || latestLocalCloud.record.size > maxBytes - bytes)) {
+      kept.add(latestLocalCloud);
+      bytes += latestLocalCloud.record.size;
+    }
+  }
   for (const entry of ordered) {
     if (kept.size >= limits.imageCount) break;
     if (kept.has(entry)) continue;
@@ -102,6 +117,7 @@ function retainImageHistory(existing, incoming, limits, {preserveOriginals, clou
     skipped: incoming.length - duplicates - added.length,
     removed: removed.length,
     total: kept.size,
+    ...(stageOriginal && {overLimit: kept.size > limits.imageCount || bytes > maxBytes}),
   };
   return {removed, added, migrated, summary};
 }
@@ -120,15 +136,18 @@ async function writeImageHistory(incoming, limits, policy = {}) {
         try {
           const cursor = scan.result;
           if (cursor) {
-            const {id, storageVersion} = cursor.value;
-            existing.push({key: cursor.primaryKey, record: historyRecord(cursor.value), legacy: !id, storageVersion});
+            const {id, storageVersion, stagedOriginal, localCloud} = cursor.value;
+            existing.push({key: cursor.primaryKey, record: historyRecord(cursor.value), legacy: !id, storageVersion,
+              stagedOriginal: stagedOriginal === true, localCloud: localCloud === true});
             cursor.continue();
             return;
           }
           const {removed, added, migrated, summary} = retainImageHistory(existing, incoming, limits, policy);
           for (const entry of removed) store.delete(entry.key);
-          for (const entry of migrated) store.put({...entry.record, storageVersion: entry.storageVersion}, entry.key);
-          for (const entry of added) store.add({...entry.record, storageVersion: crypto.randomUUID()});
+          for (const entry of migrated) store.put({...entry.record, storageVersion: entry.storageVersion,
+            ...(entry.stagedOriginal && {stagedOriginal: true}), ...(entry.localCloud && {localCloud: true})}, entry.key);
+          for (const entry of added) store.add({...entry.record, storageVersion: crypto.randomUUID(),
+            ...(entry.stagedOriginal && {stagedOriginal: true})});
           result = summary;
         } catch (error) {
           failure = error;
@@ -143,13 +162,22 @@ async function writeImageHistory(incoming, limits, policy = {}) {
   }
 }
 
-export async function saveImageHistory(record, limits = readHistoryLimits(), {preserveOriginals = false} = {}) {
+export async function saveImageHistory(record, limits = readHistoryLimits()) {
   if (!limits.imageCount) return {saved: false, disabled: true};
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id});
   if (entry.size > imageHistoryByteLimit(limits)) throw new Error('图片超过生图记录的存储上限。');
-  const result = await writeImageHistory([entry], limits, {preserveOriginals});
+  const result = await writeImageHistory([entry], limits, {preserveStaged: true});
   return {saved: result.added === 1, disabled: false};
+}
+
+export async function stageCloudImageHistory(record, limits = readHistoryLimits()) {
+  if (!limits.imageCount) return {saved: false, disabled: true, overLimit: false, removed: 0};
+  const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
+  const entry = historyRecord({...record, id, cloud: undefined});
+  if (!entry.images.length) throw new Error('生图记录中的图片格式无效。');
+  const result = await writeImageHistory([entry], limits, {preserveOriginals: true, stageOriginal: true});
+  return {saved: result.added === 1, disabled: false, overLimit: result.overLimit, removed: result.removed};
 }
 
 export function mergeImageHistory(records, limits = readHistoryLimits()) {
@@ -173,7 +201,8 @@ function findImageRecord(db, id) {
         if (!cursor) return resolve(null);
         const row = cursor.value;
         if (recordId(row) !== id) return cursor.continue();
-        resolve({key: cursor.primaryKey, record: historyRecord(row), storageVersion: row.storageVersion});
+        resolve({key: cursor.primaryKey, record: historyRecord(row), storageVersion: row.storageVersion,
+          stagedOriginal: row.stagedOriginal === true});
       } catch (error) {
         reject(error);
       }
@@ -204,14 +233,15 @@ export async function replaceImageHistoryWithCloud(originalRecord, thinRecord, l
   if (!limits.imageCount) return false;
   const original = historyRecord(originalRecord);
   const thin = historyRecord(thinRecord);
-  if (thin.id !== original.id || original.cloud || !original.images.length || !cloudBacked(thin)
-    || thin.size > original.size || thin.size > imageHistoryByteLimit(limits)) return false;
+  if (thin.id !== original.id || original.cloud || !original.images.length || !cloudBacked(thin)) return false;
 
   const db = await openHistory();
   try {
     // Blob reads may take several tasks, so compare before opening the write transaction.
     const candidate = await findImageRecord(db, original.id);
-    if (!candidate || candidate.record.cloud || !await sameImages(original.images, candidate.record.images)) return false;
+    const keepOriginal = thin.size > original.size;
+    if (!candidate || candidate.record.cloud || (!candidate.stagedOriginal && (keepOriginal || thin.size > imageHistoryByteLimit(limits)))
+      || !await sameImages(original.images, candidate.record.images)) return false;
     return await new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
@@ -222,8 +252,11 @@ export async function replaceImageHistoryWithCloud(originalRecord, thinRecord, l
         try {
           const current = request.result;
           if (!current || current.cloud || current.storageVersion !== candidate.storageVersion || recordId(current) !== original.id) return;
-          const replacement = {...candidate.record, images: thin.images, cloud: thin.cloud, size: thin.size};
-          store.put({...replacement, storageVersion: crypto.randomUUID()}, candidate.key);
+          // A tiny original can be smaller than its thumbnail. Once backed up, it can serve as the cache.
+          const cache = keepOriginal ? candidate.record : thin;
+          const replacement = {...candidate.record, images: cache.images, cloud: thin.cloud, size: cache.size};
+          store.put({...replacement, storageVersion: crypto.randomUUID(),
+            ...(candidate.stagedOriginal && {localCloud: true})}, candidate.key);
           replaced = true;
         } catch (error) {
           failure = error;

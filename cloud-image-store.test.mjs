@@ -55,11 +55,11 @@ function fakeDrive({checksum = 'immediate', manifestResponseLost = false, maxFil
     if (url.pathname === '/drive/v3/files') {
       assert.equal(url.searchParams.get('spaces'), 'appDataFolder');
       assert.match(url.searchParams.get('q'), /moonlightImageManifest/);
-      assert.equal(url.searchParams.get('orderBy'), 'createdTime desc');
+      assert.equal(url.searchParams.get('orderBy'), 'name desc');
       const requested = Number(url.searchParams.get('pageSize'));
       const offset = Number(url.searchParams.get('pageToken') || 0);
       const candidates = [...files.values()].filter(file => file.kind === 'manifest').map(file => file.saved)
-        .sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime));
+        .sort((a, b) => a.name < b.name ? 1 : a.name > b.name ? -1 : 0);
       const end = Math.min(offset + requested, offset + maxFilesPerPage, candidates.length);
       events.push(['list', requested, offset]);
       return Response.json({files: candidates.slice(offset, end), nextPageToken: end < candidates.length ? String(end) : undefined});
@@ -89,6 +89,7 @@ test('writes separately encrypted image tiers and publishes the manifest without
   const cloud = await client.putBatch(record, renditions);
   assert.equal(cloud.version, 1);
   assert.equal(cloud.manifestId, 'file-4');
+  assert.match(files.get(cloud.manifestId).saved.name, /^moonlight-2026-11-25T00-00-00-000Z-/);
   assert.equal(cloud.batchId, record.id);
   const [image] = cloud.renditions;
   assert.deepEqual([image.thumbnail, image.preview, image.original], ['file-1', 'file-2', 'file-3']);
@@ -173,16 +174,17 @@ test('polling caches authenticated manifests, evicts absent IDs, and rechecks fa
   assert.equal(reads(), 3);
 });
 
-test('gallery capacity caps Drive pages and manifest reads even when more files are available', async () => {
+test('bounded manifest listing follows generation time even when older images were uploaded later', async () => {
   const {send, files, events} = fakeDrive({maxFilesPerPage: 2});
   const client = createCloudImageStore(auth, password, {send});
   const uploaded = [];
-  for (let index = 0; index < 5; index++) {
+  for (const [order, index] of [4, 2, 0, 3, 1].entries()) {
     const time = record.time + index * 1000;
     const cloud = await client.putBatch({...record, id: `batch-${index}`, time}, renditions);
-    files.get(cloud.manifestId).saved.createdTime = new Date(time).toISOString();
-    uploaded.unshift(cloud.manifestId);
+    files.get(cloud.manifestId).saved.createdTime = new Date(record.time + 1000 * (10 + order)).toISOString();
+    uploaded[index] = cloud.manifestId;
   }
+  uploaded.reverse();
   const otherDevice = createCloudImageStore(auth, password, {send});
   assert.deepEqual(await otherDevice.listBatches({limit: 0}), {records: [], skipped: 0});
   assert(!events.some(([operation]) => operation === 'list'));
@@ -204,6 +206,19 @@ test('gallery capacity caps Drive pages and manifest reads even when more files 
   const beforeRestore = events.length;
   await unlocked.listBatches({limit: 1});
   assert.deepEqual(events.slice(beforeRestore), [['list', 1, 0]]);
+});
+
+test('encrypted manifests with older upload-time filenames can still unlock and restore', async () => {
+  const {send, files} = fakeDrive();
+  const client = createCloudImageStore(auth, password, {send});
+  const {manifestId} = await client.putBatch(record, renditions);
+  files.get(manifestId).saved.name = 'moonlight-2026-12-01T00-00-00-000Z-legacy.moonlight-image-manifest.enc';
+  const otherDevice = createCloudImageStore(auth, password, {send});
+  assert.equal(await otherDevice.probePassword(), 'verified');
+  const {records, skipped} = await otherDevice.listBatches({limit: 1});
+  assert.equal(skipped, 0);
+  assert.equal(records[0].time, record.time);
+  assert.equal(records[0].cloud.manifestId, manifestId);
 });
 
 test('unlock probe distinguishes an empty vault from unreadable manifest metadata', async () => {

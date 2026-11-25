@@ -1,7 +1,8 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
 import {initializeImageControls} from './image-controls.mjs';
 import {mountImageDeck} from './image-deck.mjs';
-import {mergeCloudImageHistory, readImageHistory, replaceImageHistoryWithCloud, saveImageHistory} from './image-history.mjs';
+import {mergeCloudImageHistory, readImageHistory, replaceImageHistoryWithCloud, saveImageHistory, stageCloudImageHistory} from './image-history.mjs';
+import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
 import {money} from './image-usage.mjs';
 import {
   authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
@@ -120,31 +121,46 @@ export function initializeImages(getPrompt, cloud) {
     cloudStatus.hidden = !cloudStatus.textContent;
   }
 
-  function queueCloudUpload(record, localSaved, upload) {
+  function queueCloudUpload(record, staged, upload) {
     uploadsPending++;
-    showCloudStatus('');
+    showCloudStatus(staged?.overLimit ? '本机历史已超过设置上限，新生成的原图已保留。' : '');
     uploadQueue = uploadQueue.then(async () => {
       let message = '图片已保存到云图库。';
       let warning = false;
+      let uploaded = false;
       try {
         const thin = await upload(record);
-        try {
-          if (localSaved) await replaceImageHistoryWithCloud(record, thin);
-          else await mergeCloudImageHistory([thin]);
-          if (historyOpen) void showHistory();
-        } catch {
-          message += '暂时无法更新本机历史。';
-          warning = true;
-        }
+        uploaded = true;
+        const replaced = staged?.saved && await replaceImageHistoryWithCloud(record, thin);
+        if (!replaced) await mergeCloudImageHistory([thin]);
       } catch (error) {
-        message = '云图库同步失败。' + error.message;
-        if (!localSaved) message += '本机也未保存这一批原图。'
-          + (currentResultId === record.id ? '可从当前生图结果下载。' : '');
+        message = uploaded ? message + '暂时无法更新本机历史。' : '云图库同步失败。' + error.message;
         warning = true;
-      } finally {
-        uploadsPending--;
-        showCloudStatus(message, warning);
       }
+      try {
+        const local = await readImageHistory();
+        const limits = readHistoryLimits();
+        const entry = local.find(item => item.id === record.id);
+        if (entry) {
+          if (!uploaded && !entry.cloud) message += '本机已保留原图。';
+          if (local.length > limits.imageCount || local.reduce((sum, item) => sum + item.size, 0) > imageHistoryByteLimit(limits)) {
+            message += '本机历史已超过设置上限，可在历史设置中整理原图或调高上限。';
+            warning = true;
+          }
+        } else if (uploaded) {
+          message += limits.imageCount ? '本机历史未写入。可在历史设置中整理原图或调高上限，再同步缩略图。' : '本机生图历史已停用。';
+          warning = Boolean(limits.imageCount) || warning;
+        } else {
+          message += '本机未保存这一批原图。'
+            + (currentResultId === record.id ? '可从当前生图结果下载。' : '');
+        }
+      } catch {
+        message += '暂时无法确认本机历史。';
+        warning = true;
+      }
+      if (historyOpen) void showHistory();
+      uploadsPending--;
+      showCloudStatus(message, warning);
     });
   }
 
@@ -408,14 +424,15 @@ export function initializeImages(getPrompt, cloud) {
       showStatus(completed, Boolean(result.warning));
       const autoSync = cloud.enabled;
       const upload = autoSync && cloud.ready ? cloud.prepareUpload() : undefined;
-      let localSaved = false;
+      let local;
       try {
-        localSaved = (await saveImageHistory(record, undefined, {preserveOriginals: Boolean(upload)})).saved;
-        if (localSaved && historyOpen) void showHistory();
+        local = await (upload ? stageCloudImageHistory(record) : saveImageHistory(record));
+        if (local.saved && historyOpen) void showHistory();
+        if (!local.saved && !local.disabled && !upload) showStatus(completed + ' 本机历史容量已满。', true);
       } catch {
         showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
       }
-      if (upload) queueCloudUpload(record, localSaved, upload);
+      if (upload) queueCloudUpload(record, local, upload);
       else if (autoSync) showCloudStatus('请在历史设置中解锁 Google Drive。', true);
       else if (!uploadsPending) showCloudStatus('');
     } catch (error) {

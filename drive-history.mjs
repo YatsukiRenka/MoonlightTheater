@@ -89,7 +89,7 @@ function fileRecord(item, kind) {
 
 export async function listDriveBackups(auth, {send = globalThis.fetch} = {}) {
   const {files} = await listAppDataFiles(auth, fileKinds.backup, send);
-  return files;
+  return files.sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime));
 }
 
 export async function listDriveImageManifests(auth, {limit, send = globalThis.fetch} = {}) {
@@ -104,7 +104,8 @@ async function listAppDataFiles(auth, kind, send, limit = Infinity) {
   const pageLimit = Number.isFinite(limit) ? Math.ceil(limit / pageCapacity) + 4 : 100;
   const url = driveURL(filesPath, {
     spaces: 'appDataFolder', q: `trashed = false and appProperties has { key='${kind.property}' and value='1' }`,
-    fields: `nextPageToken,files(${backupFields})`, orderBy: 'createdTime desc',
+    fields: `nextPageToken,files(${backupFields})`,
+    orderBy: kind === fileKinds.manifest ? 'name desc' : 'createdTime desc',
   });
   const files = new Map();
   const tokens = new Set();
@@ -128,7 +129,7 @@ async function listAppDataFiles(auth, kind, send, limit = Infinity) {
     tokens.add(page.nextPageToken);
     url.searchParams.set('pageToken', page.nextPageToken);
   }
-  return {files: [...files.values()].sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime)), skipped};
+  return {files: [...files.values()], skipped};
 }
 
 function uploadURL(type, kind) {
@@ -136,8 +137,11 @@ function uploadURL(type, kind) {
   return driveURL(uploadPath, {uploadType: type, fields});
 }
 
-function uploadMetadata(kind) {
-  const date = new Date().toISOString().replace(/[:.]/g, '-');
+function uploadMetadata(kind, timestamp = Date.now()) {
+  const iso = new Date(timestamp).toISOString();
+  // Preserve lexicographic ordering for extended ISO years while keeping older filenames readable.
+  const sortableDate = iso.startsWith('+') ? '9999Z' + iso.slice(1) : iso;
+  const date = sortableDate.replace(/[:.]/g, '-');
   const suffix = crypto.randomUUID();
   return {name: `moonlight-${date}-${suffix}${kind.suffix}`, parents: ['appDataFolder'], mimeType: mediaType,
     appProperties: {[kind.property]: '1'}};
@@ -227,12 +231,15 @@ export async function uploadDriveBackup(auth, blob, {send = globalThis.fetch, on
   return uploadAppDataFile(auth, blob, fileKinds.backup, send, onProgress);
 }
 
-export async function uploadDriveImageObject(auth, blob, type, {send = globalThis.fetch} = {}) {
+export async function uploadDriveImageObject(auth, blob, type, {send = globalThis.fetch, generatedAt} = {}) {
   if (!(blob instanceof Blob) || !blob.size || blob.size > maxDriveBackupBytes
     || (type !== 'manifest' && type !== 'rendition') || await blob.slice(0, driveImageHeader.length).text() !== driveImageHeader) {
     throw new Error('云端图片文件无效或尚未加密。');
   }
-  const uploaded = await uploadAppDataFile(auth, blob, fileKinds[type], send, () => {});
+  if (type === 'manifest' && (!Number.isFinite(generatedAt) || generatedAt < 0 || generatedAt > 8.64e15)) {
+    throw new Error('云端生图记录的生成时间无效。');
+  }
+  const uploaded = await uploadAppDataFile(auth, blob, fileKinds[type], send, () => {}, type === 'manifest' ? generatedAt : undefined);
   if (type === 'rendition') uploadedRenditions.set(uploaded, Object.freeze({...uploaded}));
   return uploaded;
 }
@@ -241,8 +248,8 @@ function sha256Value(value) {
   return typeof value === 'string' && checksumPattern.test(value) ? value.toLowerCase() : null;
 }
 
-async function uploadAppDataFile(auth, blob, kind, send, onProgress) {
-  const metadata = uploadMetadata(kind);
+async function uploadAppDataFile(auth, blob, kind, send, onProgress, timestamp) {
+  const metadata = uploadMetadata(kind, timestamp);
   const response = blob.size <= multipartLimit ? await uploadMultipart(auth, blob, metadata, kind, send)
     : await uploadResumable(auth, blob, metadata, kind, send, onProgress);
   const saved = fileRecord(response, kind);

@@ -227,7 +227,7 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
       if (json.size > manifestLimit) throw new Error('云端生图记录超过大小限制。');
       const {blob} = await seal(json, salt, 'manifest');
       submitted = true;
-      const {id} = await uploadDriveImageObject(auth, blob, 'manifest', options);
+      const {id} = await uploadDriveImageObject(auth, blob, 'manifest', {...options, generatedAt: metadata.time});
       return {...cloud, manifestId: id};
     } catch (error) {
       // Once manifest submission starts, an ambiguous network error can hide a successful commit.
