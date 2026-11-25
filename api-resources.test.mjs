@@ -108,7 +108,12 @@ test('cannot save unverified credentials, unavailable models, or a proof for ano
   const options = {storage, origin};
   const key = 'test-key';
   await assert.rejects(saveOpenai('未验证', key, undefined, options), /先验证/);
+  await assert.rejects(verifyAPIResource('openai', {key}, {...options,
+    send: async () => new Response(null, {status: 401}),
+  }), /身份验证/);
+  assert.equal(storage.getItem(current), null);
   const newProof = await proofFor(key, options);
+  assert.equal(storage.getItem(current), null);
   await assert.rejects(saveOpenai('另一个来源', key, newProof, {...options, origin: 'https://other.example'}), /先验证/);
   await assert.rejects(saveOpenai('另一个储存空间', key, newProof, {...options, storage: browserStorage()}), /先验证/);
   await assert.rejects(saveAPIResource({provider: 'openai', values: {model: 'not-listed', key}, verification: newProof}, options), /列表/);
@@ -128,9 +133,10 @@ test('saved custom secrets are not reused after a domain or protocol change', as
     assert.equal(url, 'https://gateway.example/v1/models');
     if (!request.headers) return new Response(null, {status: 401});
     assert.equal(request.headers.Authorization, 'Bearer gateway-test-key');
-    return Response.json({data: [{id: values.model}]});
+    return Response.json({data: [{id: values.model, pricing: {currency: 'USD', per_image: 0.25}}]});
   }});
   const row = await saveAPIResource({provider: 'custom', values, verification: proof}, options);
+  assert.deepEqual(readAPIResources(storage)[0].config.prices[values.model], {currency: 'USD', perImage: 0.25, source: 'catalog'});
   const swapped = {format: 'openai', url: 'https://new-gateway.example/v1/images/generations', model: values.model};
   for (const next of [swapped, {format: 'gemini', url: 'https://gateway.example/v1/models/{model}:generateContent'}]) {
     await assert.rejects(verifyAPIResource('custom', next, {...options, id: row.id,

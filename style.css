@@ -332,6 +332,12 @@ dialog:has(.manual-choice) .choices { max-height: min(38vh, 280px); }
   border-radius: 8px;
   background: var(--lilac);
 }
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
 .resource-list {
   display: grid;
   gap: 12px;
@@ -359,7 +365,7 @@ dialog.resource-editor {
   overflow-y: auto;
 }
 .resource-editor .dialoghead button { min-width: 40px; min-height: 40px; }
-.resource-editor fieldset {
+.resource-editor fieldset, .resource-card fieldset {
   min-width: 0;
   border: 0;
   padding: 0;
@@ -421,6 +427,7 @@ dialog.resource-editor {
   color: #972f52;
 }
 @media (max-width: 720px) {
+  .resources-grid { grid-template-columns: minmax(0, 1fr); }
   .resource-row { grid-template-columns: minmax(0, 1fr) auto; }
   .resource-row-actions { grid-column: 1 / -1; }
 }

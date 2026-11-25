@@ -48,7 +48,7 @@ OpenAI 的静态图支持 JPEG/WebP 压缩，并可显示最多三张流式预�
 
 生图结果和历史会显示请求耗时、供应商报告的 Token 总数与费用。优先显示接口返回的实际费用，其次按配置时取得的模型单价估算。OpenAI 与 Google 的官方模型目录没有标准价格字段，已知型号按公开标准价估算。缺少用量或可用单价时会直接标明。 [OpenAI 价目表](https://developers.openai.com/api/docs/pricing) · [Gemini 价目表](https://aistudio.google.com/docs/pricing) · [Vertex AI 价目表](https://cloud.google.com/model-garden/pricing)
 
-API Key 和接口配置只保存在当前站点的浏览器本地存储。每条资源可单独编辑和删除。编辑原接口时，密钥栏留空可沿用已经保存的密钥；修改自定义接口的站点或兼容协议时需重新填写。Google 访问令牌只保留在当前页面内存，刷新后需重新授权。已有单条配置会在同一站点作为独立资源载入。切换站点、换设备或清除浏览器数据后，需要重新添加资源。
+API Key 和接口配置保存在当前浏览器按网页来源划分的本地存储中。每条资源可单独编辑和删除。编辑原接口时，密钥栏留空可沿用已经保存的密钥。修改自定义接口的站点或兼容协议时需重新填写。Google 访问令牌只保留在当前页面内存，刷新后需重新授权。已有单条配置会在同一来源下作为独立资源载入。改用其他来源、换设备或清除浏览器数据后，需要重新添加资源。
 
 月光剧场的托管服务只提供静态文件。浏览器直接将生图请求和认证信息发送给所选供应商。若需要使用自己核验过的网页代码，可以用上面的本地启动方式。
 
@@ -90,7 +90,9 @@ OpenAI 公布的「Sign in with ChatGPT」预览明确排除图片生成工具�
 
 首次部署时，在仓库「Settings → Pages → Build and deployment」将来源设为 **GitHub Actions**。工作流在 PR 中运行测试和静态构建，在 `main` 更新后发布 `dist/`。也可在 Actions 页面从 `main` 手动运行部署。 [GitHub Pages 发布源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
 
-本仓库的项目站点地址是 `https://yatsukirenka.github.io/MoonlightTheater/`。OAuth 的 JavaScript 来源和网关的 CORS 允许项使用 `https://yatsukirenka.github.io`。GitHub Pages 提供公开的静态页面，生图资源仍由各设备浏览器保存。 [GitHub Pages 站点类型](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+本仓库的项目站点地址是 `https://yatsukirenka.github.io/MoonlightTheater/`，与同一账号下使用默认域名的其他 Pages 站点共用 `https://yatsukirenka.github.io` 这个来源。浏览器按来源划分存储，`/MoonlightTheater/` 和同源的其他路径共用 `localStorage` 和 `IndexedDB`。其他同源站点的脚本可读取 `localStorage` 中的明文 API Key 和提示词记录，以及 `IndexedDB` 中的生图记录。 [GitHub Pages 站点类型](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+
+OAuth 客户端（包括 Drive 备份）的「已获授权的 JavaScript 来源」和网关的 CORS 允许项均使用 `https://yatsukirenka.github.io`。为项目站点配置独立的自定义域名后，应用将拥有单独的来源，这两项也需改为该自定义域名对应的来源。
 
 ## 开源许可
 

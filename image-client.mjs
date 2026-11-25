@@ -149,22 +149,6 @@ export function resolveImageResourceConfig(provider, values, {previous, origin =
   return {...draft, models, model: input.model, prices};
 }
 
-export function updateImageResource(id, action, values, {
-  storage = globalThis.localStorage, origin = location.origin, verification,
-} = {}) {
-  if (!resourceIds.includes(id) || !['save', 'remove'].includes(action)) throw new Error('请选择一个有效的接口。');
-  const resources = readImageResources(storage);
-  if (action === 'remove') delete resources[id];
-  else resources[id] = resolveImageResourceConfig(id, values, {previous: resources[id], origin, verification});
-  try {
-    if (Object.keys(resources).length) storage.setItem(resourceKey, JSON.stringify(resources));
-    else storage.removeItem(resourceKey);
-  } catch {
-    throw new Error('浏览器无法保存本地配置。');
-  }
-  return resources;
-}
-
 export function currentGoogleToken(authorization, resource) {
   if (authorization && resource?.clientId === authorization.clientId
     && resource?.project === authorization.project && authorization.expires > Date.now()) return authorization.token;
@@ -358,11 +342,6 @@ function providerAuthentication(provider, resource, authorization) {
   if (!resource.key) return {};
   return providerFormat(provider, resource) === 'openai'
     ? {Authorization: 'Bearer ' + resource.key} : {'x-goog-api-key': resource.key};
-}
-
-export async function verifyImageResource(provider, values, {storage = globalThis.localStorage, ...options} = {}) {
-  if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
-  return verifyImageResourceConfig(provider, values, {...options, previous: readImageResources(storage)[provider]});
 }
 
 export async function verifyImageResourceConfig(provider, values, {
