@@ -114,3 +114,27 @@ test('Vertex verification lists models with the authorized project and stores no
   assert(!JSON.stringify(stored).includes(authorization.token));
   assert(describeImageResources(stored, proof.authorization, origin).providers['gemini-oauth'].connected);
 });
+
+test('gateway pricing is saved during verification and used with returned image usage', async () => {
+  const options = {origin, storage: browserStorage()};
+  const draft = {url: 'https://gateway.example/v1/images/generations', format: 'openai', model: 'custom-model'};
+  const proof = await verifyImageResource('custom', draft, {
+    ...options,
+    send: async () => Response.json({data: [{id: draft.model, pricing: {currency: 'USD', unit: 'per_image', output: 0.25}}]}),
+  });
+  updateImageResource('custom', 'save', draft, {...options, verification: proof});
+  const resources = readImageResources(options.storage);
+  const request = {provider: 'custom', aspect: 'auto', prompt: 'A character'};
+  const data = [{b64_json: 'iVBORw0KGgoAAAANSUhEUg=='}];
+  const usage = {input_tokens: 2, output_tokens: 8};
+  const result = await generateImage(request, resources, null, {
+    ...options, send: async () => Response.json({data, usage}),
+  });
+  assert(result.metrics.elapsed >= 0);
+  assert.equal(result.metrics.tokens.total, 10);
+  assert.deepEqual(result.metrics.cost, {value: 0.25, currency: 'USD', source: 'catalog'});
+  const billed = await generateImage(request, resources, null, {
+    ...options, send: async () => Response.json({data, usage: {...usage, cost_usd: 0}}),
+  });
+  assert.deepEqual(billed.metrics.cost, {value: 0, currency: 'USD', source: 'reported'});
+});

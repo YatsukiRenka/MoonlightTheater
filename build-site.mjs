@@ -2,7 +2,8 @@ import {cp, mkdir, rm, writeFile} from 'node:fs/promises';
 
 const assets = [
   'index.html', 'style.css', 'app.mjs', 'engine.mjs', 'icons.mjs', 'images.mjs',
-  'image-settings.mjs', 'image-client.mjs', 'profile.json', 'assets/banner.webp',
+  'image-settings.mjs', 'image-client.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
+  'profile.json', 'assets/banner.webp',
 ];
 const output = new URL('./dist/', import.meta.url);
 await rm(output, {recursive: true, force: true});

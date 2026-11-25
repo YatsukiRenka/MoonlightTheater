@@ -1,4 +1,6 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
+import {readImageHistory, saveImageHistory} from './image-history.mjs';
+import {money} from './image-usage.mjs';
 import {
   authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
   readImageResources, updateImageResource, verifyImageResource,
@@ -18,13 +20,36 @@ function readPreferences() {
   return {provider: 'openai', aspect: 'auto', models: {}};
 }
 
-function makeAsset(image, index, seed) {
-  const blob = image.blob || new Blob([
+function imageBlob(image) {
+  return image.blob || new Blob([
     Uint8Array.from(atob(image.base64), byte => byte.charCodeAt(0)),
   ], {type: image.mime});
-  const url = URL.createObjectURL(blob);
-  const fileSeed = seed.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
-  return {url, filename: 'moonlight-' + fileSeed + '-' + (index + 1) + '.' + imageTypes[image.mime]};
+}
+
+function renderMetrics(container, metrics) {
+  if (!metrics) return;
+  const formatted = value => value.toLocaleString('zh-HK');
+  const tokens = metrics.tokens?.total;
+  const cost = metrics.cost;
+  const subtitle = cost?.source === 'reported' ? '接口返回'
+    : cost?.upperBound ? '估算上限' : cost?.source === 'catalog' ? '接口目录估算' : '官方参考价估算';
+  const parts = [
+    ['耗时', (metrics.elapsed / 1000).toFixed(1) + ' 秒'],
+    ['Token 合计', tokens == null ? '接口未返回' : formatted(tokens)],
+    ['费用', cost ? money(cost.value, cost.currency) + ' · ' + subtitle : '暂无可用估算'],
+  ];
+  const list = document.createElement('dl');
+  for (const [label, value] of parts) {
+    const item = document.createElement('div');
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const data = document.createElement('dd');
+    data.textContent = value;
+    item.append(term, data);
+    list.append(item);
+  }
+  container.replaceChildren(list);
+  container.hidden = false;
 }
 
 export function initializeImages(getPrompt) {
@@ -37,10 +62,13 @@ export function initializeImages(getPrompt) {
   const generate = byId('imageGenerate');
   const connection = byId('imageConnection');
   const status = byId('imageStatus');
+  const metricsBox = byId('imageMetrics');
   const empty = byId('imageEmpty');
   const gallery = byId('imageGallery');
   const preview = byId('imagePreview');
   const previewImage = byId('imagePreviewAsset');
+  const history = byId('imageRecords');
+  const historyStatus = byId('imageHistoryStatus');
 
   const preferences = readPreferences();
   provider.value = preferences.provider;
@@ -50,7 +78,11 @@ export function initializeImages(getPrompt) {
   let resources = {};
   let authorization;
   let expiryTimer;
-  let assets = [];
+  let galleryURLs = [];
+  let historyURLs = [];
+  let previewURL;
+  let historyOpen = false;
+  let historyRead = 0;
 
   const imageSettings = initializeImageSettings({
     verify: (id, values) => verifyImageResource(id, values, {authorization}),
@@ -132,12 +164,12 @@ export function initializeImages(getPrompt) {
     }
   }
 
-  function renderImages(images, context) {
-    const nextAssets = images.map((image, index) => makeAsset(image, index, context.seed));
-    assets.forEach(asset => URL.revokeObjectURL(asset.url));
-    assets = nextAssets;
-    gallery.replaceChildren();
-    for (const [index, asset] of assets.entries()) {
+  function appendImages(container, images, record, compact = false) {
+    const urls = [];
+    const fileSeed = record.seed.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
+    for (const [index, blob] of images.entries()) {
+      const url = URL.createObjectURL(blob);
+      urls.push(url);
       const card = document.createElement('figure');
       const thumb = document.createElement('button');
       thumb.type = 'button';
@@ -145,30 +177,94 @@ export function initializeImages(getPrompt) {
       thumb.setAttribute('aria-label', '放大查看角色图 ' + (index + 1));
       const image = document.createElement('img');
       image.alt = '';
-      image.referrerPolicy = 'no-referrer';
+      if (compact) image.loading = 'lazy';
       image.addEventListener('error', () => {
         thumb.disabled = true;
         thumb.textContent = '图片载入失败';
       });
-      image.src = asset.url;
+      image.src = url;
       thumb.append(image);
       thumb.onclick = () => {
-        previewImage.src = asset.url;
+        previewURL = URL.createObjectURL(blob);
+        previewImage.src = previewURL;
         preview.showModal();
       };
       const caption = document.createElement('figcaption');
-      const metadata = document.createElement('span');
-      metadata.textContent = context.model + ' · ' + (context.language === 'en' ? 'EN' : '中文') + ' · ' + context.seed;
+      if (!compact) {
+        const metadata = document.createElement('span');
+        metadata.textContent = record.model + ' · ' + (record.language === 'en' ? 'EN' : '中文') + ' · ' + record.seed;
+        caption.append(metadata);
+      }
       const link = document.createElement('a');
-      link.href = asset.url;
-      link.download = asset.filename;
+      link.href = url;
+      link.download = 'moonlight-' + fileSeed + '-' + (index + 1) + '.' + imageTypes[blob.type];
       link.textContent = '下载原图';
-      caption.append(metadata, link);
+      caption.append(link);
       card.append(thumb, caption);
-      gallery.append(card);
+      container.append(card);
     }
+    return urls;
+  }
+
+  function renderImages(record) {
+    galleryURLs.forEach(url => URL.revokeObjectURL(url));
+    gallery.replaceChildren();
+    galleryURLs = appendImages(gallery, record.images, record);
+    renderMetrics(metricsBox, record.metrics);
     empty.hidden = true;
     gallery.hidden = false;
+  }
+
+  function releaseHistory() {
+    historyURLs.forEach(url => URL.revokeObjectURL(url));
+    historyURLs = [];
+    history.replaceChildren();
+  }
+
+  function hideHistory() {
+    historyOpen = false;
+    historyRead++;
+    releaseHistory();
+  }
+
+  async function showHistory() {
+    historyOpen = true;
+    const read = ++historyRead;
+    historyStatus.textContent = '正在读取生图记录…';
+    let records;
+    try {
+      records = await readImageHistory();
+    } catch {
+      if (read === historyRead) historyStatus.textContent = '无法读取此浏览器的生图记录。';
+      return;
+    }
+    if (read !== historyRead) return;
+    releaseHistory();
+    historyStatus.textContent = records.length ? '' : '此浏览器还没有生图记录。';
+    for (const record of records) {
+      const card = document.createElement('article');
+      card.className = 'panel image-history-record';
+      const title = document.createElement('h2');
+      title.textContent = (names[record.provider] || record.provider) + ' · ' + record.model;
+      const date = document.createElement('time');
+      date.dateTime = new Date(record.time).toISOString();
+      date.textContent = new Date(record.time).toLocaleString('zh-CN');
+      const thumbnails = document.createElement('div');
+      thumbnails.className = 'image-gallery';
+      historyURLs.push(...appendImages(thumbnails, record.images, record, true));
+      const metrics = document.createElement('div');
+      metrics.className = 'image-metrics';
+      metrics.hidden = true;
+      renderMetrics(metrics, record.metrics);
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = '查看生成时的提示词 · ' + (record.language === 'en' ? 'EN' : '中文');
+      const prompt = document.createElement('pre');
+      prompt.textContent = record.prompt;
+      details.append(summary, prompt);
+      card.append(title, date, thumbnails, metrics, details);
+      history.append(card);
+    }
   }
 
   provider.onchange = () => {
@@ -185,7 +281,11 @@ export function initializeImages(getPrompt) {
     savePreferences();
   };
   byId('closeImagePreview').onclick = () => preview.close();
-  preview.onclose = () => previewImage.removeAttribute('src');
+  preview.onclose = () => {
+    previewImage.removeAttribute('src');
+    URL.revokeObjectURL(previewURL);
+    previewURL = undefined;
+  };
 
   connect.onclick = async () => {
     try {
@@ -212,8 +312,19 @@ export function initializeImages(getPrompt) {
       const result = await generateImage({
         provider: selectedProvider, model: model.value, aspect: aspect.value, prompt: context.prompt,
       }, resources, authorization);
-      renderImages(result.images, {...context, model: result.model});
-      showStatus('已生成 ' + result.images.length + ' 张图片。');
+      const record = {
+        ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
+        images: result.images.map(imageBlob),
+      };
+      renderImages(record);
+      const completed = '已生成 ' + record.images.length + ' 张图片。';
+      showStatus(completed);
+      try {
+        await saveImageHistory(record);
+        if (historyOpen) void showHistory();
+      } catch {
+        showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
+      }
     } catch (error) {
       showStatus(error.message, true);
       if (selectedProvider === 'gemini-oauth' && error.status === 401) authorization = undefined;
@@ -229,4 +340,5 @@ export function initializeImages(getPrompt) {
   window.addEventListener('hashchange', () => {
     if (location.hash === '#settings') refreshAvailability();
   });
+  return {showHistory, hideHistory};
 }

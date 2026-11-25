@@ -1,3 +1,5 @@
+import {catalogPrice, modelPrice, summarizeImageUsage} from './image-usage.mjs';
+
 const resourceKey = 'moonlight-image-resources-v1';
 const resourceIds = ['openai', 'gemini', 'gemini-oauth', 'custom'];
 const projectPattern = /^(?:[a-z][a-z0-9-]{4,28}[a-z0-9]|[0-9]{6,20})$/;
@@ -113,15 +115,18 @@ export function updateImageResource(id, action, values, {
     const draft = validateResource(id, record(values), previous, origin);
     const verified = verifications.get(verification);
     let models;
+    let prices = {};
     if (verified?.id === id && JSON.stringify(verified.draft) === JSON.stringify(draft)) {
       models = verification.models;
+      prices = verification.prices;
     } else if (!verification && previous
       && Object.entries(draft).every(([name, value]) => value === previous[name])) {
       models = savedModels(id, previous);
+      prices = previous.prices || {};
     }
     if (!models?.length) throw new Error('请先验证当前接口配置并获取模型。');
     if (!models.includes(values.model)) throw new Error('请从返回的列表中选择一个模型。');
-    resources[id] = {...draft, models, model: values.model};
+    resources[id] = {...draft, models, model: values.model, prices};
   }
   try {
     if (Object.keys(resources).length) storage.setItem(resourceKey, JSON.stringify(resources));
@@ -161,7 +166,7 @@ export function describeImageResources(saved, authorization, origin = location.o
   const resources = Object.fromEntries(resourceIds.map(id => [
     id, {
       saved: Boolean(saved[id]), hasSecret: Boolean(saved[id]?.key), ready: providers[id].ready,
-      models: providers[id].models, model: providers[id].model,
+      models: providers[id].models, model: providers[id].model, prices: saved[id]?.prices || {},
     },
   ]));
   Object.assign(resources['gemini-oauth'], {clientId: oauth.clientId || '', project: oauth.project || ''});
@@ -292,19 +297,21 @@ function hasImageOutput(row, id, provider, format) {
     : /^gemini-(?:.*-image(?:-|$)|nano-banana(?:-|$))/.test(id);
 }
 
-function pageModelIds(response, provider, format) {
+function pageModels(response, provider, format) {
   if (provider === 'gemini-oauth') {
-    return array(response.publisherModels).map(row => {
+    return array(response.publisherModels).flatMap(row => {
       const ids = [row?.publisherModelTemplate, row?.versionId, row?.name]
         .map(value => typeof value === 'string' ? value.split('/').at(-1).split('@')[0] : '');
-      return ids.find(id => id.startsWith('gemini-') && validModel(id, format) && hasImageOutput(row, id, provider, format));
-    }).filter(Boolean);
+      const id = ids.find(id => id.startsWith('gemini-') && validModel(id, format) && hasImageOutput(row, id, provider, format));
+      return id ? [{id, price: catalogPrice(row?.pricing)}] : [];
+    });
   }
   const rows = format === 'openai' ? array(response.data) : array(response.models);
   return rows.flatMap(row => {
     const value = typeof row === 'string' ? row : format === 'openai' ? row?.id : row?.name;
     const id = format === 'gemini' && typeof value === 'string' ? value.replace(/^models\//, '') : value;
-    return validModel(id, format) && hasImageOutput(row, id, provider, format) ? [id] : [];
+    return validModel(id, format) && hasImageOutput(row, id, provider, format)
+      ? [{id, price: catalogPrice(row?.pricing)}] : [];
   });
 }
 
@@ -336,11 +343,15 @@ export async function verifyImageResource(provider, values, {
     headers['x-goog-user-project'] = draft.project;
   } else catalog = modelListURL(draft, origin);
   const models = new Set();
+  const prices = new Map();
   const tokens = new Set();
   const firstPage = catalog.href;
   for (;;) {
     const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, 20_000));
-    for (const model of pageModelIds(response, provider, format)) models.add(model);
+    for (const {id, price} of pageModels(response, provider, format)) {
+      models.add(id);
+      if (price) prices.set(id, Object.freeze(price));
+    }
     const next = response.nextPageToken;
     if (!next) break;
     if (typeof next !== 'string' || tokens.has(next) || tokens.size >= 20) throw new Error('无法读取完整模型列表。');
@@ -360,6 +371,7 @@ export async function verifyImageResource(provider, values, {
   }
   const verification = Object.freeze({
     models: Object.freeze([...models].sort((a, b) => a.localeCompare(b, 'en', {numeric: true}))),
+    prices: Object.freeze(Object.fromEntries(prices)),
     authorization: provider === 'gemini-oauth' ? authorization : undefined,
   });
   verifications.set(verification, {id: provider, draft});
@@ -439,9 +451,11 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
           ...(aspects[aspect] ? {imageConfig: {aspectRatio: aspects[aspect]}} : {}),
         },
       };
+  const started = performance.now();
   const response = await outbound(url, {method: 'POST', headers, body: JSON.stringify(payload)}, send);
   const result = await readAPIJSON(response);
   const images = await extractImages(result, format, origin, send);
   if (!images.length) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
-  return {model, images};
+  const usage = summarizeImageUsage(result, format, modelPrice(provider, model, resource.prices), images.length);
+  return {model, images, metrics: {...usage, elapsed: performance.now() - started}};
 }

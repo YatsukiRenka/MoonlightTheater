@@ -1,10 +1,10 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#faf8fb"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>素材库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
+<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>设计库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
 <main><section id="studio">
 <div class="hero"><div class="hero-copy"><div class="hero-kicker"><span>✧</span> MOONLIGHT THEATER</div><h1>角色提示词生成器</h1><p>搭配造型、配色与神态，为下一个原创角色写下设定。</p><div class="actions"><button class="primary" id="generate"><i data-icon="dice"></i>随机生成</button><button class="ghost" id="fresh"><i data-icon="spark"></i>全新角色</button></div></div></div>
-<section class="panel settings"><div class="section-heading"><span class="iconbox"><i data-icon="sliders"></i></span><h2>生成设置</h2><button class="subtle right" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div>
+<section class="panel settings"><div class="section-heading"><span class="iconbox"><i data-icon="sliders"></i></span><h2>生成设置</h2><button class="subtle right" id="toggleImageStudio" type="button" aria-expanded="true" aria-controls="imageStudio">隐藏生图</button><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div>
 <div class="fields"><label>风格分支<select id="branch"></select></label><label>绘制画风<select id="style"></select></label><label>探索度 <b class="number" id="exploreValue">18%</b><input type="range" min="0" max="100" id="explore"></label><label>随机种子 <span class="seedinput"><input id="seed" placeholder="输入种子" maxlength="128"><button type="button" id="replay" title="按种子重现" aria-label="按种子重现"><i data-icon="repeat"></i></button></span></label></div></section>
-<div class="workgrid"><section class="panel design"><div class="section-heading"><span class="iconbox"><i data-icon="layers"></i></span><h2>角色设计</h2><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
+<div class="workgrid" id="workgrid"><div class="work-input"><section class="panel design"><div class="section-heading"><span class="iconbox"><i data-icon="layers"></i></span><h2>角色设计</h2><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
 <section class="panel prompt"><div class="section-heading"><span class="iconbox"><i data-icon="text"></i></span><h2>完整提示词</h2><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button><button class="secondary" id="exportChar"><i data-icon="download"></i>导出 JSON</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
 <section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading">
   <div class="section-heading">
@@ -43,14 +43,33 @@
     </form>
     <div class="image-results">
       <p id="imageStatus" class="image-status" role="status" aria-live="polite"></p>
+      <div id="imageMetrics" class="image-metrics" hidden></div>
       <div id="imageEmpty" class="image-empty"><i data-icon="image"></i><span>生成的角色图将在这里显示</span></div>
       <div id="imageGallery" class="image-gallery" hidden></div>
     </div>
   </div>
 </section>
+</div>
 </section>
-<section id="library" hidden><div class="pagehead"><div><small>MATERIAL LIBRARY</small><h1>素材库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入配置</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出配置</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="iconbox"><i data-icon="book"></i></span><h2>素材与抽取权重</h2></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
-<section id="history" hidden><div class="pagehead"><div><small>GENERATION HISTORY</small><h1>历史记录</h1></div><span class="subtle">保留最近 100 条</span></div><div id="records"></div></section>
+<section id="library" hidden><div class="pagehead"><div><small>MATERIAL LIBRARY</small><h1>设计库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入设计库</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出设计库</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="iconbox"><i data-icon="book"></i></span><h2>素材与抽取权重</h2></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
+<section id="history" hidden>
+  <div class="pagehead history-heading">
+    <h1>历史记录</h1>
+    <div class="seg history-switch" role="tablist" aria-label="记录类型">
+      <button type="button" id="promptHistoryTab" role="tab" aria-selected="true" aria-controls="promptHistory" class="selected">提示词记录</button>
+      <button type="button" id="imageHistoryTab" role="tab" aria-selected="false" aria-controls="imageHistory" tabindex="-1">生图记录</button>
+    </div>
+  </div>
+  <div id="promptHistory" role="tabpanel" aria-labelledby="promptHistoryTab">
+    <p class="note history-note">保留最近 100 条提示词记录</p>
+    <div id="records"></div>
+  </div>
+  <div id="imageHistory" role="tabpanel" aria-labelledby="imageHistoryTab" hidden>
+    <p class="note history-note">此浏览器最多保留最近 30 批图片，总计 64 MB</p>
+    <p class="note" id="imageHistoryStatus" role="status"></p>
+    <div class="image-history-list" id="imageRecords"></div>
+  </div>
+</section>
 <section id="settings" aria-labelledby="settingsHeading" hidden>
   <div class="pagehead resources-heading">
     <div><h1 id="settingsHeading">生图资源设置</h1><p>配置只保存在当前浏览器。换设备或清除浏览器数据后需重新填写。</p></div>
@@ -65,6 +84,7 @@
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
         <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
+        <p class="note resource-price" data-price hidden></p>
         <div class="resource-actions">
           <button class="secondary" type="button" data-verify>验证并获取模型</button>
           <button class="copy" type="submit" disabled>保存 OpenAI</button>
@@ -80,6 +100,7 @@
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
         <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
+        <p class="note resource-price" data-price hidden></p>
         <div class="resource-actions">
           <button class="secondary" type="button" data-verify>验证并获取模型</button>
           <button class="copy" type="submit" disabled>保存 Gemini</button>
@@ -103,6 +124,7 @@
         </div>
         <p class="note">将此地址加到 Google Cloud 的 Web 应用 JavaScript 来源，并在项目中启用 Vertex AI。</p>
         <label class="settinglabel">默认模型<select name="model" disabled><option value="">授权后获取模型</option></select></label>
+        <p class="note resource-price" data-price hidden></p>
         <div class="resource-actions">
           <button class="secondary" type="button" data-verify>授权并获取模型</button>
           <button class="copy" type="submit" disabled>保存 OAuth</button>
@@ -130,6 +152,7 @@
         </label>
         <label class="resource-check" data-clear-key hidden><input type="checkbox" name="clearKey">清除已保存的网关密钥</label>
         <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
+        <p class="note resource-price" data-price hidden></p>
         <div class="resource-actions">
           <button class="secondary" type="button" data-verify>验证并获取模型</button>
           <button class="copy" type="submit" disabled>保存自定义接口</button>

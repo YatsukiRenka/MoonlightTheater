@@ -30,20 +30,37 @@ function pick(list,rng,branch,mult=1){
  const weights=list.map(e=>(e.weight??1)*(branch&&e.tags?.some(t=>branch.preferredTags.includes(t))?mult:1));let n=rng()*weights.reduce((a,b)=>a+b,0);
  for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return list[i]}
 }
-export function pool(c,k,s){if(k==='branch')return c.branches;if(k==='style')return c.styles;if(k==='presentation')return c.presentations;if(k==='palette')return c.palettes;if(['hairColor','eyeColor'].includes(k))return (get(c.palettes,s.palette)?.[k+'s']||[]).map(e=>({...e,id:e.zh}));return c.pools[k]}
-export function compatible(c,s){const r=c.rules;
- if(s.headAccessory&&r.headAccessoryExcludeWhenNonhuman.includes(s.nonhuman))return '当前非人特征与独立头饰冲突';
+const manualEntry = (manual, key, id) => manual?.[key]?.find(entry => entry.id === id);
+export function pool(c, k, s, manual) {
+ if (k === 'branch') return c.branches;
+ if (k === 'style') return c.styles;
+ if (k === 'presentation') return c.presentations;
+ if (k === 'palette') return c.palettes;
+ if (k === 'hairColor' || k === 'eyeColor') {
+  const palette = get(c.palettes, s.palette);
+  const colorKey = k + 's';
+  const options = palette ? palette[colorKey] : manualEntry(manual, 'palette', s.palette)
+   ? [...new Map(c.palettes.flatMap(item => item[colorKey]).map(color => [color.zh, color])).values()] : [];
+  return options.map(color => ({...color, id: color.zh}));
+ }
+ return c.pools[k];
+}
+export function materialChoices(c, key, selection, manual) {
+ return [...pool(c, key, selection, manual), ...(manual?.[key] || [])];
+}
+export function compatible(c,s,manual){const r=c.rules;
+ if(s.headAccessory&&!manualEntry(manual,'headAccessory',s.headAccessory)&&r.headAccessoryExcludeWhenNonhuman.includes(s.nonhuman))return '当前非人特征与独立头饰冲突';
  if(s.headAccessory&&r.outfitHeadAccessoryExclusion[s.outfit]?.includes(s.headAccessory))return '当前服装与头饰冲突';
- if(s.legwear!==undefined&&r.forceLegwearNoneForOutfits.includes(s.outfit)&&s.legwear!=='none')return '这套服装要求袜装选择「不单独指定」';
- if(s.palette){let p=get(c.palettes,s.palette);if(!p)return '配色不存在';for(const k of ['hairColor','eyeColor'])if(s[k]&&!p[k+'s'].some(e=>e.zh===s[k]))return '配色不包含当前'+labels[k]}
+ if(s.legwear!==undefined&&r.forceLegwearNoneForOutfits.includes(s.outfit)&&s.legwear!=='none'&&!manualEntry(manual,'legwear',s.legwear))return '这套服装要求袜装选择「不单独指定」';
+ if(s.palette&&!manualEntry(manual,'palette',s.palette)){let p=get(c.palettes,s.palette);if(!p)return '配色不存在';for(const k of ['hairColor','eyeColor'])if(s[k]&&!manualEntry(manual,k,s[k])&&!p[k+'s'].some(e=>e.zh===s[k]))return '配色不包含当前'+labels[k]}
  return '';
 }
 export function similarity(c,a,b,locked={}){let score=0,total=0;for(const [k,w] of Object.entries(c.rules.similarityWeights)){if(k in locked||(a[k]==null&&b[k]==null))continue;total+=w;if(a[k]===b[k])score+=w}return total?score/total:0}
-export function generate(c,seed,{fixed={},history=[],exploration=c.settings.exploration,exclude={}}={}){
- const rng=rngFor(seed),cfg=c.settings;const invalid=compatible(c,fixed);if(invalid)throw Error(invalid+'，请调整或解锁相关项。');
+export function generate(c,seed,{fixed={},history=[],exploration=c.settings.exploration,exclude={},manual}={}){
+ const rng=rngFor(seed),cfg=c.settings;const invalid=compatible(c,fixed,manual);if(invalid)throw Error(invalid+'，请调整或解锁相关项。');
  const preset=(k,defaultId)=>{if(k in fixed)return fixed[k];if(!(k in exclude))return defaultId;const next=pick(pool(c,k,{}).filter(e=>e.id!==exclude[k]),rng);if(!next)throw Error(labels[k]+'仅有一个候选');return next.id};
- const alternatives=(k,s)=>pool(c,k,s).filter(e=>e.id!==exclude[k]&& !compatible(c,{...s,[k]:e.id}));
- const branch='branch' in fixed?get(c.branches,fixed.branch):pick(alternatives('branch',fixed),rng);
+ const alternatives=(k,s)=>pool(c,k,s,manual).filter(e=>e.id!==exclude[k]&& !compatible(c,{...s,[k]:e.id},manual));
+ const branch='branch' in fixed?(get(c.branches,fixed.branch)||manualEntry(manual,'branch',fixed.branch)):pick(alternatives('branch',fixed),rng);
  if(!branch)throw Error('没有可选风格');const mult=rng()<exploration?1:cfg.branchAffinityMultiplier;
  let best,score=Infinity;
  for(let i=0;i<cfg.candidateCount;i++){
@@ -51,7 +68,7 @@ export function generate(c,seed,{fixed={},history=[],exploration=c.settings.expl
   for(const k of ['palette','hairColor','eyeColor','silhouette','face','hair','expression','outfit','nonhuman','headAccessory','legwear','footwear','prop','pose']){
    if(k in fixed)continue;
    if(k in optional&&rng()>=cfg[optional[k]]&&exclude[k]!==null){s[k]=null;continue}
-   const opts=alternatives(k,s);let entry=pick(opts,rng,k==='pose'?null:branch,mult);
+   const opts=alternatives(k,s);let entry=pick(opts,rng,k==='pose'||branch.manual?null:branch,mult);
    if(!entry&&!(k in optional))throw Error(labels[k]+'没有兼容的其他候选，请调整或解锁相关项。');
    if(!entry&&exclude[k]===null)throw Error(labels[k]+'暂无兼容候选，请调整相关项。');
    s[k]=entry?.id??null;
@@ -62,9 +79,10 @@ export function generate(c,seed,{fixed={},history=[],exploration=c.settings.expl
  }
  return {selection:best,similarityWarning:true};
 }
-export function renderPrompt(c,s,lang){const val=k=>get(pool(c,k,s),s[k])?.[lang]||'';const zh=lang==='zh';const line=(...a)=>a.filter(Boolean).map(x=>x.replace(/[。.!]+$/,'')).join(zh?'。':'. ')+(zh?'。':'.');
- const colorName=name=>name.endsWith('色')||name.includes('挑染')?name:name+'色';
- const color=zh?colorName(val('hairColor'))+'的头发，'+val('hair'):val('hairColor')+' hair, '+val('hair');
- const eyes=zh?colorName(val('eyeColor'))+'眼睛，'+val('expression'):val('eyeColor')+' eyes, '+val('expression');
- return [line(zh?'原创日系二次元角色设计':'Original Japanese anime character design',val('silhouette'),val('face'),color,eyes),line(val('outfit'),val('palette'),val('headAccessory'),val('nonhuman'),['none','bare'].includes(s.legwear)?'':val('legwear'),val('footwear'),val('prop'),val('pose')),line(val('style'),val('presentation'),zh?'细节服务于整体轮廓，装饰简洁有序':'Keep the silhouette distinct and the decorative details restrained')].join('\n\n');
+export function renderPrompt(c,s,lang,manual){const val=k=>(manualEntry(manual,k,s[k])||get(pool(c,k,s,manual),s[k]))?.[lang]||'';const zh=lang==='zh';const line=(...a)=>a.filter(Boolean).map(x=>x.replace(/[。.!]+$/,'')).join(zh?'。':'. ')+(zh?'。':'.');
+ const colorName=k=>{const name=val(k);return manualEntry(manual,k,s[k])||name.endsWith('色')||name.includes('挑染')?name:name+'色'};
+ const color=zh?colorName('hairColor')+'的头发，'+val('hair'):val('hairColor')+' hair, '+val('hair');
+ const eyes=zh?colorName('eyeColor')+'眼睛，'+val('expression'):val('eyeColor')+' eyes, '+val('expression');
+ const branch=manualEntry(manual,'branch',s.branch)?val('branch'):'';
+ return [line(zh?'原创日系二次元角色设计':'Original Japanese anime character design',branch,val('silhouette'),val('face'),color,eyes),line(val('outfit'),val('palette'),val('headAccessory'),val('nonhuman'),['none','bare'].includes(s.legwear)?'':val('legwear'),val('footwear'),val('prop'),val('pose')),line(val('style'),val('presentation'),zh?'细节服务于整体轮廓，装饰简洁有序':'Keep the silhouette distinct and the decorative details restrained')].join('\n\n');
 }

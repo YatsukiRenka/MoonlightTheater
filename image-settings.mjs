@@ -1,3 +1,5 @@
+import {modelPrice, priceLabel} from './image-usage.mjs';
+
 export function setModelOptions(select, ids, value, placeholder) {
   const empty = new Option(placeholder, '');
   empty.disabled = Boolean(ids.length);
@@ -14,7 +16,8 @@ export function initializeImageSettings({verify, save, google}) {
     form, id: form.dataset.resource, fields: form.querySelector('fieldset'),
     state: form.querySelector('[data-state]'), remove: form.querySelector('[data-remove]'),
     verify: form.querySelector('[data-verify]'), save: form.querySelector('[type="submit"]'),
-    model: form.elements.namedItem('model'), message: form.querySelector('[data-message]'), dirty: false,
+    model: form.elements.namedItem('model'), price: form.querySelector('[data-price]'),
+    message: form.querySelector('[data-message]'), dirty: false,
   }));
   const oauth = cards.find(card => card.id === 'gemini-oauth');
   const custom = cards.find(card => card.id === 'custom');
@@ -61,6 +64,9 @@ export function initializeImageSettings({verify, save, google}) {
         models.length ? '请选择模型' : '验证后获取模型');
       card.model.disabled = !models.length;
       card.save.disabled = !card.model.value;
+      card.price.hidden = !card.model.value;
+      card.price.textContent = card.model.value
+        ? priceLabel(modelPrice(card.id, card.model.value, card.verification?.prices || resource?.prices)) : '';
     }
     login.hidden = !snapshot?.providers?.['gemini-oauth']?.connected;
     showURLHelp();
