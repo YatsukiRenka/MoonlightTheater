@@ -1,6 +1,6 @@
 import {archiveIsEncrypted, createHistoryArchive, decryptHistoryArchive, encryptHistoryArchive, readHistoryArchive} from './history-archive.mjs';
 import {authorizeDrive, downloadDriveBackup, listDriveBackups, preloadDriveAuthorization, uploadDriveBackup} from './drive-history.mjs';
-import {historyLimitRanges, imageCapacityUnits, readHistoryLimits, saveHistoryLimits} from './history-limits.mjs';
+import {formatImageCapacity, historyLimitRanges, parseImageCapacityInput, readHistoryLimits, saveHistoryLimits} from './history-limits.mjs';
 import {mergeImageHistory, pruneImageHistory, readImageHistory} from './image-history.mjs';
 import {validatePromptBackup} from './prompt-history.mjs';
 import {isSafeHistoryImage} from './image-file.mjs';
@@ -55,6 +55,8 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const fileStatus = byId('historyFileStatus');
   const limitsForm = byId('historyLimits');
   const limitsStatus = byId('historyLimitStatus');
+  const imageCapacityInput = limitsForm.elements.namedItem('imageCapacity');
+  const imageUnitInput = limitsForm.elements.namedItem('imageUnit');
   const connect = byId('connectDrive');
   const disconnect = byId('disconnectDrive');
   const loginHelp = byId('driveLoginHelp');
@@ -88,6 +90,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   let expiryTimer;
   let syncTimer;
   let googleLogin = 'idle';
+  let displayedCapacity;
 
   const configuredClientId = document.querySelector('meta[name="moonlight-drive-client-id"]')?.content;
   const hostedClientId = validGoogleClientId(configuredClientId) ? configuredClientId : '';
@@ -154,14 +157,19 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
 
   function renderLimits(syncInputs = false) {
     const limits = readHistoryLimits();
+    const capacity = formatImageCapacity(limits);
     if (syncInputs) {
-      for (const key of [...Object.keys(historyLimitRanges), 'imageCapacity', 'imageUnit']) {
+      for (const key of Object.keys(historyLimitRanges)) {
         limitsForm.elements.namedItem(key).value = limits[key];
       }
+      imageCapacityInput.value = capacity.imageCapacity;
+      imageUnitInput.value = capacity.imageUnit;
+      displayedCapacity = limits;
     }
     byId('promptHistoryLimit').textContent = limits.promptCount ? '本地最多保留最近 ' + limits.promptCount + ' 条提示词' : '已暂停保存提示词历史';
     byId('imageHistoryLimit').textContent = limits.imageCount
-      ? '本地最多保留最近 ' + limits.imageCount + ' 批图片，总计 ' + limits.imageCapacity + ' ' + limits.imageUnit
+      ? '本地最多保留最近 ' + limits.imageCount + ' 批图片，总计' + (capacity.approximate ? '约 ' : ' ')
+        + capacity.imageCapacity + ' ' + capacity.imageUnit
       : '已暂停保存生图历史';
   }
 
@@ -255,14 +263,15 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     event.preventDefault();
     const next = Object.fromEntries(Object.keys(historyLimitRanges)
       .map(key => [key, limitsForm.elements.namedItem(key).valueAsNumber]));
-    next.imageCapacity = limitsForm.elements.namedItem('imageCapacity').valueAsNumber;
-    next.imageUnit = limitsForm.elements.namedItem('imageUnit').value;
     const previous = readHistoryLimits();
-    const bytes = next.imageCapacity * imageCapacityUnits[next.imageUnit];
-    if ((next.promptCount < previous.promptCount || next.imageCount < previous.imageCount || bytes < previous.imageBytes)
+    const capacity = parseImageCapacityInput({
+      imageCapacity: imageCapacityInput.valueAsNumber,
+      imageUnit: imageUnitInput.value,
+    }, displayedCapacity);
+    if ((next.promptCount < previous.promptCount || next.imageCount < previous.imageCount || capacity?.imageBytes < previous.imageBytes)
       && !window.confirm('调低上限可能清理较旧的本地历史。要保存吗？')) return;
     void run(limitsStatus, async () => {
-      const saved = saveHistoryLimits(next);
+      const saved = saveHistoryLimits({...next, ...capacity});
       renderLimits(true);
       const promptsRemoved = applyPromptLimit(saved.promptCount);
       try {

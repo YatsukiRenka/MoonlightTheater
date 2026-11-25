@@ -1,10 +1,9 @@
 const storageKey = 'moonlight-history-limits-v1';
-const binaryMiB = 1024 * 1024;
-export const imageCapacityUnits = Object.freeze({MB: 1_000_000, GB: 1_000_000_000});
+export const imageCapacityUnits = Object.freeze({MB: 1_000_000, GB: 1_000_000_000, MiB: 1024 * 1024});
 
-const defaultImageBytes = 64 * binaryMiB;
+const defaultImageBytes = 64 * imageCapacityUnits.MiB;
 export const defaultHistoryLimits = Object.freeze({promptCount: 100, imageCount: 30,
-  imageCapacity: defaultImageBytes / imageCapacityUnits.MB, imageUnit: 'MB', imageBytes: defaultImageBytes});
+  imageCapacity: defaultImageBytes / imageCapacityUnits.MiB, imageUnit: 'MiB', imageBytes: defaultImageBytes});
 export const historyLimitRanges = Object.freeze({
   promptCount: Object.freeze({min: 0, max: 500}),
   imageCount: Object.freeze({min: 0, max: 500}),
@@ -15,9 +14,9 @@ const labels = {promptCount: '提示词历史条数', imageCount: '生图历史�
 function parseImageCapacity(values) {
   if (values?.imageCapacity === undefined && values?.imageUnit === undefined) {
     const legacy = values?.imageMiB;
-    const imageBytes = Number.isFinite(legacy) ? Math.floor(legacy * binaryMiB) : NaN;
+    const imageBytes = Number.isFinite(legacy) ? Math.floor(legacy * imageCapacityUnits.MiB) : NaN;
     if (Number.isSafeInteger(imageBytes) && imageBytes > 0) {
-      return {imageCapacity: imageBytes / imageCapacityUnits.MB, imageUnit: 'MB', imageBytes};
+      return {imageCapacity: imageBytes / imageCapacityUnits.MiB, imageUnit: 'MiB', imageBytes};
     }
     return null;
   }
@@ -29,6 +28,24 @@ function parseImageCapacity(values) {
   const scaled = numeric * imageCapacityUnits[imageUnit];
   const imageBytes = Math.round(scaled);
   return scaled >= 1 && Number.isSafeInteger(imageBytes) ? {imageCapacity: numeric, imageUnit, imageBytes} : null;
+}
+
+export function formatImageCapacity({imageBytes, imageUnit}) {
+  const capacity = imageBytes / imageCapacityUnits[imageUnit];
+  const imageCapacity = capacity < 0.001
+    ? Number(capacity.toPrecision(3)).toExponential()
+    : String(Number(capacity.toFixed(3)));
+  return {imageCapacity, imageUnit, approximate: Number(imageCapacity) !== capacity};
+}
+
+export function parseImageCapacityInput(input, displayed) {
+  // The displayed value can be rounded, so reuse the capacity captured when the input was filled.
+  const formatted = formatImageCapacity(displayed);
+  if (input.imageUnit === formatted.imageUnit && input.imageCapacity === Number(formatted.imageCapacity)) {
+    const {imageCapacity, imageUnit, imageBytes} = displayed;
+    return {imageCapacity, imageUnit, imageBytes};
+  }
+  return parseImageCapacity(input);
 }
 
 export function imageHistoryByteLimit(limits) {
@@ -48,7 +65,7 @@ function historyLimits(values, strict = false) {
   }
   const capacity = parseImageCapacity(values);
   if (capacity) return {...limits, ...capacity};
-  if (strict) throw new Error('请用 MB 或 GB 填写有效的生图历史大小。容量需至少为 1 字节，且不能超过安全整数范围。');
+  if (strict) throw new Error('请用 MB、GB 或 MiB 填写有效的生图历史大小。容量需至少为 1 字节，且不能超过安全整数范围。');
   return {...defaultHistoryLimits, ...limits};
 }
 
