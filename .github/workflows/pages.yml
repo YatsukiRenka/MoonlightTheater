@@ -32,6 +32,9 @@ jobs:
         run: npm test
       - name: Build static site
         run: npm run build
+        env:
+          # A public OAuth client identifier restricted to authorized website origins.
+          MOONLIGHT_DRIVE_CLIENT_ID: ${{ vars.MOONLIGHT_DRIVE_CLIENT_ID }}
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
