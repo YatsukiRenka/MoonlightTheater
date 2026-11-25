@@ -113,6 +113,20 @@ export function summarizeImageUsage(response, format, price, imageCount) {
   return {tokens, cost: reportedCost(response) ?? estimate(tokens, price, format, imageCount)};
 }
 
+export function combineImageUsage(results) {
+  if (results.length === 1) return results[0];
+  const sum = values => values.every(value => value !== null) ? values.reduce((total, value) => total + value, 0) : null;
+  const tokens = Object.fromEntries(Object.keys(results[0].tokens).map(key => [key, sum(results.map(item => item.tokens[key]))]));
+  const currency = results[0].cost?.currency;
+  const costs = results.map(item => item.cost);
+  const cost = currency && costs.every(item => item?.currency === currency) ? {
+    value: sum(costs.map(item => item.value)), currency,
+    source: costs.find(item => item.source !== 'reported')?.source || 'reported',
+    upperBound: costs.some(item => item.upperBound),
+  } : null;
+  return {tokens, cost};
+}
+
 export function money(value, currency) {
   return new Intl.NumberFormat('zh-HK', {
     style: 'currency', currency, currencyDisplay: 'code', maximumFractionDigits: 6,

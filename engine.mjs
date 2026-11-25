@@ -48,6 +48,25 @@ export function pool(c, k, s, manual) {
 export function materialChoices(c, key, selection, manual) {
  return [...pool(c, key, selection, manual), ...(manual?.[key] || [])];
 }
+export function availableSelection(c,selection,manual){
+ const fixed={...selection};
+ for(const [key,id] of Object.entries(selection)){
+  if(key==='hairColor'||key==='eyeColor')continue;
+  if(id===null&&Object.hasOwn(optional,key))continue;
+  if(!materialChoices(c,key,selection,manual).some(entry=>entry.id===id))delete fixed[key];
+ }
+ const nativeColors=['hairColor','eyeColor'].filter(key=>selection[key]!==undefined&&!manualEntry(manual,key,selection[key]));
+ if(fixed.palette){
+  for(const key of nativeColors)if(!pool(c,key,fixed,manual).some(color=>color.id===selection[key]))delete fixed[key];
+ }else if(nativeColors.length){
+  const palettes=c.palettes.filter(palette=>palette.weight>0);
+  const hasColor=(palette,key)=>palette[key+'s'].some(color=>color.zh===selection[key]);
+  const existingColors=nativeColors.filter(key=>palettes.some(palette=>hasColor(palette,key)));
+  const hasCommonPalette=palettes.some(palette=>existingColors.every(key=>hasColor(palette,key)));
+  for(const key of nativeColors)if(!hasCommonPalette||!existingColors.includes(key))delete fixed[key];
+ }
+ return fixed;
+}
 export function compatible(c,s,manual){const r=c.rules;
  if(s.headAccessory&&!manualEntry(manual,'headAccessory',s.headAccessory)&&r.headAccessoryExcludeWhenNonhuman.includes(s.nonhuman))return '当前非人特征与独立头饰冲突';
  if(s.headAccessory&&r.outfitHeadAccessoryExclusion[s.outfit]?.includes(s.headAccessory))return '当前服装与头饰冲突';

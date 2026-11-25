@@ -23,6 +23,7 @@ export function initializeImageSettings({verify, save, google}) {
   const custom = cards.find(card => card.id === 'custom');
   const format = custom.form.elements.namedItem('format');
   const urlHelp = document.getElementById('customURLHelp');
+  const editsLabel = document.getElementById('customEditsLabel');
   googleOrigin.value = location.origin;
   let snapshot;
   let busy = false;
@@ -33,6 +34,8 @@ export function initializeImageSettings({verify, save, google}) {
   }
 
   function showURLHelp() {
+    editsLabel.hidden = format.value !== 'openai';
+    custom.form.elements.namedItem('editsURL').disabled = editsLabel.hidden;
     urlHelp.textContent = format.value === 'gemini'
       ? '例如 https://gateway.example/v1beta/models/{model}:generateContent'
       : '例如 https://gateway.example/v1/images/generations';
@@ -54,7 +57,7 @@ export function initializeImageSettings({verify, save, google}) {
       if (keyField) keyField.placeholder = resource?.hasSecret ? '已保存，留空保留' : '';
       if (card === custom) card.form.querySelector('[data-clear-key]').hidden = !resource?.hasSecret;
       if (!card.dirty && resource) {
-        for (const name of ['clientId', 'project', 'url', 'format', 'modelsURL']) {
+        for (const name of ['clientId', 'project', 'url', 'format', 'modelsURL', 'editsURL']) {
           const field = card.form.elements.namedItem(name);
           if (field) field.value = resource[name];
         }

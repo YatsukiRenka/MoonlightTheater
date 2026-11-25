@@ -1,4 +1,6 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
+import {initializeImageControls} from './image-controls.mjs';
+import {mountImageDeck} from './image-deck.mjs';
 import {readImageHistory, saveImageHistory} from './image-history.mjs';
 import {money} from './image-usage.mjs';
 import {
@@ -8,16 +10,17 @@ import {
 
 const names = {openai: 'OpenAI', gemini: 'Gemini', 'gemini-oauth': 'Gemini · Google OAuth', custom: '自定义接口'};
 const preferenceKey = 'moonlight-image-preferences';
-const imageTypes = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'};
 
 function readPreferences() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(preferenceKey));
     if (saved && Object.hasOwn(names, saved.provider) &&
-        ['auto', 'portrait', 'square', 'landscape'].includes(saved.aspect) &&
-        saved.models && typeof saved.models === 'object') return saved;
+        saved.models && typeof saved.models === 'object') {
+      const settings = saved.settings && typeof saved.settings === 'object' ? saved.settings : {};
+      return {...saved, settings};
+    }
   } catch {}
-  return {provider: 'openai', aspect: 'auto', models: {}};
+  return {provider: 'openai', models: {}, settings: {}};
 }
 
 function imageBlob(image) {
@@ -33,10 +36,11 @@ function renderMetrics(container, metrics) {
   const cost = metrics.cost;
   const subtitle = cost?.source === 'reported' ? '接口返回'
     : cost?.upperBound ? '估算上限' : cost?.source === 'catalog' ? '接口目录估算' : '官方参考价估算';
+  const extra = metrics.extraCharges && cost?.source !== 'reported' ? ' · 附加费用另计' : '';
   const parts = [
     ['耗时', (metrics.elapsed / 1000).toFixed(1) + ' 秒'],
     ['Token 合计', tokens == null ? '接口未返回' : formatted(tokens)],
-    ['费用', cost ? money(cost.value, cost.currency) + ' · ' + subtitle : '暂无可用估算'],
+    ['费用', cost ? money(cost.value, cost.currency) + ' · ' + subtitle + extra : '暂无可用估算'],
   ];
   const list = document.createElement('dl');
   for (const [label, value] of parts) {
@@ -57,7 +61,6 @@ export function initializeImages(getPrompt) {
   const form = byId('imageForm');
   const provider = byId('imageProvider');
   const model = byId('imageModel');
-  const aspect = byId('imageAspect');
   const connect = byId('imageGoogle');
   const generate = byId('imageGenerate');
   const connection = byId('imageConnection');
@@ -65,6 +68,9 @@ export function initializeImages(getPrompt) {
   const metricsBox = byId('imageMetrics');
   const empty = byId('imageEmpty');
   const gallery = byId('imageGallery');
+  const resultDetails = byId('imageResultDetails');
+  const partial = byId('imagePartial');
+  const partialAsset = byId('imagePartialAsset');
   const preview = byId('imagePreview');
   const previewImage = byId('imagePreviewAsset');
   const history = byId('imageRecords');
@@ -72,7 +78,7 @@ export function initializeImages(getPrompt) {
 
   const preferences = readPreferences();
   provider.value = preferences.provider;
-  aspect.value = preferences.aspect;
+  const controls = initializeImageControls(preferences.settings, savePreferences, preferences.aspect);
   let availability;
   let busy = false;
   let resources = {};
@@ -81,6 +87,7 @@ export function initializeImages(getPrompt) {
   let galleryURLs = [];
   let historyURLs = [];
   let previewURL;
+  let partialURL;
   let historyOpen = false;
   let historyRead = 0;
 
@@ -110,12 +117,16 @@ export function initializeImages(getPrompt) {
     const ready = google ? config?.connected : config?.ready;
     const models = config?.ready ? config.models : [];
     const preferred = preferences.models[id];
-    setModelOptions(model, models, models.includes(preferred) ? preferred : config?.model, '请先验证接口');
+    const selected = models.includes(preferred) ? preferred : config?.model || '';
+    if (model.options.length !== models.length + 1 || models.some((id, i) => model.options[i + 1].value !== id)) {
+      setModelOptions(model, models, selected, '请先验证接口');
+    } else if (model.value !== selected) model.value = selected;
     byId('imageAuth').hidden = !google || !config?.ready;
     connect.textContent = config?.connected ? '断开 Google 授权' : '使用 Google 登录';
-    for (const control of [provider, aspect, connect]) control.disabled = busy;
+    for (const control of [provider, connect]) control.disabled = busy;
     model.disabled = busy || !models.length;
     generate.disabled = busy || !ready || !model.value;
+    updateModelControls();
 
     if (!availability) connection.textContent = '浏览器未允许本站使用本地存储。';
     else if (!config?.ready) connection.textContent = '请先在「设置」中验证此接口并选择模型。';
@@ -164,55 +175,76 @@ export function initializeImages(getPrompt) {
     }
   }
 
-  function appendImages(container, images, record, compact = false) {
-    const urls = [];
-    const fileSeed = record.seed.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
-    for (const [index, blob] of images.entries()) {
-      const url = URL.createObjectURL(blob);
-      urls.push(url);
-      const card = document.createElement('figure');
-      const thumb = document.createElement('button');
-      thumb.type = 'button';
-      thumb.className = 'image-thumb';
-      thumb.setAttribute('aria-label', '放大查看角色图 ' + (index + 1));
-      const image = document.createElement('img');
-      image.alt = '';
-      if (compact) image.loading = 'lazy';
-      image.addEventListener('error', () => {
-        thumb.disabled = true;
-        thumb.textContent = '图片载入失败';
-      });
-      image.src = url;
-      thumb.append(image);
-      thumb.onclick = () => {
-        previewURL = URL.createObjectURL(blob);
-        previewImage.src = previewURL;
-        preview.showModal();
-      };
-      const caption = document.createElement('figcaption');
-      if (!compact) {
-        const metadata = document.createElement('span');
-        metadata.textContent = record.model + ' · ' + (record.language === 'en' ? 'EN' : '中文') + ' · ' + record.seed;
-        caption.append(metadata);
-      }
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'moonlight-' + fileSeed + '-' + (index + 1) + '.' + imageTypes[blob.type];
-      link.textContent = '下载原图';
-      caption.append(link);
-      card.append(thumb, caption);
-      container.append(card);
+  function updateModelControls() {
+    const id = provider.value;
+    const config = availability?.[id];
+    controls.update(id, id === 'openai' ? 'openai' : id === 'custom' ? config?.format : 'gemini',
+      model.value, busy, id !== 'custom' || config?.supportsReferences);
+  }
+
+  function openPreview(blob) {
+    previewURL = URL.createObjectURL(blob);
+    previewImage.src = previewURL;
+    preview.showModal();
+  }
+
+  function renderDetails(container, record) {
+    const children = [];
+    if (record.text) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = '模型附带文字';
+      const text = document.createElement('p');
+      text.textContent = record.text;
+      details.append(summary, text);
+      children.push(details);
     }
-    return urls;
+    if (record.sources?.length) {
+      const sources = document.createElement('p');
+      sources.className = 'image-sources';
+      sources.append('Google 搜索来源');
+      for (const {url, title} of record.sources) {
+        if (!url.startsWith('https://')) continue;
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = title;
+        sources.append(link);
+      }
+      children.push(sources);
+    }
+    container.replaceChildren(...children);
+    container.hidden = !children.length;
   }
 
   function renderImages(record) {
     galleryURLs.forEach(url => URL.revokeObjectURL(url));
     gallery.replaceChildren();
-    galleryURLs = appendImages(gallery, record.images, record);
+    galleryURLs = mountImageDeck(gallery, record, openPreview);
     renderMetrics(metricsBox, record.metrics);
+    renderDetails(resultDetails, record);
     empty.hidden = true;
     gallery.hidden = false;
+  }
+
+  function showPartial(image) {
+    URL.revokeObjectURL(partialURL);
+    partialURL = URL.createObjectURL(imageBlob(image));
+    partialAsset.src = partialURL;
+    partial.hidden = false;
+    empty.hidden = true;
+    gallery.hidden = true;
+  }
+
+  function clearPartial() {
+    if (!partialURL) return;
+    partial.hidden = true;
+    partialAsset.removeAttribute('src');
+    URL.revokeObjectURL(partialURL);
+    partialURL = undefined;
+    gallery.hidden = !gallery.children.length;
+    empty.hidden = !gallery.hidden;
   }
 
   function releaseHistory() {
@@ -250,8 +282,7 @@ export function initializeImages(getPrompt) {
       date.dateTime = new Date(record.time).toISOString();
       date.textContent = new Date(record.time).toLocaleString('zh-CN');
       const thumbnails = document.createElement('div');
-      thumbnails.className = 'image-gallery';
-      historyURLs.push(...appendImages(thumbnails, record.images, record, true));
+      historyURLs.push(...mountImageDeck(thumbnails, record, openPreview, true));
       const metrics = document.createElement('div');
       metrics.className = 'image-metrics';
       metrics.hidden = true;
@@ -262,7 +293,9 @@ export function initializeImages(getPrompt) {
       const prompt = document.createElement('pre');
       prompt.textContent = record.prompt;
       details.append(summary, prompt);
-      card.append(title, date, thumbnails, metrics, details);
+      const additional = document.createElement('div');
+      renderDetails(additional, record);
+      card.append(title, date, thumbnails, metrics, details, additional);
       history.append(card);
     }
   }
@@ -275,10 +308,7 @@ export function initializeImages(getPrompt) {
   model.onchange = () => {
     preferences.models[provider.value] = model.value;
     savePreferences();
-  };
-  aspect.onchange = () => {
-    preferences.aspect = aspect.value;
-    savePreferences();
+    updateModelControls();
   };
   byId('closeImagePreview').onclick = () => preview.close();
   preview.onclose = () => {
@@ -295,6 +325,7 @@ export function initializeImages(getPrompt) {
     }
   };
 
+  form.noValidate = true;
   form.onsubmit = async event => {
     event.preventDefault();
     if (busy || generate.disabled) return;
@@ -304,21 +335,31 @@ export function initializeImages(getPrompt) {
       return;
     }
     const selectedProvider = provider.value;
+    let inputs;
+    try { inputs = controls.capture(); } catch (error) { showStatus(error.message, true); return; }
     busy = true;
     refreshControls();
     form.classList.add('image-pending');
     showStatus('正在通过 ' + names[selectedProvider] + ' 生成图片…');
     try {
       const result = await generateImage({
-        provider: selectedProvider, model: model.value, aspect: aspect.value, prompt: context.prompt,
-      }, resources, authorization);
+        provider: selectedProvider, model: model.value, prompt: context.prompt, ...inputs,
+      }, resources, authorization, {
+        onPartial: showPartial,
+        onProgress(index, total) {
+          if (total > 1) showStatus('正在通过 ' + names[selectedProvider] + ' 生图 · 请求 ' + index + ' / ' + total);
+        },
+      });
       const record = {
         ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
-        images: result.images.map(imageBlob),
+        images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
+      if (selectedProvider === 'gemini-oauth' && result.warningStatus === 401) authorization = undefined;
+      clearPartial();
       renderImages(record);
-      const completed = '已生成 ' + record.images.length + ' 张图片。';
-      showStatus(completed);
+      const completed = '已生成 ' + record.images.length + ' 张图片。'
+        + (result.warning ? ' 后续请求未完成。' + result.warning : '');
+      showStatus(completed, Boolean(result.warning));
       try {
         await saveImageHistory(record);
         if (historyOpen) void showHistory();
@@ -329,6 +370,7 @@ export function initializeImages(getPrompt) {
       showStatus(error.message, true);
       if (selectedProvider === 'gemini-oauth' && error.status === 401) authorization = undefined;
     } finally {
+      clearPartial();
       busy = false;
       form.classList.remove('image-pending');
       refreshAvailability();
