@@ -148,6 +148,7 @@
   --image-max-height: min(640px, 70vh);
   --image-width: calc(var(--image-max-height) * var(--image-ratio, 1));
   --deck-offset: 6px;
+  position: relative;
   margin: 0;
 }
 .image-deck-compact { --image-max-height: min(208px, 55vh); }
@@ -198,12 +199,11 @@
 .image-deck-nav {
   position: absolute;
   z-index: 4;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 4px;
   display: grid;
   place-items: center;
-  width: min(44px, max(0px, calc(50% - 4px)));
-  height: min(44px, max(0px, calc(100% - 4px)));
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 50%;
@@ -212,17 +212,18 @@
   opacity: 0;
   transition: opacity 160ms, background 160ms;
 }
-.image-deck-nav.left { left: clamp(2px, calc(50% - 46px), 9px); }
-.image-deck-nav.right { right: clamp(2px, calc(50% - 46px), 9px); }
-.image-deck-nav svg { width: min(22px, calc(100% - 2px)); height: min(22px, calc(100% - 2px)); }
-.image-deck-stage:hover .image-deck-nav, .image-deck-stage:focus-within .image-deck-nav {
+.image-deck-nav.left { left: 4px; }
+.image-deck-nav.right { right: 4px; }
+.image-deck:has(.has-stack) .image-deck-nav.right { right: calc(4px + 2 * var(--deck-offset)); }
+.image-deck-nav svg { width: 22px; height: 22px; }
+.image-deck:hover .image-deck-nav, .image-deck:focus-within .image-deck-nav {
   opacity: 1;
   background: #3925458c;
   border-color: #ffffff70;
 }
-.image-deck-nav:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.image-deck-nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: none) {
-  .image-deck-stage .image-deck-nav { opacity: .72; background: #39254570; }
+  .image-deck .image-deck-nav { opacity: 1; background: #392545a8; }
 }
 @media (prefers-reduced-motion: reduce) {
   .image-deck-card, .image-deck-nav { transition: none; }
@@ -261,6 +262,12 @@ dialog.image-preview {
   max-height: calc(100vh - 24px);
   max-height: calc(100dvh - 24px);
   padding: 16px;
+}
+/* Keep the controls in place as a multi-image preview changes size. */
+dialog.image-preview:has(.image-deck-nav) {
+  width: min(960px, calc(100vw - 24px));
+  inset-block: 12px auto;
+  margin-block: 0;
 }
 .image-deck-preview {
   --image-max-height: min(780px, max(1px, calc(100vh - 132px)));

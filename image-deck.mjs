@@ -108,10 +108,8 @@ export function mountImageDeck(container, record, {
       arrow.className = 'image-deck-nav ' + direction;
       arrow.setAttribute('aria-label', name);
       arrow.innerHTML = icon(direction);
-      arrow.onclick = event => {
-        if (!suppressClick || event.detail === 0) show(current + offset);
-      };
-      stage.append(arrow);
+      arrow.onclick = () => show(current + offset);
+      deck.insertBefore(arrow, caption);
     }
     keyTarget.addEventListener('keydown', handleKeys);
     stage.onpointerdown = event => {
