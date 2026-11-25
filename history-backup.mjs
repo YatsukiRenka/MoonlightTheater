@@ -59,6 +59,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const disconnect = byId('disconnectDrive');
   const loginHelp = byId('driveLoginHelp');
   const advanced = byId('driveAdvanced');
+  const driveCard = connect.closest('.resource-card');
   const useCustomClient = byId('driveUseCustomClient');
   const customFields = byId('driveCustomClientFields');
   const clientId = byId('driveClientId');
@@ -119,10 +120,6 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     render();
     void preloadDriveAuthorization().then(() => { googleLogin = 'ready'; })
       .catch(() => { googleLogin = 'failed'; }).finally(render);
-  }
-
-  function preloadInSettings() {
-    if (location.hash === '#settings' || location.hash === '#historyBackup') preloadLogin();
   }
 
   function render() {
@@ -431,7 +428,16 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   renderLimits(true);
   showBackups([]);
   render();
-  preloadInSettings();
-  window.addEventListener('hashchange', preloadInSettings);
+  driveCard.addEventListener('pointerenter', preloadLogin, {once: true});
+  driveCard.addEventListener('focusin', preloadLogin, {once: true});
+  if (typeof IntersectionObserver === 'function') {
+    const driveObserver = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        driveObserver.disconnect();
+        preloadLogin();
+      }
+    }, {rootMargin: '200px 0px'});
+    driveObserver.observe(driveCard);
+  }
   window.addEventListener('storage', () => renderLimits());
 }
