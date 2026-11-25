@@ -4,23 +4,23 @@ import {mountImageDeck} from './image-deck.mjs';
 import {readImageHistory, saveImageHistory} from './image-history.mjs';
 import {money} from './image-usage.mjs';
 import {
-  authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
-  readImageResources, updateImageResource, verifyImageResource,
-} from './image-client.mjs';
+  apiProviderNames, readAPIResources, removeAPIResource, saveAPIResource, verifyAPIResource,
+} from './api-resources.mjs';
+import {authorizeGoogle, currentGoogleToken, describeImageResources, generateImage} from './image-client.mjs';
 
-const names = {openai: 'OpenAI', gemini: 'Gemini', 'gemini-oauth': 'Gemini · Google OAuth', custom: '自定义接口'};
 const preferenceKey = 'moonlight-image-preferences';
 
 function readPreferences() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(preferenceKey));
-    if (saved && Object.hasOwn(names, saved.provider) &&
-        saved.models && typeof saved.models === 'object') {
+    if (saved && saved.models && typeof saved.models === 'object' && !Array.isArray(saved.models)) {
+      const resourceId = typeof saved.resourceId === 'string' ? saved.resourceId
+        : Object.hasOwn(apiProviderNames, saved.provider) ? saved.provider : '';
       const settings = saved.settings && typeof saved.settings === 'object' ? saved.settings : {};
-      return {...saved, settings};
+      return {resourceId, models: saved.models, settings, aspect: saved.aspect};
     }
   } catch {}
-  return {provider: 'openai', models: {}, settings: {}};
+  return {resourceId: '', models: {}, settings: {}};
 }
 
 function imageBlob(image) {
@@ -59,7 +59,7 @@ function renderMetrics(container, metrics) {
 export function initializeImages(getPrompt) {
   const byId = id => document.getElementById(id);
   const form = byId('imageForm');
-  const provider = byId('imageProvider');
+  const resourceSelect = byId('imageProvider');
   const model = byId('imageModel');
   const connect = byId('imageGoogle');
   const generate = byId('imageGenerate');
@@ -77,12 +77,11 @@ export function initializeImages(getPrompt) {
   const historyStatus = byId('imageHistoryStatus');
 
   const preferences = readPreferences();
-  provider.value = preferences.provider;
   const controls = initializeImageControls(preferences.settings, savePreferences, preferences.aspect);
   let availability;
   let busy = false;
-  let resources = {};
-  let authorization;
+  let resources = new Map();
+  const authorizations = new Map();
   let expiryTimer;
   let galleryDeck;
   let historyDecks = [];
@@ -92,10 +91,21 @@ export function initializeImages(getPrompt) {
   let historyRead = 0;
 
   const imageSettings = initializeImageSettings({
-    verify: (id, values) => verifyImageResource(id, values, {authorization}),
-    save(id, action, values, verification) {
-      updateImageResource(id, action, values, {verification});
-      if (verification?.authorization) rememberGoogle(verification.authorization);
+    verify: (provider, values, id) => verifyAPIResource(provider, values, {id, authorization: authorizations.get(id)}),
+    async save(draft) {
+      const saved = await saveAPIResource(draft);
+      if (saved.provider === 'gemini-oauth' && currentGoogleToken(draft.verification?.authorization, saved.config)) {
+        authorizations.set(saved.id, draft.verification.authorization);
+      }
+      refreshAvailability();
+      return {id: saved.id, name: saved.name};
+    },
+    async remove(id) {
+      await removeAPIResource(id);
+      authorizations.delete(id);
+      delete preferences.models[id];
+      if (preferences.resourceId === id) preferences.resourceId = '';
+      savePreferences();
       refreshAvailability();
     },
     google: changeGoogle,
@@ -111,63 +121,79 @@ export function initializeImages(getPrompt) {
   }
 
   function refreshControls() {
-    const id = provider.value;
-    const config = availability?.[id];
-    const google = id === 'gemini-oauth';
-    const ready = google ? config?.connected : config?.ready;
-    const models = config?.ready ? config.models : [];
+    const id = resourceSelect.value;
+    const resource = availability?.get(id);
+    const google = resource?.provider === 'gemini-oauth';
+    const ready = google ? resource.connected : resource?.ready;
+    const models = resource?.ready ? resource.models : [];
     const preferred = preferences.models[id];
-    const selected = models.includes(preferred) ? preferred : config?.model || '';
-    if (model.options.length !== models.length + 1 || models.some((id, i) => model.options[i + 1].value !== id)) {
-      setModelOptions(model, models, selected, '请先验证接口');
-    } else if (model.value !== selected) model.value = selected;
-    byId('imageAuth').hidden = !google || !config?.ready;
-    connect.textContent = config?.connected ? '断开 Google 授权' : '使用 Google 登录';
-    for (const control of [provider, connect]) control.disabled = busy;
+    const selected = models.includes(preferred) ? preferred : resource?.model || '';
+    setModelOptions(model, models, selected, '请先验证接口');
+    byId('imageAuth').hidden = !google || !resource.ready;
+    connect.textContent = resource?.connected ? '断开 Google 授权' : '使用 Google 登录';
+    resourceSelect.disabled = busy || !availability?.size;
+    connect.disabled = busy;
     model.disabled = busy || !models.length;
     generate.disabled = busy || !ready || !model.value;
     updateModelControls();
 
     if (!availability) connection.textContent = '浏览器未允许本站使用本地存储。';
-    else if (!config?.ready) connection.textContent = '请先在「设置」中验证此接口并选择模型。';
-    else if (google) connection.textContent = config.connected
+    else if (!resource) connection.textContent = '请在「设置」中添加 API 资源。';
+    else if (!resource.ready) connection.textContent = '请先在「设置」中验证此接口并选择模型。';
+    else if (google) connection.textContent = resource.connected
       ? '已授权 Google Cloud，使用此项目的 Vertex AI 配额。'
       : '请登录 Google 并授权 Vertex AI 调用。';
-    else if (id === 'custom') connection.textContent = '已配置 · ' + (config.format === 'gemini' ? 'Gemini 兼容协议' : 'OpenAI Images 兼容协议');
-    else connection.textContent = '已配置 API Key。';
+    else if (resource.provider === 'custom') connection.textContent = resource.format === 'gemini' ? 'Gemini 兼容协议' : 'OpenAI Images 兼容协议';
+    else connection.textContent = '';
   }
 
   function refreshAvailability() {
-    let data;
+    let available;
     try {
-      resources = readImageResources();
-      if (!currentGoogleToken(authorization, resources['gemini-oauth'])) {
-        authorization = undefined;
-        clearTimeout(expiryTimer);
-      }
-      data = describeImageResources(resources, authorization);
-    } catch {}
-    availability = data?.providers;
-    imageSettings.update(data);
+      const rows = readAPIResources();
+      resources = new Map(rows.map(row => [row.id, row]));
+      available = rows.map(({id, provider, name, config}) => {
+        const authorization = authorizations.get(id);
+        if (authorization && !currentGoogleToken(authorization, config)) authorizations.delete(id);
+        const description = describeImageResources({[provider]: config}, authorizations.get(id));
+        return {...description.resources[provider], ...description.providers[provider], id, provider, name};
+      });
+    } catch { resources = new Map(); }
+    for (const id of authorizations.keys()) if (!resources.has(id)) authorizations.delete(id);
+    clearTimeout(expiryTimer);
+    if (authorizations.size) {
+      const expiry = Math.min(...Array.from(authorizations.values(), value => value.expires));
+      expiryTimer = setTimeout(refreshAvailability, Math.max(0, expiry - Date.now()));
+    }
+    availability = available && new Map(available.map(row => [row.id, row]));
+    const rows = available ?? [];
+    const labels = rows.map(({id, name, provider}) => [id, name === apiProviderNames[provider] ? name : name + ' · ' + apiProviderNames[provider]]);
+    if (resourceSelect.options.length !== labels.length + 1 || labels.some(([id, label], index) => {
+      const option = resourceSelect.options[index + 1];
+      return option.value !== id || option.text !== label;
+    })) {
+      const placeholder = new Option('请在设置中添加 API 资源', '');
+      placeholder.disabled = Boolean(labels.length);
+      resourceSelect.replaceChildren(placeholder, ...labels.map(([id, label]) => new Option(label, id)));
+    }
+    resourceSelect.value = availability?.has(preferences.resourceId) ? preferences.resourceId
+      : (rows.find(row => row.ready) ?? rows[0])?.id ?? '';
+    imageSettings.update(available);
     refreshControls();
   }
 
-  function rememberGoogle(result) {
-    authorization = result;
-    clearTimeout(expiryTimer);
-    expiryTimer = setTimeout(refreshAvailability, Math.max(0, result.expires - Date.now()));
-  }
-
-  async function changeGoogle() {
-    if (busy || !availability?.['gemini-oauth']?.ready) return '';
+  async function changeGoogle(id) {
+    const resource = availability?.get(id);
+    if (busy) throw new Error('请等待当前生图或授权操作结束。');
+    if (resource?.provider !== 'gemini-oauth' || !resource.ready) return '';
     busy = true;
     refreshControls();
     try {
-      if (availability['gemini-oauth'].connected) {
-        authorization = undefined;
+      if (resource.connected) {
+        authorizations.delete(id);
         return '已断开 Google 授权。';
       }
-      rememberGoogle(await authorizeGoogle(resources['gemini-oauth']));
+      authorizations.set(id, await authorizeGoogle(resources.get(id).config));
       return 'Google 授权成功。';
     } finally {
       busy = false;
@@ -176,10 +202,10 @@ export function initializeImages(getPrompt) {
   }
 
   function updateModelControls() {
-    const id = provider.value;
-    const config = availability?.[id];
-    controls.update(id, id === 'openai' ? 'openai' : id === 'custom' ? config?.format : 'gemini',
-      model.value, busy, id !== 'custom' || config?.supportsReferences);
+    const resource = availability?.get(resourceSelect.value);
+    const provider = resource?.provider;
+    controls.update(provider, provider === 'openai' ? 'openai' : provider === 'custom' ? resource.format : 'gemini',
+      model.value, busy, provider !== 'custom' || resource.supportsReferences);
   }
 
   function closePreviewDeck() {
@@ -288,7 +314,7 @@ export function initializeImages(getPrompt) {
       const card = document.createElement('article');
       card.className = 'panel image-history-record';
       const title = document.createElement('h2');
-      title.textContent = (names[record.provider] || record.provider) + ' · ' + record.model;
+      title.textContent = (apiProviderNames[record.provider] || record.provider) + ' · ' + record.model;
       const date = document.createElement('time');
       date.dateTime = new Date(record.time).toISOString();
       date.textContent = new Date(record.time).toLocaleString('zh-CN');
@@ -311,13 +337,13 @@ export function initializeImages(getPrompt) {
     }
   }
 
-  provider.onchange = () => {
-    preferences.provider = provider.value;
+  resourceSelect.onchange = () => {
+    preferences.resourceId = resourceSelect.value;
     savePreferences();
     refreshControls();
   };
   model.onchange = () => {
-    preferences.models[provider.value] = model.value;
+    preferences.models[resourceSelect.value] = model.value;
     savePreferences();
     updateModelControls();
   };
@@ -326,7 +352,7 @@ export function initializeImages(getPrompt) {
 
   connect.onclick = async () => {
     try {
-      showStatus(await changeGoogle());
+      showStatus(await changeGoogle(resourceSelect.value));
     } catch (error) {
       showStatus(error.message, true);
     }
@@ -341,27 +367,30 @@ export function initializeImages(getPrompt) {
       showStatus('请先填写完整提示词。', true);
       return;
     }
-    const selectedProvider = provider.value;
+    const selected = resources.get(resourceSelect.value);
+    if (!selected) return;
+    const {id, provider: selectedProvider, config, name} = selected;
+    const authorization = authorizations.get(id);
     let inputs;
     try { inputs = controls.capture(); } catch (error) { showStatus(error.message, true); return; }
     busy = true;
     refreshControls();
     form.classList.add('image-pending');
-    showStatus('正在通过 ' + names[selectedProvider] + ' 生成图片…');
+    showStatus('正在通过 ' + name + ' 生成图片…');
     try {
       const result = await generateImage({
         provider: selectedProvider, model: model.value, prompt: context.prompt, ...inputs,
-      }, resources, authorization, {
+      }, {[selectedProvider]: config}, authorization, {
         onPartial: showPartial,
         onProgress(index, total) {
-          if (total > 1) showStatus('正在通过 ' + names[selectedProvider] + ' 生图 · 请求 ' + index + ' / ' + total);
+          if (total > 1) showStatus('正在通过 ' + name + ' 生图 · 请求 ' + index + ' / ' + total);
         },
       });
       const record = {
         ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
         images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
-      if (selectedProvider === 'gemini-oauth' && result.warningStatus === 401) authorization = undefined;
+      if (result.warningStatus === 401 && authorizations.get(id) === authorization) authorizations.delete(id);
       clearPartial();
       renderImages(record);
       const completed = '已生成 ' + record.images.length + ' 张图片。'
@@ -375,7 +404,7 @@ export function initializeImages(getPrompt) {
       }
     } catch (error) {
       showStatus(error.message, true);
-      if (selectedProvider === 'gemini-oauth' && error.status === 401) authorization = undefined;
+      if (error.status === 401 && authorizations.get(id) === authorization) authorizations.delete(id);
     } finally {
       clearPartial();
       busy = false;

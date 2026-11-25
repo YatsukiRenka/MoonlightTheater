@@ -320,29 +320,53 @@ dialog:has(.manual-choice) .choices { max-height: min(38vh, 280px); }
   color: var(--muted);
   line-height: 1.6;
 }
-.resources-heading > .secondary {
+.resources-heading .secondary {
   display: inline-flex;
   align-items: center;
   border-radius: 7px;
 }
+.resources-heading .copy { flex: 0 0 auto; }
 .resource-connection {
   padding: 10px 13px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--lilac);
 }
-.resources-grid {
+.resource-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: 16px;
+  gap: 12px;
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
 }
-.resource-card fieldset {
+.resource-list:empty { display: none; }
+.resource-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+.resource-row-info { min-width: 0; overflow-wrap: anywhere; }
+.resource-row-info h2 { margin: 0; font-size: 17px; }
+.resource-row-details { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.resource-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.resource-row-actions button, .resource-actions button { min-height: 44px; }
+.resource-empty p { margin: 0; color: var(--muted); }
+dialog.resource-editor {
+  max-width: min(580px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.resource-editor .dialoghead button { min-width: 40px; min-height: 40px; }
+.resource-editor fieldset {
   min-width: 0;
   border: 0;
   padding: 0;
   margin: 0;
 }
+.resource-editor .settinglabel input, .resource-editor .settinglabel select { height: 42px; }
+.resource-editor [data-resource-fields] > .settinglabel:first-child { margin-top: 0; }
 .resource-state {
   flex-shrink: 0;
   border-radius: 6px;
@@ -397,7 +421,8 @@ dialog:has(.manual-choice) .choices { max-height: min(38vh, 280px); }
   color: #972f52;
 }
 @media (max-width: 720px) {
-  .resources-grid { grid-template-columns: minmax(0, 1fr); }
+  .resource-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .resource-row-actions { grid-column: 1 / -1; }
 }
 @media (max-width: 400px) {
   .navwrap { gap: 9px; padding-inline: 12px; }

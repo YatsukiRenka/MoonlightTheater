@@ -26,7 +26,7 @@ python -m http.server 8000 --bind 127.0.0.1
 
 ## 图片生成
 
-打开本地地址或已发布的站点，在顶部「设置」填写生图资源。点击「验证并获取模型」，从供应商返回的列表选好默认模型后保存。已有资源可留空沿用密钥，再获取一次模型。返回创作台即可从下拉列表选择接口、模型和画幅，使用当前的中英文提示词生成图片。
+打开本地地址或已发布的站点，在「设置 → 添加 API 资源」选择接口类型，填写 API Key 或 OAuth 配置。点击「验证并获取模型」，从供应商返回的列表选好默认模型后保存。同一类型可保存多条资源，名称可用来区分不同账号或网关。返回创作台，选择资源和模型，使用当前的中英文提示词生成图片。
 
 「高级图像设置」根据所选模型提供参数。点击生成按钮左边的图标可添加多张 PNG、JPEG 或 WebP 参考图。参考图在当前页面中预览，点击生成时由浏览器直接发给所选接口。多图结果以卡片叠放，图框随当前图片的宽高比调整。点击当前图可打开同批图片的放大预览。两个视图都支持左右按钮、键盘方向键和手机横向滑动，下载按钮对应当前显示的图片。
 
@@ -48,7 +48,7 @@ OpenAI 的静态图支持 JPEG/WebP 压缩，并可显示最多三张流式预�
 
 生图结果和历史会显示请求耗时、供应商报告的 Token 总数与费用。优先显示接口返回的实际费用，其次按配置时取得的模型单价估算。OpenAI 与 Google 的官方模型目录没有标准价格字段，已知型号按公开标准价估算。缺少用量或可用单价时会直接标明。 [OpenAI 价目表](https://developers.openai.com/api/docs/pricing) · [Gemini 价目表](https://aistudio.google.com/docs/pricing) · [Vertex AI 价目表](https://cloud.google.com/model-garden/pricing)
 
-API Key 和接口配置只保存在当前浏览器的本地存储。换设备或清除浏览器数据后需重新填写。编辑时，密钥栏留空会保留原值。「移除配置」会删除浏览器中的资源。Google 访问令牌只保留在当前页面内存，刷新后需重新授权。
+API Key 和接口配置只保存在当前站点的浏览器本地存储。每条资源可单独编辑和删除。编辑原接口时，密钥栏留空可沿用已经保存的密钥；修改自定义接口的站点或兼容协议时需重新填写。Google 访问令牌只保留在当前页面内存，刷新后需重新授权。已有单条配置会在同一站点作为独立资源载入。切换站点、换设备或清除浏览器数据后，需要重新添加资源。
 
 月光剧场的托管服务只提供静态文件。浏览器直接将生图请求和认证信息发送给所选供应商。若需要使用自己核验过的网页代码，可以用上面的本地启动方式。
 
@@ -64,8 +64,8 @@ OpenAI 公布的「Sign in with ChatGPT」预览明确排除图片生成工具�
 ### Gemini 的 Google OAuth
 
 1. 在 Google Cloud 项目中启用 Vertex AI API（`aiplatform.googleapis.com`）并设置账单。给登录账号授予 **Vertex AI User**（`roles/aiplatform.user`）或同等的模型调用权限。
-2. 配置 OAuth 同意屏幕，创建 **Web 应用**类型的 OAuth 客户端。从「设置 → Gemini · Google OAuth」复制当前站点的来源，添加到该客户端的「已获授权的 JavaScript 来源」。如果同意屏幕处于测试模式，把登录账号加入测试用户。
-3. 在同一张设置卡片填写项目 ID 或编号和 Client ID，点击「授权并获取模型」，再选模型并保存。浏览器通过 Google Identity Services 获取 `https://www.googleapis.com/auth/cloud-platform` 范围内的访问令牌，并请求 Vertex AI 模型目录。模型列表和生图使用所填 Cloud 项目的权限与配额。
+2. 配置 OAuth 同意屏幕，创建 **Web 应用**类型的 OAuth 客户端。添加「Gemini · Google OAuth」资源时，复制当前站点的来源，添加到该客户端的「已获授权的 JavaScript 来源」。如果同意屏幕处于测试模式，把登录账号加入测试用户。
+3. 在同一条资源填写项目 ID 或编号和 Client ID，点击「授权并获取模型」，再选模型并保存。浏览器通过 Google Identity Services 获取 `https://www.googleapis.com/auth/cloud-platform` 范围内的访问令牌，并请求 Vertex AI 模型目录。模型列表和生图使用所填 Cloud 项目的权限与配额。
 
 [Google 浏览器 OAuth Token 流程](https://developers.google.com/identity/oauth2/web/guides/use-token-model) · [Google Cloud Gemini 生图](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/image-generation)
 
@@ -86,9 +86,11 @@ OpenAI 公布的「Sign in with ChatGPT」预览明确排除图片生成工具�
 
 接口和预览交互参考了 [AI Image Workbench](https://github.com/zengliny/ai-image-workbench)、[LibreChat](https://github.com/LibreChat-AI/docs/blob/main/content/docs/features/image_gen.mdx) 和 [Image Studio](https://github.com/koppkvn/image-gen-open-source)。
 
-### Sites 托管
+## GitHub Pages 部署
 
-使用 `npm run build` 将静态资源打包到 `dist/`。Sites 的 ChatGPT 登录控制页面访问，生图资源由各设备的浏览器保存。
+首次部署时，在仓库「Settings → Pages → Build and deployment」将来源设为 **GitHub Actions**。工作流在 PR 中运行测试和静态构建，在 `main` 更新后发布 `dist/`。也可在 Actions 页面从 `main` 手动运行部署。 [GitHub Pages 发布源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+
+本仓库的项目站点地址是 `https://yatsukirenka.github.io/MoonlightTheater/`。OAuth 的 JavaScript 来源和网关的 CORS 允许项使用 `https://yatsukirenka.github.io`。GitHub Pages 提供公开的静态页面，生图资源仍由各设备浏览器保存。 [GitHub Pages 站点类型](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
 
 ## 开源许可
 

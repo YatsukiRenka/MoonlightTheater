@@ -2,7 +2,7 @@ import {cp, mkdir, rm, writeFile} from 'node:fs/promises';
 
 const assets = [
   'index.html', 'style.css', 'app.mjs', 'engine.mjs', 'icons.mjs', 'images.mjs',
-  'image-settings.mjs', 'image-client.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
+  'image-settings.mjs', 'image-client.mjs', 'api-resources.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'profile.json', 'assets/banner.webp',
 ];

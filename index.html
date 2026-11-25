@@ -14,13 +14,8 @@
   </div>
   <div class="image-workspace">
     <form id="imageForm" class="image-form" aria-describedby="imageConnection">
-      <label class="settinglabel">生图接口
-        <select id="imageProvider">
-          <option value="openai">OpenAI · API Key</option>
-          <option value="gemini">Gemini · API Key</option>
-          <option value="gemini-oauth">Gemini · Google OAuth</option>
-          <option value="custom">自定义兼容接口</option>
-        </select>
+      <label class="settinglabel">API 资源
+        <select id="imageProvider" disabled><option value="">请先添加 API 资源</option></select>
       </label>
       <div class="image-fields">
         <label class="settinglabel">模型 ID
@@ -83,76 +78,32 @@
 </section>
 <section id="settings" aria-labelledby="settingsHeading" hidden>
   <div class="pagehead resources-heading">
-    <div><h1 id="settingsHeading">生图资源设置</h1><p>配置只保存在当前浏览器。换设备或清除浏览器数据后需重新填写。</p></div>
-    <a class="secondary" href="#imageStudio">返回图片生成</a>
+    <div><h1 id="settingsHeading">API 资源库</h1><p>资源配置只保存在当前浏览器。</p></div>
+    <div class="actions">
+      <button class="copy" id="addApiResource" type="button" disabled>添加 API 资源</button>
+      <a class="secondary" href="#imageStudio">返回图片生成</a>
+    </div>
   </div>
   <p id="resourceConnection" class="resource-connection note" role="status" hidden></p>
-  <div class="resources-grid">
-    <form class="panel resource-card" method="post" data-resource="openai" aria-labelledby="openaiResource">
-      <div class="section-heading"><h2 id="openaiResource">OpenAI · API Key</h2><span class="resource-state right" data-state>未配置</span></div>
-      <fieldset disabled>
-        <label class="settinglabel">OpenAI API Key
-          <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
-        </label>
-        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
-        <p class="note resource-price" data-price hidden></p>
-        <div class="resource-actions">
-          <button class="secondary" type="button" data-verify>验证并获取模型</button>
-          <button class="copy" type="submit" disabled>保存 OpenAI</button>
-          <button class="secondary" type="button" data-remove hidden>移除配置</button>
-        </div>
-      </fieldset>
-      <p class="resource-message" data-message role="status"></p>
-    </form>
-    <form class="panel resource-card" method="post" data-resource="gemini" aria-labelledby="geminiResource">
-      <div class="section-heading"><h2 id="geminiResource">Gemini · API Key</h2><span class="resource-state right" data-state>未配置</span></div>
-      <fieldset disabled>
-        <label class="settinglabel">Gemini API Key
-          <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
-        </label>
-        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
-        <p class="note resource-price" data-price hidden></p>
-        <div class="resource-actions">
-          <button class="secondary" type="button" data-verify>验证并获取模型</button>
-          <button class="copy" type="submit" disabled>保存 Gemini</button>
-          <button class="secondary" type="button" data-remove hidden>移除配置</button>
-        </div>
-      </fieldset>
-      <p class="resource-message" data-message role="status"></p>
-    </form>
-    <form class="panel resource-card" method="post" data-resource="gemini-oauth" aria-labelledby="googleResource">
-      <div class="section-heading"><h2 id="googleResource">Gemini · Google OAuth</h2><span class="resource-state right" data-state>未配置</span></div>
-      <fieldset disabled>
-        <label class="settinglabel">Google Cloud 项目 ID 或编号
-          <input name="project" maxlength="30" autocomplete="off" spellcheck="false" autocapitalize="none">
-        </label>
-        <label class="settinglabel">OAuth Client ID
-          <input name="clientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
-        </label>
-        <div class="resource-callback">
-          <label class="settinglabel">已获授权的 JavaScript 来源<input id="oauthOrigin" readonly></label>
-          <button class="secondary" id="copyOAuthOrigin" type="button">复制</button>
-        </div>
-        <p class="note">将此地址加到 Google Cloud 的 Web 应用 JavaScript 来源，并在项目中启用 Vertex AI。</p>
-        <label class="settinglabel">默认模型<select name="model" disabled><option value="">授权后获取模型</option></select></label>
-        <p class="note resource-price" data-price hidden></p>
-        <div class="resource-actions">
-          <button class="secondary" type="button" data-verify>授权并获取模型</button>
-          <button class="copy" type="submit" disabled>保存 OAuth</button>
-          <button class="secondary" type="button" id="settingsGoogle" hidden>断开 Google 授权</button>
-          <button class="secondary" type="button" data-remove hidden>移除配置</button>
-        </div>
-      </fieldset>
-      <p class="resource-message" data-message role="status"></p>
-    </form>
-    <form class="panel resource-card" method="post" data-resource="custom" aria-labelledby="customResource">
-      <div class="section-heading"><h2 id="customResource">自定义兼容接口</h2><span class="resource-state right" data-state>未配置</span></div>
-      <fieldset disabled>
+  <p id="resourceFeedback" class="resource-message" role="status"></p>
+  <ul id="apiResourceList" class="resource-list" aria-label="已保存的 API 资源"></ul>
+  <div id="apiResourceEmpty" class="panel resource-empty" hidden><p>还没有 API 资源。</p></div>
+</section>
+<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog" aria-labelledby="dtitle"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
+<dialog id="apiResourceEditor" class="resource-editor" aria-labelledby="apiResourceEditorTitle">
+  <div class="dialoghead">
+    <h2 id="apiResourceEditorTitle">添加 API 资源</h2>
+    <button type="button" id="closeApiResource" aria-label="关闭资源编辑"><i data-icon="x"></i></button>
+  </div>
+  <form id="apiResourceForm" method="post">
+    <fieldset data-resource-fields disabled>
+      <label class="settinglabel">接口类型<select name="provider" required></select></label>
+      <fieldset data-provider-fields="custom" hidden disabled>
         <label class="settinglabel">兼容协议
           <select name="format"><option value="openai">OpenAI Images</option><option value="gemini">Gemini</option></select>
         </label>
         <label class="settinglabel">完整接口地址
-          <input name="url" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="customURLHelp">
+          <input name="url" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="customURLHelp" required>
         </label>
         <p class="note resource-url-help" id="customURLHelp"></p>
         <label class="settinglabel">模型列表地址（选填）
@@ -161,23 +112,37 @@
         <label class="settinglabel" id="customEditsLabel">参考图编辑地址（选填）
           <input name="editsURL" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="默认从 /images/generations 推导">
         </label>
-        <label class="settinglabel">网关 API Key（选填）
+      </fieldset>
+      <fieldset data-provider-fields="key" hidden disabled>
+        <label class="settinglabel"><span id="apiResourceKeyLabel">API Key</span>
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
         <label class="resource-check" data-clear-key hidden><input type="checkbox" name="clearKey">清除已保存的网关密钥</label>
-        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
-        <p class="note resource-price" data-price hidden></p>
-        <div class="resource-actions">
-          <button class="secondary" type="button" data-verify>验证并获取模型</button>
-          <button class="copy" type="submit" disabled>保存自定义接口</button>
-          <button class="secondary" type="button" data-remove hidden>移除配置</button>
-        </div>
       </fieldset>
-      <p class="resource-message" data-message role="status"></p>
-    </form>
-  </div>
-</section>
-<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog" aria-labelledby="dtitle"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
+      <fieldset data-provider-fields="oauth" hidden disabled>
+        <label class="settinglabel">Google Cloud 项目 ID 或编号
+          <input name="project" maxlength="30" autocomplete="off" spellcheck="false" autocapitalize="none" required>
+        </label>
+        <label class="settinglabel">OAuth Client ID
+          <input name="clientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" required>
+        </label>
+        <div class="resource-callback">
+          <label class="settinglabel">已获授权的 JavaScript 来源<input id="oauthOrigin" readonly></label>
+          <button class="secondary" id="copyOAuthOrigin" type="button">复制</button>
+        </div>
+        <p class="note">将此地址加到 Google Cloud 的 Web 应用 JavaScript 来源，并在项目中启用 Vertex AI。</p>
+      </fieldset>
+      <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
+      <p class="note resource-price" data-price hidden></p>
+      <label class="settinglabel">资源名称（选填）<input name="name" maxlength="80" autocomplete="off" placeholder="留空自动命名"></label>
+      <div class="resource-actions">
+        <button class="secondary" type="button" data-verify>验证并获取模型</button>
+        <button class="copy" type="submit" disabled>保存资源</button>
+      </div>
+    </fieldset>
+    <p class="resource-message" id="apiResourceEditorFeedback" role="status"></p>
+  </form>
+</dialog>
 <dialog id="imagePreview" class="image-preview" aria-labelledby="imagePreviewTitle">
   <div class="dialoghead"><h2 id="imagePreviewTitle">角色图预览</h2><button type="button" id="closeImagePreview" aria-label="关闭预览"><i data-icon="x"></i></button></div>
   <div id="imagePreviewAsset"></div>
