@@ -2,10 +2,10 @@ const encoder = new TextEncoder();
 const archiveMagic = 'MLHIST01';
 const encryptedMagic = 'MLHENC01';
 const metadataLimit = 16 * 1024 * 1024;
-const imageLimit = 512 * 1024 * 1024;
+const encryptedImageLimit = 512 * 1024 * 1024;
 const magicSize = 8;
 const archiveHeaderSize = magicSize + 4;
-const archiveLimit = archiveHeaderSize + metadataLimit + imageLimit;
+const archiveLimit = archiveHeaderSize + metadataLimit + encryptedImageLimit;
 const chunkSize = 1024 * 1024;
 const tagSize = 16;
 const saltSize = 16;
@@ -65,6 +65,28 @@ function imageMetrics(metrics) {
   return result;
 }
 
+function cloudRecord(value, count) {
+  const fileId = /^[A-Za-z0-9_-]{1,256}$/;
+  if (!isObject(value) || value.version !== 1 || typeof value.manifestId !== 'string' || !fileId.test(value.manifestId)
+    || typeof value.batchId !== 'string' || !fileId.test(value.batchId)
+    || !Array.isArray(value.renditions) || value.renditions.length !== count) throw invalidArchive();
+  const renditions = value.renditions.map(item => {
+    if (!isObject(item) || !isObject(item.details) || !mimeTypes.has(item.mime)
+      || !Number.isSafeInteger(item.bytes) || item.bytes < 1) throw invalidArchive();
+    const details = {};
+    for (const tier of ['thumbnail', 'preview', 'original']) {
+      const meta = item.details[tier];
+      if (typeof item[tier] !== 'string' || !fileId.test(item[tier]) || !isObject(meta) || !mimeTypes.has(meta.mime)
+        || !Number.isSafeInteger(meta.bytes) || meta.bytes < 1 || typeof meta.digest !== 'string'
+        || !/^[0-9a-f]{64}$/.test(meta.digest)) throw invalidArchive();
+      details[tier] = fields(meta, ['mime', 'bytes', 'digest']);
+    }
+    if (item.mime !== details.original.mime || item.bytes !== details.original.bytes) throw invalidArchive();
+    return {...fields(item, ['thumbnail', 'preview', 'original', 'mime', 'bytes']), details};
+  });
+  return {version: 1, manifestId: value.manifestId, batchId: value.batchId, renditions};
+}
+
 function imageGroup(value, mapImage) {
   if (!isObject(value) || !Array.isArray(value.images) || !value.images.length
     || (value.id !== undefined && !validId(value.id))
@@ -73,6 +95,7 @@ function imageGroup(value, mapImage) {
     || typeof value.seed !== 'string' || typeof value.prompt !== 'string'
     || !['zh', 'en'].includes(value.language)) throw invalidArchive();
   const result = fields(value, ['id', 'model', 'provider', 'prompt', 'seed', 'language', 'time', 'text']);
+  if (value.cloud !== undefined) result.cloud = cloudRecord(value.cloud, value.images.length);
   if (result.text !== undefined && typeof result.text !== 'string') throw invalidArchive();
   if (value.metrics !== undefined) result.metrics = imageMetrics(value.metrics);
   if (value.sources !== undefined) {
@@ -90,7 +113,7 @@ function historyMetadata(snapshot, mapImage) {
   return {prompts: promptMetadata(snapshot.prompts), images: snapshot.images.map(group => imageGroup(group, mapImage))};
 }
 
-function checkBlob(blob, min, max) {
+function checkBlob(blob, min, max = Number.MAX_SAFE_INTEGER) {
   if (!(blob instanceof Blob) || blob.size < min) throw invalidArchive();
   if (blob.size > max) throw new Error('历史备份超过大小限制。');
 }
@@ -101,11 +124,8 @@ function hasMagic(bytes, magic) {
 
 export function createHistoryArchive(snapshot) {
   const payloads = [];
-  let total = 0;
   const metadata = historyMetadata(snapshot, blob => {
     if (!(blob instanceof Blob) || !mimeTypes.has(blob.type) || !blob.size) throw invalidArchive();
-    total += blob.size;
-    if (total > imageLimit) throw new Error('历史图片超过 512 MiB 限制。');
     if (payloads.length >= 10000) throw new Error('历史备份包含的图片过多。');
     payloads.push(blob);
     return {size: blob.size, type: blob.type};
@@ -120,13 +140,13 @@ export function createHistoryArchive(snapshot) {
 }
 
 export async function readHistoryArchive(blob) {
-  checkBlob(blob, archiveHeaderSize, archiveLimit);
+  checkBlob(blob, archiveHeaderSize);
   const header = new Uint8Array(await blob.slice(0, archiveHeaderSize).arrayBuffer());
   if (hasMagic(header, encryptedMagic)) throw new Error('此历史备份需要先解密。');
   if (!hasMagic(header, archiveMagic)) throw invalidArchive();
   const length = new DataView(header.buffer).getUint32(magicSize);
   const payloadStart = archiveHeaderSize + length;
-  if (!length || length > metadataLimit || payloadStart > blob.size || blob.size - payloadStart > imageLimit) throw invalidArchive();
+  if (!length || length > metadataLimit || payloadStart > blob.size) throw invalidArchive();
   let manifest;
   try {
     const bytes = await blob.slice(archiveHeaderSize, payloadStart).arrayBuffer();
@@ -198,6 +218,9 @@ async function cryptBody(blob, passphrase, header, decrypting) {
 }
 
 export async function encryptHistoryArchive(blob, passphrase) {
+  if (blob instanceof Blob && blob.size > archiveLimit) {
+    throw new Error('历史超过单份 Drive 加密备份容量。可以导出本地备份，或用云图库分批同步生图。');
+  }
   checkBlob(blob, archiveHeaderSize, archiveLimit);
   if (!hasMagic(new Uint8Array(await blob.slice(0, magicSize).arrayBuffer()), archiveMagic)) throw invalidArchive();
   if (!globalThis.crypto?.subtle) throw new Error('此浏览器未提供备份加密功能，请通过安全连接打开应用。');

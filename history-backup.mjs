@@ -1,6 +1,6 @@
 import {archiveIsEncrypted, createHistoryArchive, decryptHistoryArchive, encryptHistoryArchive, readHistoryArchive} from './history-archive.mjs';
 import {authorizeDrive, downloadDriveBackup, listDriveBackups, preloadDriveAuthorization, uploadDriveBackup} from './drive-history.mjs';
-import {historyLimitRanges, readHistoryLimits, saveHistoryLimits} from './history-limits.mjs';
+import {historyLimitRanges, imageCapacityUnits, readHistoryLimits, saveHistoryLimits} from './history-limits.mjs';
 import {mergeImageHistory, pruneImageHistory, readImageHistory} from './image-history.mjs';
 import {validatePromptBackup} from './prompt-history.mjs';
 import {isSafeHistoryImage} from './image-file.mjs';
@@ -45,7 +45,7 @@ async function saveBackup(blob, filename, destination) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptLimit, refreshHistory}) {
+export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptLimit, refreshHistory, cloud}) {
   const byId = id => document.getElementById(id);
   const exportButton = byId('exportHistory');
   const importButton = byId('importHistory');
@@ -61,6 +61,13 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const drivePassword = byId('drivePassphrase');
   const driveStatus = byId('driveHistoryStatus');
   const restore = byId('restoreFromDrive');
+  const cloudEnabled = byId('cloudGalleryEnabled');
+  const cloudInterval = byId('cloudGalleryInterval');
+  const galleryPassword = byId('cloudGalleryPassword');
+  const galleryConfirm = byId('cloudGalleryConfirm');
+  const cloudUnlock = byId('unlockCloudGallery');
+  const cloudRestore = byId('restoreCloudGallery');
+  const cloudOptimize = byId('optimizeCloudGallery');
   const importDialog = byId('historyImportDialog');
   const importForm = byId('historyImportForm');
   const importPassword = byId('importHistoryPassphrase');
@@ -71,6 +78,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   let busy = false;
   let auth;
   let expiryTimer;
+  let syncTimer;
 
   byId('driveOAuthOrigin').value = location.origin;
   try { clientId.value = localStorage.getItem(driveClientKey) || ''; } catch {}
@@ -93,17 +101,26 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     clientId.disabled = busy;
     driveActions.disabled = busy || !connected;
     restore.disabled = !backupList.value;
+    cloudEnabled.disabled = busy;
+    cloudInterval.disabled = busy || !cloud.enabled;
+    galleryPassword.disabled = galleryConfirm.disabled = busy || !connected || cloud.ready;
+    cloudUnlock.disabled = busy || !connected;
+    cloudUnlock.textContent = cloud.ready ? '锁定云图库' : '解锁云图库';
+    cloudRestore.disabled = cloudOptimize.disabled = busy || !cloud.ready;
     for (const button of [exportButton, importButton, importSubmit, importClose, limitsForm.querySelector('button')]) button.disabled = busy;
   }
 
   function renderLimits(syncInputs = false) {
     const limits = readHistoryLimits();
     if (syncInputs) {
-      for (const key of Object.keys(historyLimitRanges)) limitsForm.elements.namedItem(key).value = limits[key];
+      for (const key of [...Object.keys(historyLimitRanges), 'imageCapacity', 'imageUnit']) {
+        limitsForm.elements.namedItem(key).value = limits[key];
+      }
     }
     byId('promptHistoryLimit').textContent = limits.promptCount ? '本地最多保留最近 ' + limits.promptCount + ' 条提示词' : '已暂停保存提示词历史';
     byId('imageHistoryLimit').textContent = limits.imageCount
-      ? '本地最多保留最近 ' + limits.imageCount + ' 批图片，总计 ' + limits.imageMiB + ' MiB' : '已暂停保存生图历史';
+      ? '本地最多保留最近 ' + limits.imageCount + ' 批图片，总计 ' + limits.imageCapacity + ' ' + limits.imageUnit
+      : '已暂停保存生图历史';
   }
 
   async function run(element, action) {
@@ -196,15 +213,18 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     event.preventDefault();
     const next = Object.fromEntries(Object.keys(historyLimitRanges)
       .map(key => [key, limitsForm.elements.namedItem(key).valueAsNumber]));
+    next.imageCapacity = limitsForm.elements.namedItem('imageCapacity').valueAsNumber;
+    next.imageUnit = limitsForm.elements.namedItem('imageUnit').value;
     const previous = readHistoryLimits();
-    if (Object.keys(next).some(key => next[key] < previous[key])
+    const bytes = next.imageCapacity * imageCapacityUnits[next.imageUnit];
+    if ((next.promptCount < previous.promptCount || next.imageCount < previous.imageCount || bytes < previous.imageBytes)
       && !window.confirm('调低上限可能清理较旧的本地历史。要保存吗？')) return;
     void run(limitsStatus, async () => {
-      saveHistoryLimits(next);
+      const saved = saveHistoryLimits(next);
       renderLimits(true);
-      const promptsRemoved = applyPromptLimit(next.promptCount);
+      const promptsRemoved = applyPromptLimit(saved.promptCount);
       try {
-        const images = await pruneImageHistory(next);
+        const images = await pruneImageHistory(saved);
         return '已保存保留设置。' + (promptsRemoved || images.removed
           ? '清理了 ' + promptsRemoved + ' 条提示词、' + images.removed + ' 批生图。' : '');
       } catch (error) {
@@ -230,12 +250,17 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   function disconnectDrive() {
     auth = undefined;
     clearTimeout(expiryTimer);
+    cloud.lock();
+    restartSync();
+    galleryPassword.value = galleryConfirm.value = '';
     drivePassword.value = '';
     showBackups([]);
     render();
   }
 
   function rememberDrive(authorization) {
+    cloud.lock();
+    restartSync();
     auth = authorization;
     clearTimeout(expiryTimer);
     expiryTimer = setTimeout(() => {
@@ -285,6 +310,61 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     const encrypted = await downloadDriveBackup(auth, backupList.value);
     return mergeArchive(await decryptHistoryArchive(encrypted, password));
   });
+
+  async function syncCloud() {
+    const result = await cloud.restore((completed, total) => status(driveStatus, '正在同步缩略图 · ' + completed + ' / ' + total));
+    if (result.added || result.removed) refreshHistory();
+    return '已同步 ' + result.added + ' 批缩略图。' + (result.unavailable ? '有 ' + result.unavailable + ' 批暂不可恢复。' : '');
+  }
+
+  function restartSync() {
+    clearInterval(syncTimer);
+    if (cloud.enabled && cloud.ready) {
+      syncTimer = setInterval(() => void run(driveStatus, syncCloud), cloud.interval * 60_000);
+    }
+  }
+
+  cloudEnabled.checked = cloud.enabled;
+  cloudInterval.value = cloud.interval;
+  cloudEnabled.onchange = cloudInterval.onchange = () => {
+    try {
+      cloud.configure({enabled: cloudEnabled.checked, interval: cloudInterval.valueAsNumber});
+      restartSync();
+    } catch (error) {
+      cloudEnabled.checked = cloud.enabled;
+      cloudInterval.value = cloud.interval;
+      status(driveStatus, error.message, true);
+    }
+    render();
+  };
+  cloudUnlock.onclick = () => run(driveStatus, async () => {
+    if (cloud.ready) {
+      cloud.lock();
+      restartSync();
+      return '云图库已锁定。';
+    }
+    const passphrase = galleryPassword.value;
+    if (passphrase.length < 8) throw new Error('请输入至少 8 个字符的云图库口令。');
+    const confirmation = galleryConfirm.value;
+    galleryPassword.value = galleryConfirm.value = '';
+    const authorization = auth;
+    await cloud.unlock(authorization, passphrase, confirmation);
+    if (auth !== authorization) {
+      cloud.lock();
+      throw new Error('Drive 授权已过期，请重新连接。');
+    }
+    restartSync();
+    return cloud.enabled ? '云图库已解锁。' + await syncCloud() : '云图库已解锁。';
+  });
+  cloudRestore.onclick = () => run(driveStatus, syncCloud);
+  cloudOptimize.onclick = () => {
+    if (!window.confirm('原图上传并校验成功后，本地历史将只保留缩略图。要继续吗？')) return;
+    void run(driveStatus, async () => {
+      const result = await cloud.optimize((completed, total) => status(driveStatus, '正在验证云端原图 · ' + completed + ' / ' + total));
+      refreshHistory();
+      return '已将 ' + result.replaced + ' 批本地原图替换为缩略图。';
+    });
+  };
 
   renderLimits(true);
   showBackups([]);

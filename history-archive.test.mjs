@@ -50,6 +50,22 @@ test('backup projection excludes unrelated controls, credentials and extra image
   assert.equal(restored.images[0].size, undefined);
 });
 
+test('cloud-only image records export cached thumbnails and preserve Drive references', async () => {
+  const thumbnail = {mime: 'image/png', bytes: image.size, digest: 'a'.repeat(64)};
+  const preview = {mime: 'image/jpeg', bytes: 512_000, digest: 'b'.repeat(64)};
+  const original = {mime: 'image/webp', bytes: 2_000_000, digest: 'c'.repeat(64)};
+  const cloud = {version: 1, batchId: 'legacy-82', manifestId: 'manifest-82', renditions: [{
+    thumbnail: 'thumb-82', preview: 'preview-82', original: 'original-82', mime: original.mime, bytes: original.bytes,
+    details: {thumbnail, preview, original},
+  }]};
+  const archived = createHistoryArchive({prompts, images: [{...record, id: cloud.batchId, cloud, images: [image]}]});
+  assert(archived.size < preview.bytes);
+  const {images: [restored]} = await readHistoryArchive(archived);
+  assert.deepEqual(restored.cloud, cloud);
+  assert.deepEqual(await bytes(restored.images[0]), pngBytes);
+  assert.throws(() => createHistoryArchive({prompts, images: [{...restored, cloud: {...cloud, manifestId: '../escape'}}]}), /格式无效/);
+});
+
 test('malformed headers, unsupported MIME types, invalid IDs and truncation are rejected', async () => {
   assert.throws(() => createHistoryArchive({prompts, images: [{...record, images: [new Blob(['html'], {type: 'text/html'})]}]}), /格式无效/);
   assert.throws(() => createHistoryArchive({prompts, images: [{...record, id: '__proto__'}]}), /格式无效/);

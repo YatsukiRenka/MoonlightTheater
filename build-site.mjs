@@ -5,6 +5,7 @@ const assets = [
   'image-settings.mjs', 'image-client.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'history-limits.mjs', 'history-archive.mjs', 'history-backup.mjs', 'prompt-history.mjs', 'google-oauth.mjs', 'drive-history.mjs', 'image-file.mjs',
+  'cloud-history.mjs', 'cloud-image-store.mjs', 'image-renditions.mjs', 'vendor/noble-sha256.mjs',
   'profile.json', 'assets/banner.webp',
 ];
 const output = new URL('./dist/', import.meta.url);

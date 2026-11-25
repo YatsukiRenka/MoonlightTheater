@@ -4,6 +4,7 @@ import {initializeImages} from './images.mjs';
 import {manualTextLimit, resolveManualMaterial} from './manual-materials.mjs';
 import {importDesignLibrary} from './design-library.mjs';
 import {initializeHistoryBackup} from './history-backup.mjs';
+import {createCloudHistory} from './cloud-history.mjs';
 import {readHistoryLimits} from './history-limits.mjs';
 import {makePromptBackup, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
@@ -259,7 +260,8 @@ $('moreSettings').onclick=()=>{
 };
 $('close').onclick=closeDialog;$('dialog').onclose=()=>{$('dbody').onclick=null};$('dialog').onclick=e=>{if(e.target===$('dialog')){const rect=$('dialog').getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeDialog()}};
 if(!cur())make('new');else draw();
-const imageViews=initializeImages(()=>({prompt:$('output').value,seed:cur().seed,language:pref.lang}));
+const cloudHistory=createCloudHistory();
+const imageViews=initializeImages(()=>({prompt:$('output').value,seed:cur().seed,language:pref.lang}),cloudHistory);
 const historyTabs=[$('promptHistoryTab'),$('imageHistoryTab')];
 let historyIndex=0;
 function showHistoryTab(index, focus=false) {
@@ -293,6 +295,7 @@ function persistPromptPatch(patch) {
  Object.assign(model,patch);
 }
 initializeHistoryBackup({
+ cloud:cloudHistory,
  readPrompts:()=>makePromptBackup(model),
  mergePrompts(backup){
   const result=mergePromptBackup(model,backup,readHistoryLimits().promptCount);

@@ -56,7 +56,7 @@ function renderMetrics(container, metrics) {
   container.hidden = false;
 }
 
-export function initializeImages(getPrompt) {
+export function initializeImages(getPrompt, cloud) {
   const byId = id => document.getElementById(id);
   const form = byId('imageForm');
   const provider = byId('imageProvider');
@@ -194,7 +194,7 @@ export function initializeImages(getPrompt) {
     if (preview.open) return;
     closePreviewDeck();
     const deck = mountImageDeck(previewContent, record, {
-      preview: true, initialIndex: index, initialRatio: ratio, keyboardScope: preview,
+      preview: true, initialIndex: index, initialRatio: ratio, keyboardScope: preview, cloud,
     });
     activePreview = {deck, select};
     preview.showModal();
@@ -293,7 +293,7 @@ export function initializeImages(getPrompt) {
       date.dateTime = new Date(record.time).toISOString();
       date.textContent = new Date(record.time).toLocaleString('zh-CN');
       const thumbnails = document.createElement('div');
-      historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview}));
+      historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview, cloud}));
       const metrics = document.createElement('div');
       metrics.className = 'image-metrics';
       metrics.hidden = true;
@@ -358,7 +358,7 @@ export function initializeImages(getPrompt) {
         },
       });
       const record = {
-        ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
+        ...context, id: crypto.randomUUID(), model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
         images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
       if (selectedProvider === 'gemini-oauth' && result.warningStatus === 401) authorization = undefined;
@@ -368,7 +368,19 @@ export function initializeImages(getPrompt) {
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');
       showStatus(completed, Boolean(result.warning));
       try {
-        const saved = await saveImageHistory(record);
+        let stored = record;
+        let syncError;
+        if (cloud.enabled) {
+          try {
+            if (!cloud.ready) throw new Error('请在历史设置中解锁 Google Drive。');
+            showStatus(completed + ' 正在同步到云图库…');
+            stored = await cloud.transfer(record);
+          } catch (error) { syncError = error; }
+        }
+        const saved = await saveImageHistory(stored);
+        if (syncError) showStatus(completed + ' 云图库同步失败。' + syncError.message
+          + (saved.saved ? ' 本地已保留原图。' : ' 当前保留设置未写入本地历史。'), true);
+        else if (stored.cloud) showStatus(completed + ' 已保存在云图库。', Boolean(result.warning));
         if (saved.saved && historyOpen) void showHistory();
       } catch {
         showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
