@@ -281,6 +281,45 @@ dialog.image-preview:has(.image-deck-nav) {
   .image-empty { min-height: 150px; }
 }
 .history-heading { margin-bottom: 12px; }
+.history-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.history-file-actions .subtle { padding: 8px; }
+.history-feedback:empty { display: none; }
+.history-backup-error { color: #972f52; }
+.history-settings { margin-top: 32px; scroll-margin-top: 18px; }
+.history-settings .pagehead { margin-bottom: 12px; }
+.history-settings .pagehead h2, .history-settings .section-heading h3 { margin: 0; }
+.history-settings .section-heading h3 { font-size: 17px; }
+.history-settings #driveOAuthOrigin { text-overflow: ellipsis; }
+#driveLoginHelp { margin: 8px 0 12px; }
+#driveLoginHelp:empty { display: none; }
+.drive-advanced {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+}
+.drive-advanced summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.drive-advanced [type="checkbox"] { margin: 2px 0 0; accent-color: var(--accent); }
+.drive-client-mode { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.drive-advanced .note { margin: 6px 0 0; }
+.history-limit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 105px), 1fr));
+  gap: 0 10px;
+}
+.history-limit-fields .settinglabel { margin-bottom: 0; }
+.cloud-gallery-options { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+.cloud-gallery-options h4 { font-size: 14px; margin: 0 0 10px; }
+.cloud-gallery-mode { display: flex; gap: 7px; align-items: baseline; color: var(--ink); }
+.image-deck .cloud-image-action { font-size: 12px; padding: 5px 8px; }
+.image-deck .cloud-image-status { margin: 0; flex: 1 0 100%; }
+.image-deck .cloud-image-status:empty { display: none; }
 .history-switch button {
   min-height: 36px;
   padding-inline: 12px;

@@ -1,7 +1,11 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
 import {initializeImageControls} from './image-controls.mjs';
 import {mountImageDeck} from './image-deck.mjs';
-import {readImageHistory, saveImageHistory} from './image-history.mjs';
+import {
+  mergeCloudImageHistory, readImageHistory, releaseStagedCloudImageHistory, replaceImageHistoryWithCloud,
+  saveImageHistory, stageCloudImageHistory,
+} from './image-history.mjs';
+import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
 import {money} from './image-usage.mjs';
 import {
   authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
@@ -56,7 +60,7 @@ function renderMetrics(container, metrics) {
   container.hidden = false;
 }
 
-export function initializeImages(getPrompt) {
+export function initializeImages(getPrompt, cloud) {
   const byId = id => document.getElementById(id);
   const form = byId('imageForm');
   const provider = byId('imageProvider');
@@ -65,6 +69,7 @@ export function initializeImages(getPrompt) {
   const generate = byId('imageGenerate');
   const connection = byId('imageConnection');
   const status = byId('imageStatus');
+  const cloudStatus = byId('imageCloudStatus');
   const metricsBox = byId('imageMetrics');
   const empty = byId('imageEmpty');
   const gallery = byId('imageGallery');
@@ -85,11 +90,14 @@ export function initializeImages(getPrompt) {
   let authorization;
   let expiryTimer;
   let galleryDeck;
+  let currentResultId;
   let historyDecks = [];
   let activePreview;
   let partialURL;
   let historyOpen = false;
   let historyRead = 0;
+  let uploadQueue = Promise.resolve();
+  let uploadsPending = 0;
 
   const imageSettings = initializeImageSettings({
     verify: (id, values) => verifyImageResource(id, values, {authorization}),
@@ -108,6 +116,57 @@ export function initializeImages(getPrompt) {
   function showStatus(message, error = false) {
     status.textContent = message;
     status.classList.toggle('image-error', error);
+  }
+
+  function showCloudStatus(message, error = false) {
+    cloudStatus.textContent = (uploadsPending ? '正在同步 ' + uploadsPending + ' 批图片到云图库。' : '') + message;
+    cloudStatus.classList.toggle('image-error', error);
+    cloudStatus.hidden = !cloudStatus.textContent;
+  }
+
+  function queueCloudUpload(record, staged, upload) {
+    uploadsPending++;
+    showCloudStatus(staged?.overLimit ? '本机历史已超过设置上限，新生成的原图已保留。' : '');
+    uploadQueue = uploadQueue.then(async () => {
+      let message = '图片已保存到云图库。';
+      let warning = false;
+      let uploaded = false;
+      try {
+        const thin = await upload(record);
+        uploaded = true;
+        const replaced = staged?.saved && await replaceImageHistoryWithCloud(record, thin);
+        if (!replaced) await mergeCloudImageHistory([thin]);
+      } catch (error) {
+        message = uploaded ? message + '暂时无法更新本机历史。' : '云图库同步失败。' + error.message;
+        warning = true;
+      } finally {
+        if (staged?.saved) await releaseStagedCloudImageHistory(record.id);
+      }
+      try {
+        const local = await readImageHistory();
+        const limits = readHistoryLimits();
+        const entry = local.find(item => item.id === record.id);
+        if (entry) {
+          if (!uploaded && !entry.cloud) message += '本机已保留原图。';
+          if (local.length > limits.imageCount || local.reduce((sum, item) => sum + item.size, 0) > imageHistoryByteLimit(limits)) {
+            message += '本机历史已超过设置上限，可在历史设置中整理原图或调高上限。';
+            warning = true;
+          }
+        } else if (uploaded) {
+          message += limits.imageCount ? '本机历史未写入。可在历史设置中整理原图或调高上限，再同步缩略图。' : '本机生图历史已停用。';
+          warning = Boolean(limits.imageCount) || warning;
+        } else {
+          message += '本机未保存这一批原图。'
+            + (currentResultId === record.id ? '可从当前生图结果下载。' : '');
+        }
+      } catch {
+        message += '暂时无法确认本机历史。';
+        warning = true;
+      }
+      if (historyOpen) void showHistory();
+      uploadsPending--;
+      showCloudStatus(message, warning);
+    });
   }
 
   function refreshControls() {
@@ -194,7 +253,7 @@ export function initializeImages(getPrompt) {
     if (preview.open) return;
     closePreviewDeck();
     const deck = mountImageDeck(previewContent, record, {
-      preview: true, initialIndex: index, initialRatio: ratio, keyboardScope: preview,
+      preview: true, initialIndex: index, initialRatio: ratio, keyboardScope: preview, cloud,
     });
     activePreview = {deck, select};
     preview.showModal();
@@ -231,6 +290,7 @@ export function initializeImages(getPrompt) {
   }
 
   function renderImages(record) {
+    currentResultId = record.id;
     galleryDeck?.dispose();
     galleryDeck = mountImageDeck(gallery, record, {openPreview});
     renderMetrics(metricsBox, record.metrics);
@@ -293,7 +353,7 @@ export function initializeImages(getPrompt) {
       date.dateTime = new Date(record.time).toISOString();
       date.textContent = new Date(record.time).toLocaleString('zh-CN');
       const thumbnails = document.createElement('div');
-      historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview}));
+      historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview, cloud}));
       const metrics = document.createElement('div');
       metrics.className = 'image-metrics';
       metrics.hidden = true;
@@ -358,7 +418,7 @@ export function initializeImages(getPrompt) {
         },
       });
       const record = {
-        ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
+        ...context, id: crypto.randomUUID(), model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
         images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
       if (selectedProvider === 'gemini-oauth' && result.warningStatus === 401) authorization = undefined;
@@ -367,12 +427,20 @@ export function initializeImages(getPrompt) {
       const completed = '已生成 ' + record.images.length + ' 张图片。'
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');
       showStatus(completed, Boolean(result.warning));
+      const autoSync = cloud.enabled;
+      const upload = autoSync && cloud.ready ? cloud.prepareUpload() : undefined;
+      let local;
       try {
-        await saveImageHistory(record);
-        if (historyOpen) void showHistory();
+        local = await (upload ? stageCloudImageHistory(record) : saveImageHistory(record));
+        if (local.saved && historyOpen) void showHistory();
+        if (!local.saved && !local.disabled && !upload) showStatus(completed
+          + ' 本机历史容量已满。可等待正在上传的批次处理完毕、在历史设置调高上限，或下载当前原图。', true);
       } catch {
-        showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
+        showStatus(completed + ' 此浏览器无法保存本次生图记录。可在历史设置检查容量，或下载当前原图。', true);
       }
+      if (upload) queueCloudUpload(record, local, upload);
+      else if (autoSync) showCloudStatus('请在历史设置中解锁 Google Drive。', true);
+      else if (!uploadsPending) showCloudStatus('');
     } catch (error) {
       showStatus(error.message, true);
       if (selectedProvider === 'gemini-oauth' && error.status === 401) authorization = undefined;

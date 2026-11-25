@@ -3,6 +3,10 @@ import {icon} from './icons.mjs';
 import {initializeImages} from './images.mjs';
 import {manualTextLimit, resolveManualMaterial} from './manual-materials.mjs';
 import {importDesignLibrary} from './design-library.mjs';
+import {initializeHistoryBackup} from './history-backup.mjs';
+import {createCloudHistory} from './cloud-history.mjs';
+import {readHistoryLimits} from './history-limits.mjs';
+import {makePromptBackup, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const opt=(k,t)=>'<option value="'+esc(k)+'">'+esc(t)+'</option>';
@@ -59,9 +63,8 @@ function commit(seed,result){
  const profile=libraryProfile(),s=result.selection,manual=manualFor(s);
  model.active=model.library;
  model.current={id:crypto.randomUUID(),time:Date.now(),seed,algorithmVersion:1,profileVersion:profile.profileVersion,profileId:model.library,selection:s,prompt:{zh:renderPrompt(profile,s,'zh',manual),en:renderPrompt(profile,s,'en',manual)},edits:{}};
- model.history.push(cur());model.history=model.history.slice(-100);pruneProfiles();
- const archived=model.archivedManualMaterials;
- if(archived){const usedEntries=new Set(model.history.flatMap(entry=>Object.values(entry.selection)));for(const id of Object.keys(archived))if(!usedEntries.has(id))delete archived[id]}
+ model.history.push(cur());
+ Object.assign(model,trimPromptHistory(model,readHistoryLimits().promptCount));
  persist();draw();if(result.similarityWarning)notify('部分设定与近期角色相似，已保留差异最大的组合');
 }
 function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();if(!seed)throw Error('请先输入随机种子');
@@ -166,7 +169,7 @@ function libraries(){const profile=libraryProfile();const keys=Object.keys(label
 function records(){$('records').innerHTML=model.history.slice().reverse().map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('')}
 function page() {
  const anchor=location.hash.slice(1);
- const key=['library','history','settings'].includes(anchor)?anchor:'studio';
+ const key=anchor==='historyBackup'?'settings':['library','history','settings'].includes(anchor)?anchor:'studio';
  for (const id of ['studio','library','history','settings']) $(id).hidden=id!==key;
  document.querySelectorAll('[data-page]').forEach(link=>{
   const active=link.dataset.page===key;
@@ -181,6 +184,7 @@ function page() {
   setImageVisibility(true);
   $('imageStudio').scrollIntoView({block:'start'});
  }
+ if(anchor==='historyBackup')$('historyBackup').scrollIntoView({block:'start'});
 }
 function attempt(fn){try{fn()}catch(e){notify(e.message)}}
 document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.createRange().createContextualFragment(icon(el.dataset.icon))));
@@ -256,7 +260,8 @@ $('moreSettings').onclick=()=>{
 };
 $('close').onclick=closeDialog;$('dialog').onclose=()=>{$('dbody').onclick=null};$('dialog').onclick=e=>{if(e.target===$('dialog')){const rect=$('dialog').getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeDialog()}};
 if(!cur())make('new');else draw();
-const imageViews=initializeImages(()=>({prompt:$('output').value,seed:cur().seed,language:pref.lang}));
+const cloudHistory=createCloudHistory();
+const imageViews=initializeImages(()=>({prompt:$('output').value,seed:cur().seed,language:pref.lang}),cloudHistory);
 const historyTabs=[$('promptHistoryTab'),$('imageHistoryTab')];
 let historyIndex=0;
 function showHistoryTab(index, focus=false) {
@@ -282,6 +287,27 @@ historyTabs.forEach((tab,index)=>{
   event.preventDefault();
   showHistoryTab(target,true);
  };
+});
+
+function persistPromptPatch(patch) {
+ try{localStorage.setItem(storage,JSON.stringify({...model,...patch}));}
+ catch(error){throw new Error('当前浏览器没有足够空间写入提示词历史。',{cause:error});}
+ Object.assign(model,patch);
+}
+initializeHistoryBackup({
+ cloud:cloudHistory,
+ readPrompts:()=>makePromptBackup(model),
+ mergePrompts(backup){
+  const result=mergePromptBackup(model,backup,readHistoryLimits().promptCount);
+  persistPromptPatch(result.patch);
+  return result;
+ },
+ applyPromptLimit(limit){
+  const before=model.history.length;
+  if(before>limit)persistPromptPatch(trimPromptHistory(model,limit));
+  return before-model.history.length;
+ },
+ refreshHistory(){if(location.hash==='#history')showHistoryTab(historyIndex);},
 });
 
 const visibilityKey='moonlight-image-studio-hidden';
