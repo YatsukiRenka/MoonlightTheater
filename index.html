@@ -1,12 +1,140 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#faf8fb"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>素材库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#faf8fb"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="stylesheet" href="style.css"></head><body>
+<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>素材库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
 <main><section id="studio">
 <div class="hero"><div class="hero-copy"><div class="hero-kicker"><span>✧</span> MOONLIGHT THEATER</div><h1>角色提示词生成器</h1><p>搭配造型、配色与神态，为下一个原创角色写下设定。</p><div class="actions"><button class="primary" id="generate"><i data-icon="dice"></i>随机生成</button><button class="ghost" id="fresh"><i data-icon="spark"></i>全新角色</button></div></div></div>
 <section class="panel settings"><div class="section-heading"><span class="iconbox"><i data-icon="sliders"></i></span><h2>生成设置</h2><button class="subtle right" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div>
 <div class="fields"><label>风格分支<select id="branch"></select></label><label>绘制画风<select id="style"></select></label><label>探索度 <b class="number" id="exploreValue">18%</b><input type="range" min="0" max="100" id="explore"></label><label>随机种子 <span class="seedinput"><input id="seed" placeholder="输入种子" maxlength="128"><button type="button" id="replay" title="按种子重现" aria-label="按种子重现"><i data-icon="repeat"></i></button></span></label></div></section>
 <div class="workgrid"><section class="panel design"><div class="section-heading"><span class="iconbox"><i data-icon="layers"></i></span><h2>角色设计</h2><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
 <section class="panel prompt"><div class="section-heading"><span class="iconbox"><i data-icon="text"></i></span><h2>完整提示词</h2><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button><button class="secondary" id="exportChar"><i data-icon="download"></i>导出 JSON</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
+<section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading">
+  <div class="section-heading">
+    <span class="iconbox"><i data-icon="spark"></i></span>
+    <h2 id="imageHeading">图片生成</h2>
+    <a class="subtle right image-settings-link" href="#settings">配置接口</a>
+  </div>
+  <div class="image-workspace">
+    <form id="imageForm" class="image-form" aria-describedby="imageConnection">
+      <label class="settinglabel">生图接口
+        <select id="imageProvider">
+          <option value="openai">OpenAI · API Key</option>
+          <option value="gemini">Gemini · API Key</option>
+          <option value="gemini-oauth">Gemini · Google OAuth</option>
+          <option value="custom">自定义兼容接口</option>
+        </select>
+      </label>
+      <div class="image-fields">
+        <label class="settinglabel">模型 ID
+          <input id="imageModel" maxlength="128" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="settinglabel">画幅
+          <select id="imageAspect">
+            <option value="auto">模型默认</option>
+            <option value="portrait">竖图</option>
+            <option value="square">方图</option>
+            <option value="landscape">横图</option>
+          </select>
+        </label>
+      </div>
+      <p class="note" id="imageConnection">正在读取本地设置…</p>
+      <div class="image-auth" id="imageAuth" hidden>
+        <button class="secondary" type="button" id="imageGoogle"></button>
+      </div>
+      <button class="copy" type="submit" id="imageGenerate" disabled><i data-icon="spark"></i>使用当前提示词生成</button>
+    </form>
+    <div class="image-results">
+      <p id="imageStatus" class="image-status" role="status" aria-live="polite"></p>
+      <div id="imageEmpty" class="image-empty"><i data-icon="image"></i><span>生成的角色图将在这里显示</span></div>
+      <div id="imageGallery" class="image-gallery" hidden></div>
+    </div>
+  </div>
+</section>
 </section>
 <section id="library" hidden><div class="pagehead"><div><small>MATERIAL LIBRARY</small><h1>素材库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入配置</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出配置</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="iconbox"><i data-icon="book"></i></span><h2>素材与抽取权重</h2></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
 <section id="history" hidden><div class="pagehead"><div><small>GENERATION HISTORY</small><h1>历史记录</h1></div><span class="subtle">保留最近 100 条</span></div><div id="records"></div></section>
-<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog><div role="status" id="toast"></div><script type="module" src="app.mjs"></script></body></html>
+<section id="settings" aria-labelledby="settingsHeading" hidden>
+  <div class="pagehead resources-heading">
+    <div><h1 id="settingsHeading">生图资源设置</h1><p>配置只保存在当前浏览器。换设备或清除浏览器数据后需重新填写。</p></div>
+    <a class="secondary" href="#imageStudio">返回图片生成</a>
+  </div>
+  <p id="resourceConnection" class="resource-connection note" role="status" hidden></p>
+  <div class="resources-grid">
+    <form class="panel resource-card" method="post" data-resource="openai" aria-labelledby="openaiResource">
+      <div class="section-heading"><h2 id="openaiResource">OpenAI · API Key</h2><span class="resource-state right" data-state>未配置</span></div>
+      <fieldset disabled>
+        <label class="settinglabel">OpenAI API Key
+          <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
+        </label>
+        <div class="resource-actions">
+          <button class="copy" type="submit">保存 OpenAI</button>
+          <button class="secondary" type="button" data-remove hidden>移除配置</button>
+        </div>
+      </fieldset>
+      <p class="resource-message" data-message role="status"></p>
+    </form>
+    <form class="panel resource-card" method="post" data-resource="gemini" aria-labelledby="geminiResource">
+      <div class="section-heading"><h2 id="geminiResource">Gemini · API Key</h2><span class="resource-state right" data-state>未配置</span></div>
+      <fieldset disabled>
+        <label class="settinglabel">Gemini API Key
+          <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
+        </label>
+        <div class="resource-actions">
+          <button class="copy" type="submit">保存 Gemini</button>
+          <button class="secondary" type="button" data-remove hidden>移除配置</button>
+        </div>
+      </fieldset>
+      <p class="resource-message" data-message role="status"></p>
+    </form>
+    <form class="panel resource-card" method="post" data-resource="gemini-oauth" aria-labelledby="googleResource">
+      <div class="section-heading"><h2 id="googleResource">Gemini · Google OAuth</h2><span class="resource-state right" data-state>未配置</span></div>
+      <fieldset disabled>
+        <label class="settinglabel">Google Cloud 项目 ID 或编号
+          <input name="project" maxlength="30" autocomplete="off" spellcheck="false" autocapitalize="none">
+        </label>
+        <label class="settinglabel">OAuth Client ID
+          <input name="clientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
+        </label>
+        <div class="resource-callback">
+          <label class="settinglabel">已获授权的 JavaScript 来源<input id="oauthOrigin" readonly></label>
+          <button class="secondary" id="copyOAuthOrigin" type="button">复制</button>
+        </div>
+        <p class="note">将此地址加到 Google Cloud 的 Web 应用 JavaScript 来源，并在项目中启用 Vertex AI。</p>
+        <div class="resource-actions">
+          <button class="copy" type="submit">保存 OAuth</button>
+          <button class="secondary" type="button" id="settingsGoogle" hidden>使用 Google 登录</button>
+          <button class="secondary" type="button" data-remove hidden>移除配置</button>
+        </div>
+      </fieldset>
+      <p class="resource-message" data-message role="status"></p>
+    </form>
+    <form class="panel resource-card" method="post" data-resource="custom" aria-labelledby="customResource">
+      <div class="section-heading"><h2 id="customResource">自定义兼容接口</h2><span class="resource-state right" data-state>未配置</span></div>
+      <fieldset disabled>
+        <label class="settinglabel">兼容协议
+          <select name="format"><option value="openai">OpenAI Images</option><option value="gemini">Gemini</option></select>
+        </label>
+        <label class="settinglabel">完整接口地址
+          <input name="url" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="customURLHelp">
+        </label>
+        <p class="note resource-url-help" id="customURLHelp"></p>
+        <label class="settinglabel">默认模型 ID（选填）
+          <input name="model" maxlength="128" autocomplete="off" spellcheck="false" autocapitalize="none">
+        </label>
+        <label class="settinglabel">网关 API Key（选填）
+          <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
+        </label>
+        <label class="resource-check" data-clear-key hidden><input type="checkbox" name="clearKey">清除已保存的网关密钥</label>
+        <div class="resource-actions">
+          <button class="copy" type="submit">保存自定义接口</button>
+          <button class="secondary" type="button" data-remove hidden>移除配置</button>
+        </div>
+      </fieldset>
+      <p class="resource-message" data-message role="status"></p>
+    </form>
+  </div>
+</section>
+<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
+<dialog id="imagePreview" class="image-preview" aria-labelledby="imagePreviewTitle">
+  <div class="dialoghead"><h2 id="imagePreviewTitle">角色图预览</h2><button type="button" id="closeImagePreview" aria-label="关闭预览"><i data-icon="x"></i></button></div>
+  <img id="imagePreviewAsset" alt="生成的角色图" referrerpolicy="no-referrer">
+</dialog>
+<div role="status" id="toast"></div><script type="module" src="app.mjs"></script></body></html>

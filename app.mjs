@@ -1,5 +1,6 @@
 import {labels,optional,pool,generate,validate,compatible,renderPrompt} from './engine.mjs';
 import {icon} from './icons.mjs';
+import {initializeImages} from './images.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const opt=(k,t)=>'<option value="'+esc(k)+'">'+esc(t)+'</option>';
@@ -61,7 +62,7 @@ function dl(name,obj){let a=document.createElement('a'),u=URL.createObjectURL(ne
 function libraries(){let keys=['branch','palette',...Object.keys(base.pools),'style','presentation'];$('libtabs').innerHTML=keys.map(k=>'<button class="'+(libKey===k?'selected':'')+'" data-lib="'+k+'">'+labels[k]+'</button>').join('');
  $('materials').innerHTML=pool(c,libKey,sel()).map((e,i)=>'<div class="material"><div>'+esc(e.zh)+'<small>'+esc(e.en||e.preferredTags?.join(' · '))+'</small></div>'+('weight' in e?'<label>权重 <input aria-label="'+esc(e.zh)+'权重" type="number" min="0" step="any" data-weight="'+i+'" value="'+e.weight+'"></label>':'')+'</div>').join('')}
 function records(){$('records').innerHTML=model.history.slice().reverse().map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('')}
-function page(){const key=['library','history'].includes(location.hash.slice(1))?location.hash.slice(1):'studio';for(const k of ['studio','library','history'])$(k).hidden=k!==key;document.querySelectorAll('[data-page]').forEach(a=>a.classList.toggle('active',a.dataset.page===key));if(key==='library')libraries();if(key==='history')records()}
+function page(){const key=['library','history','settings'].includes(location.hash.slice(1))?location.hash.slice(1):'studio';for(const k of ['studio','library','history','settings'])$(k).hidden=k!==key;document.querySelectorAll('[data-page]').forEach(a=>{const active=a.dataset.page===key;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});if(key==='library')libraries();if(key==='history')records()}
 function attempt(fn){try{fn()}catch(e){notify(e.message)}}
 document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.createRange().createContextualFragment(icon(el.dataset.icon))));
 for(const [id,type] of [['generate','new'],['fresh','fresh'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
@@ -84,3 +85,4 @@ $('records').onclick=e=>{let b=e.target.closest('[data-restore]');if(!b)return;l
 $('moreSettings').onclick=()=>{const keys={accessoryProbability:'头饰出现概率',nonhumanProbability:'非人特征出现概率',propProbability:'道具出现概率',similarityThreshold:'历史相似度阈值'};showDialog('高级设置',Object.entries(keys).map(([k,t])=>'<label class="settinglabel">'+t+'（%）<input type="number" min="0" max="100" value="'+Math.round(c.settings[k]*100)+'" id="'+k+'"></label>').join('')+'<p class="note">新设置用于后续生成。重现种子时使用当前设置，并跳过历史查重。</p><button id="saveSettings" class="copy">保存设置</button>');$('saveSettings').onclick=()=>attempt(()=>{const next=structuredClone(c);for(const k of Object.keys(keys))next.settings[k]=$(k).valueAsNumber/100;validate(next);useProfile(next,false);persist();closeDialog();notify('生成设置已保存')})};
 $('close').onclick=closeDialog;$('dialog').onclose=()=>{$('dbody').onclick=null};$('dialog').onclick=e=>{if(e.target===$('dialog')){const rect=$('dialog').getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeDialog()}};
 window.addEventListener('hashchange',page);if(!cur())make('new');else draw();page();
+initializeImages(() => ({prompt: $('output').value, seed: cur().seed, language: pref.lang}));
