@@ -24,6 +24,10 @@ export function readImageResources(storage = globalThis.localStorage) {
   return Object.fromEntries(resourceIds.filter(id => Object.hasOwn(saved, id)).map(id => [id, record(saved[id])]));
 }
 
+export function clearLegacyImageResources(storage) {
+  if (storage.getItem(resourceKey) !== null) storage.removeItem(resourceKey);
+}
+
 function endpoint(value, origin) {
   if (typeof value !== 'string' || !value || /[\\\s\x00-\x1f\x7f]/.test(value)) return null;
   try {
@@ -89,7 +93,8 @@ function validKey(key) {
 
 function validateResource(id, values, previous, origin) {
   const field = name => typeof values[name] === 'string' ? values[name].trim() : '';
-  const key = field('key') || (id === 'custom' && values.clearKey === true ? '' : previous?.key || '');
+  const enteredKey = field('key');
+  const key = enteredKey || (id === 'custom' && values.clearKey === true ? '' : previous?.key || '');
   if (id !== 'gemini-oauth' && (id !== 'custom' || key) && !validKey(key)) {
     throw new Error('请填写有效的 API Key。');
   }
@@ -109,6 +114,9 @@ function validateResource(id, values, previous, origin) {
         ? '请填写包含 /models/{model}:generateContent 的外部 Gemini 接口地址。'
         : '请填写外部 HTTPS 接口或本机回环 HTTP 地址。');
     }
+    if (key && !enteredKey && (format !== previous?.format || endpoint(url, origin).origin !== endpoint(previous?.url, origin)?.origin)) {
+      throw new Error('更换自定义接口域名或协议时，请填写该接口的 API Key，或清除已保存的密钥。');
+    }
     const editsURL = format === 'openai' ? field('editsURL') : '';
     const draft = {url, format, key, modelsURL, editsURL};
     if (modelsURL.length > 2048 || !modelListURL(draft, origin)) {
@@ -122,37 +130,24 @@ function validateResource(id, values, previous, origin) {
   return {key};
 }
 
-export function updateImageResource(id, action, values, {
-  storage = globalThis.localStorage, origin = location.origin, verification,
-} = {}) {
-  if (!resourceIds.includes(id) || !['save', 'remove'].includes(action)) throw new Error('请选择一个有效的接口。');
-  const resources = readImageResources(storage);
-  if (action === 'remove') delete resources[id];
-  else {
-    const previous = resources[id];
-    const draft = validateResource(id, record(values), previous, origin);
-    const verified = verifications.get(verification);
-    let models;
-    let prices = {};
-    if (verified?.id === id && JSON.stringify(verified.draft) === JSON.stringify(draft)) {
-      models = verification.models;
-      prices = verification.prices;
-    } else if (!verification && previous
-      && Object.entries(draft).every(([name, value]) => value === (name === 'editsURL' ? previous[name] || '' : previous[name]))) {
-      models = savedModels(id, previous);
-      prices = previous.prices || {};
-    }
-    if (!models?.length) throw new Error('请先验证当前接口配置并获取模型。');
-    if (!models.includes(values.model)) throw new Error('请从返回的列表中选择一个模型。');
-    resources[id] = {...draft, models, model: values.model, prices};
+export function resolveImageResourceConfig(provider, values, {previous, origin = location.origin, verification} = {}) {
+  if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
+  const input = record(values);
+  const draft = validateResource(provider, input, previous, origin);
+  const verified = verifications.get(verification);
+  let models;
+  let prices = {};
+  if (verified?.id === provider && verified.origin === origin && JSON.stringify(verified.draft) === JSON.stringify(draft)) {
+    models = verification.models;
+    prices = verification.prices;
+  } else if (!verification && previous
+    && Object.entries(draft).every(([name, value]) => value === (name === 'editsURL' ? previous[name] || '' : previous[name]))) {
+    models = savedModels(provider, previous);
+    prices = previous.prices || {};
   }
-  try {
-    if (Object.keys(resources).length) storage.setItem(resourceKey, JSON.stringify(resources));
-    else storage.removeItem(resourceKey);
-  } catch {
-    throw new Error('浏览器无法保存本地配置。');
-  }
-  return resources;
+  if (!models?.length) throw new Error('请先验证当前接口配置并获取模型。');
+  if (!models.includes(input.model)) throw new Error('请从返回的列表中选择一个模型。');
+  return {...draft, models, model: input.model, prices};
 }
 
 export function currentGoogleToken(authorization, resource) {
@@ -304,12 +299,12 @@ function providerAuthentication(provider, resource, authorization) {
     ? {Authorization: 'Bearer ' + resource.key} : {'x-goog-api-key': resource.key};
 }
 
-export async function verifyImageResource(provider, values, {
-  storage = globalThis.localStorage, origin = location.origin, send = globalThis.fetch,
+export async function verifyImageResourceConfig(provider, values, {
+  previous, origin = location.origin, send = globalThis.fetch,
   authorization, authorize = authorizeGoogle,
 } = {}) {
   if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
-  const draft = validateResource(provider, record(values), readImageResources(storage)[provider], origin);
+  const draft = validateResource(provider, record(values), previous, origin);
   const format = providerFormat(provider, draft);
   if (provider === 'gemini-oauth' && !currentGoogleToken(authorization, draft)) authorization = await authorize(draft);
   const headers = providerAuthentication(provider, draft, authorization);
@@ -352,7 +347,7 @@ export async function verifyImageResource(provider, values, {
     prices: Object.freeze(Object.fromEntries(prices)),
     authorization: provider === 'gemini-oauth' ? authorization : undefined,
   });
-  verifications.set(verification, {id: provider, draft});
+  verifications.set(verification, {id: provider, origin, draft});
   return verification;
 }
 

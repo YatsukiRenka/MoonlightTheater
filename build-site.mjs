@@ -8,7 +8,7 @@ if (driveClientId && (driveClientId !== driveClientId.trim() || !validGoogleClie
 
 const assets = [
   'index.html', 'style.css', 'app.mjs', 'engine.mjs', 'icons.mjs', 'images.mjs',
-  'image-settings.mjs', 'image-client.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
+  'image-settings.mjs', 'image-client.mjs', 'api-resources.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'history-limits.mjs', 'history-archive.mjs', 'history-backup.mjs', 'prompt-history.mjs', 'google-oauth.mjs', 'drive-history.mjs', 'image-file.mjs',
   'cloud-history.mjs', 'cloud-image-store.mjs', 'image-renditions.mjs', 'vendor/noble-sha256.mjs',

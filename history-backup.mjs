@@ -59,7 +59,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const disconnect = byId('disconnectDrive');
   const loginHelp = byId('driveLoginHelp');
   const advanced = byId('driveAdvanced');
-  const driveCard = connect.closest('.resource-card');
+  const driveCard = byId('driveHistoryCard');
   const useCustomClient = byId('driveUseCustomClient');
   const customFields = byId('driveCustomClientFields');
   const clientId = byId('driveClientId');
