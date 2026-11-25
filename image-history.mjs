@@ -25,7 +25,7 @@ export async function readImageHistory() {
   }
 }
 
-export async function saveImageHistory({images, model, provider, prompt, seed, language, time, metrics}) {
+export async function saveImageHistory({images, model, provider, prompt, seed, language, time, metrics, text, sources}) {
   const size = images.reduce((total, image) => total + image.size, 0);
   if (size > byteLimit) throw new Error('图片超过生图记录的存储上限。');
   const db = await openHistory();
@@ -40,7 +40,7 @@ export async function saveImageHistory({images, model, provider, prompt, seed, l
       scan.onsuccess = () => {
         const cursor = scan.result;
         if (!cursor) {
-          store.add({images, model, provider, prompt, seed, language, time, size, metrics});
+          store.add({images, model, provider, prompt, seed, language, time, size, metrics, text, sources});
           return;
         }
         prune ||= count >= recordLimit || bytes + cursor.value.size > byteLimit;

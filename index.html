@@ -5,7 +5,7 @@
 <section class="panel settings"><div class="section-heading"><span class="iconbox"><i data-icon="sliders"></i></span><h2>生成设置</h2><button class="subtle right" id="toggleImageStudio" type="button" aria-expanded="true" aria-controls="imageStudio">隐藏生图</button><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div>
 <div class="fields"><label>风格分支<select id="branch"></select></label><label>绘制画风<select id="style"></select></label><label>探索度 <b class="number" id="exploreValue">18%</b><input type="range" min="0" max="100" id="explore"></label><label>随机种子 <span class="seedinput"><input id="seed" placeholder="输入种子" maxlength="128"><button type="button" id="replay" title="按种子重现" aria-label="按种子重现"><i data-icon="repeat"></i></button></span></label></div></section>
 <div class="workgrid" id="workgrid"><div class="work-input"><section class="panel design"><div class="section-heading"><span class="iconbox"><i data-icon="layers"></i></span><h2>角色设计</h2><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
-<section class="panel prompt"><div class="section-heading"><span class="iconbox"><i data-icon="text"></i></span><h2>完整提示词</h2><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button><button class="secondary" id="exportChar"><i data-icon="download"></i>导出 JSON</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
+<section class="panel prompt"><div class="section-heading"><span class="iconbox"><i data-icon="text"></i></span><h2>完整提示词</h2><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
 <section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading">
   <div class="section-heading">
     <span class="iconbox"><i data-icon="spark"></i></span>
@@ -26,26 +26,37 @@
         <label class="settinglabel">模型 ID
           <select id="imageModel" disabled><option value="">请先验证接口</option></select>
         </label>
-        <label class="settinglabel">画幅
-          <select id="imageAspect">
-            <option value="auto">模型默认</option>
-            <option value="portrait">竖图</option>
-            <option value="square">方图</option>
-            <option value="landscape">横图</option>
-          </select>
-        </label>
+        <div id="imageShapeField"></div>
       </div>
+      <details id="imageAdvanced" class="image-advanced" hidden>
+        <summary><i data-icon="tune"></i>高级图像设置</summary>
+        <fieldset id="imageAdvancedFields"></fieldset>
+        <div id="imageEditLayer" class="image-edit-layer" hidden>
+          <label class="settinglabel">局部编辑<select id="imageEditType"></select></label>
+          <label class="settinglabel" id="imageLayerLabel" hidden>上传透明 PNG<input type="file" id="imageLayerFile" accept="image/png"></label>
+          <p class="note">遮罩或标注图须与第一张参考图尺寸一致。</p>
+        </div>
+        <p class="note" id="imageAdvancedNote" hidden></p>
+      </details>
       <p class="note" id="imageConnection">正在读取本地设置…</p>
       <div class="image-auth" id="imageAuth" hidden>
         <button class="secondary" type="button" id="imageGoogle"></button>
       </div>
-      <button class="copy" type="submit" id="imageGenerate" disabled><i data-icon="spark"></i>使用当前提示词生成</button>
+      <ul id="imageReferenceList" class="image-reference-list" aria-label="参考图片" hidden></ul>
+      <p class="note" id="imageReferenceStatus" role="status" hidden></p>
+      <div class="image-submit">
+        <input id="imageReferences" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+        <button class="secondary image-add" type="button" id="imageAddReference" aria-label="添加参考图片" title="添加参考图片" disabled><i data-icon="imageAdd"></i></button>
+        <button class="copy" type="submit" id="imageGenerate" disabled><i data-icon="spark"></i>使用当前提示词生成</button>
+      </div>
     </form>
     <div class="image-results">
       <p id="imageStatus" class="image-status" role="status" aria-live="polite"></p>
       <div id="imageMetrics" class="image-metrics" hidden></div>
       <div id="imageEmpty" class="image-empty"><i data-icon="image"></i><span>生成的角色图将在这里显示</span></div>
-      <div id="imageGallery" class="image-gallery" hidden></div>
+      <figure class="image-partial" id="imagePartial" hidden><img id="imagePartialAsset" alt="生成中的图片预览"><figcaption>生成中 · 流式预览</figcaption></figure>
+      <div id="imageGallery" hidden></div>
+      <div id="imageResultDetails" hidden></div>
     </div>
   </div>
 </section>
@@ -147,6 +158,9 @@
         <label class="settinglabel">模型列表地址（选填）
           <input name="modelsURL" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="留空则从生图接口推导">
         </label>
+        <label class="settinglabel" id="customEditsLabel">参考图编辑地址（选填）
+          <input name="editsURL" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="默认从 /images/generations 推导">
+        </label>
         <label class="settinglabel">网关 API Key（选填）
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
@@ -163,7 +177,7 @@
     </form>
   </div>
 </section>
-<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
+<footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog" aria-labelledby="dtitle"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
 <dialog id="imagePreview" class="image-preview" aria-labelledby="imagePreviewTitle">
   <div class="dialoghead"><h2 id="imagePreviewTitle">角色图预览</h2><button type="button" id="closeImagePreview" aria-label="关闭预览"><i data-icon="x"></i></button></div>
   <img id="imagePreviewAsset" alt="生成的角色图" referrerpolicy="no-referrer">

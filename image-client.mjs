@@ -1,13 +1,14 @@
-import {catalogPrice, modelPrice, summarizeImageUsage} from './image-usage.mjs';
+import {catalogPrice, combineImageUsage, modelPrice, summarizeImageUsage} from './image-usage.mjs';
+import {imageCapabilities, legacyImageOptions, prepareImageOptions, validateReferenceImages} from './image-options.mjs';
+import {readImageStream} from './image-stream.mjs';
 
 const resourceKey = 'moonlight-image-resources-v1';
 const resourceIds = ['openai', 'gemini', 'gemini-oauth', 'custom'];
 const projectPattern = /^(?:[a-z][a-z0-9-]{4,28}[a-z0-9]|[0-9]{6,20})$/;
 const clientPattern = /^[A-Za-z0-9_-]{4,220}\.apps\.googleusercontent\.com$/;
 const googleScope = 'https://www.googleapis.com/auth/cloud-platform';
-const sizes = {portrait: '1024x1536', square: '1024x1024', landscape: '1536x1024'};
-const aspects = {portrait: '2:3', square: '1:1', landscape: '3:2'};
-const maxResponse = 20 * 1024 * 1024;
+const maxResponse = 128 * 1024 * 1024;
+const maxCatalogResponse = 20 * 1024 * 1024;
 const verifications = new WeakMap();
 
 function record(value) {
@@ -69,6 +70,18 @@ function modelListURL(resource, origin) {
   return generation;
 }
 
+function editURL(resource, origin) {
+  const generation = endpoint(resource.url, origin);
+  if (!generation) return null;
+  if (resource.editsURL) {
+    const edit = endpoint(resource.editsURL, origin);
+    return edit?.origin === generation.origin ? edit.href : null;
+  }
+  if (!/\/images\/generations\/?$/.test(generation.pathname)) return null;
+  generation.pathname = generation.pathname.replace(/\/generations\/?$/, '/edits');
+  return generation.href;
+}
+
 function validKey(key) {
   return typeof key === 'string' && Boolean(key) && key.length <= 1024 && !/[^!-~]/.test(key);
 }
@@ -95,9 +108,13 @@ function validateResource(id, values, previous, origin) {
         ? '请填写包含 /models/{model}:generateContent 的外部 Gemini 接口地址。'
         : '请填写外部 HTTPS 接口或本机回环 HTTP 地址。');
     }
-    const draft = {url, format, key, modelsURL};
+    const editsURL = format === 'openai' ? field('editsURL') : '';
+    const draft = {url, format, key, modelsURL, editsURL};
     if (modelsURL.length > 2048 || !modelListURL(draft, origin)) {
       throw new Error('请填写与生图接口同源的模型列表地址。');
+    }
+    if (editsURL && (editsURL.length > 2048 || !editURL(draft, origin))) {
+      throw new Error('请填写与生图接口同源的参考图接口地址。');
     }
     return draft;
   }
@@ -120,7 +137,7 @@ export function updateImageResource(id, action, values, {
       models = verification.models;
       prices = verification.prices;
     } else if (!verification && previous
-      && Object.entries(draft).every(([name, value]) => value === previous[name])) {
+      && Object.entries(draft).every(([name, value]) => value === (name === 'editsURL' ? previous[name] || '' : previous[name]))) {
       models = savedModels(id, previous);
       prices = previous.prices || {};
     }
@@ -156,7 +173,7 @@ export function describeImageResources(saved, authorization, origin = location.o
       ready: clientPattern.test(oauth.clientId || '') && projectPattern.test(oauth.project || ''),
       connected: Boolean(currentGoogleToken(authorization, oauth)),
     },
-    custom: {ready: Boolean(customReady), format},
+    custom: {ready: Boolean(customReady), format, supportsReferences: format === 'gemini' || Boolean(editURL(custom, origin))},
   };
   for (const id of resourceIds) {
     const models = savedModels(id, saved[id]);
@@ -170,7 +187,7 @@ export function describeImageResources(saved, authorization, origin = location.o
     },
   ]));
   Object.assign(resources['gemini-oauth'], {clientId: oauth.clientId || '', project: oauth.project || ''});
-  Object.assign(resources.custom, {url: custom.url || '', format, modelsURL: custom.modelsURL || ''});
+  Object.assign(resources.custom, {url: custom.url || '', format, modelsURL: custom.modelsURL || '', editsURL: custom.editsURL || ''});
   return {providers, resources, canConfigure: true};
 }
 
@@ -230,7 +247,7 @@ export function authorizeGoogle(resource) {
 }
 
 const upstreamMessages = {
-  400: '接口拒绝了请求，请检查模型和画幅设置。',
+  400: '接口拒绝了请求，请检查所选模型、高级设置与参考图片。',
   401: '接口未通过身份验证，请检查 API Key 或重新完成 Google 授权。',
   402: '接口拒绝调用，请检查账单或余额。',
   403: '接口拒绝调用，请检查模型权限、API 启用状态和账单。',
@@ -259,7 +276,7 @@ async function outbound(url, options, send, timeout = 180_000) {
   return response;
 }
 
-async function boundedBlob(response) {
+async function boundedBlob(response, limit = maxResponse) {
   if (!response.body) throw new Error('接口未返回数据。');
   const reader = response.body.getReader();
   let size = 0;
@@ -269,7 +286,7 @@ async function boundedBlob(response) {
       const {value, done} = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > maxResponse) {
+      if (size > limit) {
         await reader.cancel();
         throw new Error('返回的图片数据过大。');
       }
@@ -281,8 +298,8 @@ async function boundedBlob(response) {
   return new Blob(chunks);
 }
 
-async function readAPIJSON(response) {
-  const text = await (await boundedBlob(response)).text();
+async function readAPIJSON(response, limit) {
+  const text = await (await boundedBlob(response, limit)).text();
   try { return record(JSON.parse(text)); } catch { throw new Error('接口返回的内容不是有效 JSON。'); }
 }
 
@@ -347,7 +364,7 @@ export async function verifyImageResource(provider, values, {
   const tokens = new Set();
   const firstPage = catalog.href;
   for (;;) {
-    const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, 20_000));
+    const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, 20_000), maxCatalogResponse);
     for (const {id, price} of pageModels(response, provider, format)) {
       models.add(id);
       if (price) prices.set(id, Object.freeze(price));
@@ -382,14 +399,38 @@ function rasterMime(prefix) {
   if (prefix.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
   if (prefix.startsWith('\xff\xd8\xff')) return 'image/jpeg';
   if (prefix.startsWith('RIFF') && prefix.slice(8, 12) === 'WEBP') return 'image/webp';
+  if (prefix.startsWith('GIF89a') || prefix.startsWith('GIF87a')) return 'image/gif';
 }
 
-function inline(data) {
+function svgBlob(base64) {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const text = new TextDecoder().decode(Uint8Array.from(atob(base64), ch => ch.charCodeAt(0)));
+  if (/<!DOCTYPE|<!ENTITY/i.test(text)) return null;
+  const svg = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
+  if (svg.localName !== 'svg' || svg.namespaceURI !== namespace || svg.querySelector('parsererror')) return null;
+  const allowed = new Set('svg g defs title desc path rect circle ellipse line polyline polygon text tspan textPath symbol use clipPath mask pattern linearGradient radialGradient stop marker filter feGaussianBlur feColorMatrix feComponentTransfer feFuncR feFuncG feFuncB feFuncA feComposite feBlend feDropShadow feOffset feMerge feMergeNode'.split(' '));
+  for (const node of [svg, ...svg.querySelectorAll('*')]) {
+    if (node.namespaceURI !== namespace || !allowed.has(node.localName)) { node.remove(); continue; }
+    for (const attribute of [...node.attributes]) {
+      const {localName, value} = attribute;
+      if (/^on/i.test(localName) || localName === 'base'
+        || (localName === 'href' && !/^#[\w.:-]+$/.test(value))
+        || /[\\\u0000]/.test(value) || /url\s*\((?!\s*['"]?#[\w.:-]+['"]?\s*\))/i.test(value)) {
+        node.removeAttributeNode(attribute);
+      }
+    }
+  }
+  return new Blob([new XMLSerializer().serializeToString(svg)], {type: 'image/svg+xml'});
+}
+
+function inline(data, output) {
   if (typeof data !== 'string' || data.length < 16 || data.length % 4 || /[^A-Za-z0-9+/=]/.test(data)) return null;
   const padding = data.indexOf('=');
   if (padding !== -1 && !/^={1,2}$/.test(data.slice(padding))) return null;
   const mime = rasterMime(atob(data.slice(0, 16)));
-  return mime ? {mime, base64: data} : null;
+  if (mime) return {mime, base64: data};
+  const blob = output === 'svg' ? svgBlob(data) : null;
+  return blob ? {mime: blob.type, blob} : null;
 }
 
 async function linkedImage(value, origin, send) {
@@ -401,11 +442,11 @@ async function linkedImage(value, origin, send) {
   return {mime, blob: data.slice(0, data.size, mime)};
 }
 
-async function extractImages(response, format, origin, send) {
+async function extractImages(response, format, origin, send, output) {
   if (format === 'openai') {
     const images = [];
     for (const item of array(response.data)) {
-      const image = inline(item?.b64_json);
+      const image = inline(item?.b64_json, output);
       if (image) images.push(image);
       else if (item?.url) images.push(await linkedImage(item.url, origin, send));
     }
@@ -417,8 +458,71 @@ async function extractImages(response, format, origin, send) {
   }));
 }
 
-export async function generateImage({provider, model: requestedModel, aspect, prompt}, resources, authorization, {
-  origin = location.origin, send = globalThis.fetch,
+async function base64File(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let raw = '';
+  for (let start = 0; start < bytes.length; start += 32768) {
+    raw += String.fromCharCode(...bytes.subarray(start, start + 32768));
+  }
+  return btoa(raw);
+}
+
+async function geminiRequest(prompt, references, settings, caps) {
+  const {aspectRatio, imageSize, thinkingLevel, modalities, search, mimeType, compressionQuality, personGeneration} = settings;
+  const parts = [{text: prompt}, ...await Promise.all(references.map(async file => ({
+    inlineData: {mimeType: file.type, data: await base64File(file)},
+  })))];
+  const imageConfig = {...(aspectRatio && {aspectRatio}), ...(imageSize && {imageSize}), ...(personGeneration && {personGeneration})};
+  if (caps.vertex && mimeType) imageConfig.imageOutputOptions = {mimeType, ...(compressionQuality !== undefined && {compressionQuality})};
+  const generationConfig = {responseModalities: modalities === 'image' ? ['IMAGE'] : ['TEXT', 'IMAGE']};
+  if (Object.keys(imageConfig).length) generationConfig.imageConfig = imageConfig;
+  if (thinkingLevel) generationConfig.thinkingConfig = {thinkingLevel};
+  if (caps.developer && mimeType) generationConfig.responseFormat = {image: {mimeType: 'IMAGE_JPEG'}};
+  const request = {contents: [{role: 'user', parts}], generationConfig};
+  if (search) {
+    const searchTypes = {...(search !== 'images' && {webSearch: {}}), ...(search !== 'web' && {imageSearch: {}})};
+    request.tools = [{googleSearch: search === 'web' ? {} : {searchTypes}}];
+  }
+  return JSON.stringify(request);
+}
+
+function geminiDetails(response) {
+  const text = [];
+  const sources = [];
+  for (const candidate of array(response.candidates)) {
+    for (const part of array(candidate?.content?.parts)) {
+      if (!part?.thought && typeof part?.text === 'string') text.push(part.text.slice(0, 2000));
+    }
+    const grounding = candidate?.groundingMetadata || candidate?.grounding_metadata;
+    for (const chunk of array(grounding?.groundingChunks || grounding?.grounding_chunks)) {
+      const value = chunk?.image || chunk?.web;
+      try {
+        const url = new URL(value.sourceUri ?? value.source_uri ?? value.uri);
+        if (url.protocol === 'https:' && !url.username && !url.password) {
+          sources.push({url: url.href, title: String(value.title || url.hostname).slice(0, 160)});
+        }
+      } catch {}
+    }
+  }
+  return {text: text.join('\n').slice(0, 4000), sources};
+}
+
+async function readStreamingImages(response, onPartial, receive) {
+  await readImageStream(response, (type, event) => {
+    if (type === 'error') throw new Error('接口报告流式生图失败。');
+    if (type === 'image_generation.partial_image' || type === 'image_edit.partial_image') {
+      const img = inline(event.b64_json);
+      if (img) onPartial(img);
+    }
+    if (type === 'image_generation.completed' || type === 'image_edit.completed') {
+      const img = inline(event.b64_json);
+      if (img) receive([img], event);
+    }
+  }, maxResponse);
+}
+
+export async function generateImage({provider, model: requestedModel, aspect, prompt, options = {}, references = [], editLayer}, resources, authorization, {
+  origin = location.origin, send = globalThis.fetch, onPartial = () => {}, onProgress = () => {},
 } = {}) {
   const {providers} = describeImageResources(resources, authorization, origin);
   const entry = providers[provider];
@@ -428,9 +532,17 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
   const model = requestedModel || entry.model;
   if (!entry.models.includes(model)) throw new Error('请从已验证的模型列表中选择。');
   if (!prompt.trim() || prompt.length > 16000) throw new Error('请输入 1 到 16000 字符的提示词。');
+  const caps = imageCapabilities(provider, format, model);
+  validateReferenceImages(references, caps);
+  const hasReferences = references.length > 0;
+  const legacy = legacyImageOptions(format, aspect);
+  const settings = prepareImageOptions(caps, {...legacy, ...options}, hasReferences);
+  const {n, partial_images, ...params} = settings;
+  const streaming = Boolean(partial_images);
+  const requests = format === 'gemini' || streaming ? Number(n || 1) : 1;
   let url;
   if (provider === 'openai') {
-    url = 'https://api.openai.com/v1/images/generations';
+    url = 'https://api.openai.com/v1/images/' + (hasReferences ? 'edits' : 'generations');
   } else if (provider === 'gemini') {
     url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
   } else if (provider === 'gemini-oauth') {
@@ -439,23 +551,66 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
   } else {
     const customURL = endpoint(resource.url.replace('{model}', model), origin);
     if (!customURL) throw new Error('自定义接口必须指向本站以外的地址。');
-    url = customURL.href;
+    url = format === 'openai' && hasReferences ? editURL(resource, origin) : customURL.href;
+    if (!url) throw new Error('请先在设置中填写兼容的参考图编辑接口。');
   }
-  const headers = {'Content-Type': 'application/json', ...providerAuthentication(provider, resource, authorization)};
-  const payload = format === 'openai'
-    ? {model, prompt, ...(sizes[aspect] ? {size: sizes[aspect]} : {})}
-    : {
-        contents: [{role: 'user', parts: [{text: prompt}]}],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          ...(aspects[aspect] ? {imageConfig: {aspectRatio: aspects[aspect]}} : {}),
-        },
-      };
+  const headers = providerAuthentication(provider, resource, authorization);
   const started = performance.now();
-  const response = await outbound(url, {method: 'POST', headers, body: JSON.stringify(payload)}, send);
-  const result = await readAPIJSON(response);
-  const images = await extractImages(result, format, origin, send);
+  let body;
+  if (format === 'openai') {
+    const payload = {model, prompt, ...params, ...(streaming ? {stream: true, partial_images} : n !== undefined ? {n} : {})};
+    if (hasReferences) {
+      body = new FormData();
+      for (const [key, value] of Object.entries(payload)) body.set(key, String(value));
+      for (const file of references) body.append(references.length === 1 ? 'image' : 'image[]', file, file.name || 'reference');
+      if (editLayer) {
+        const {type, file} = editLayer;
+        if (!file || file.type !== 'image/png' || file.size === 0 || file.size >= 4 * 1024 * 1024
+          || (type !== 'mask' && !(type === 'markup' && caps.modern))) {
+          throw new Error('遮罩或标注图需为当前模型支持的 PNG，大小小于 4 MB。');
+        }
+        body.set(type, file, file.name || type + '.png');
+      }
+    } else body = JSON.stringify(payload);
+  } else body = await geminiRequest(prompt, references, params, caps);
+  if (typeof body === 'string') headers['Content-Type'] = 'application/json';
+  const rate = modelPrice(provider, model, resource.prices);
+  const images = [];
+  const usages = [];
+  const texts = [];
+  const sources = new Map();
+  let warning;
+  function receive(batch, result) {
+    images.push(...batch);
+    usages.push(summarizeImageUsage(result, format, rate, batch.length));
+  }
+  for (let index = 0; index < requests; index++) {
+    try {
+      onProgress(index + 1, requests);
+      const initialCount = images.length;
+      const response = await outbound(url, {method: 'POST', headers, body}, send);
+      if (streaming && response.headers.get('content-type')?.includes('text/event-stream')) {
+        await readStreamingImages(response, onPartial, receive);
+      }
+      else {
+        const result = await readAPIJSON(response);
+        receive(await extractImages(result, format, origin, send, params.output_format), result);
+        if (format === 'gemini') {
+          const details = geminiDetails(result);
+          if (details.text) texts.push(details.text);
+          for (const source of details.sources) sources.set(source.url, source);
+        }
+      }
+      if (images.length === initialCount) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
+    } catch (error) {
+      if (!images.length) throw error;
+      warning = error.message;
+      break;
+    }
+  }
   if (!images.length) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
-  const usage = summarizeImageUsage(result, format, modelPrice(provider, model, resource.prices), images.length);
-  return {model, images, metrics: {...usage, elapsed: performance.now() - started}};
+  const usage = combineImageUsage(usages);
+  const extraCharges = Boolean(params.search || params.output_format === 'svg');
+  return {model, images, warning, text: texts.join('\n\n').slice(0, 5000), sources: [...sources.values()],
+    metrics: {...usage, extraCharges, elapsed: performance.now() - started}};
 }

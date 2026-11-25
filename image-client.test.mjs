@@ -138,3 +138,65 @@ test('gateway pricing is saved during verification and used with returned image 
   });
   assert.deepEqual(billed.metrics.cost, {value: 0, currency: 'USD', source: 'reported'});
 });
+
+const fixturePNG = 'iVBORw0KGgoAAAANSUhEUg==';
+const referenceFile = name => new File([Uint8Array.from(atob(fixturePNG), char => char.charCodeAt(0))], name, {type: 'image/png'});
+
+test('OpenAI reference images go to edits as multipart and streamed images report final usage', async () => {
+  const model = 'gpt-image-2.6-flare';
+  const partials = [];
+  let requests = 0;
+  const result = await generateImage({provider: 'openai', prompt: 'Use both references', references: [referenceFile('one.png'), referenceFile('two.png')],
+    options: {n: '2', complexity: 'low', output_format: 'png', partial_images: '1'},
+  }, {openai: {key: 'fixture-token', models: [model], model}}, null, {
+    origin, onPartial: image => partials.push(image.mime),
+    send: async (url, request) => {
+      assert.equal(url, 'https://api.openai.com/v1/images/edits');
+      assert.equal(request.headers['Content-Type'], undefined);
+      assert.deepEqual(request.body.getAll('image[]').map(file => file.name), ['one.png', 'two.png']);
+      assert.equal(request.body.get('complexity'), 'low');
+      assert.equal(request.body.get('stream'), 'true');
+      assert.equal(request.body.get('n'), null);
+      requests++;
+      const events = [
+        {type: 'image_edit.partial_image', b64_json: fixturePNG},
+        {type: 'image_edit.completed', b64_json: fixturePNG, usage: {input_tokens: 2, output_tokens: 18}},
+      ];
+      const stream = new ReadableStream({start(controller) {
+        const encoder = new TextEncoder();
+        const data = events.map(event => 'data: ' + JSON.stringify(event) + '\r\n\r\n').join('');
+        controller.enqueue(encoder.encode(data.slice(0, 17)));
+        controller.enqueue(encoder.encode(data.slice(17)));
+        controller.close();
+      }});
+      return new Response(stream, {headers: {'Content-Type': 'text/event-stream'}});
+    },
+  });
+  assert.equal(requests, 2);
+  assert.equal(result.images.length, 2);
+  assert.deepEqual(partials, ['image/png', 'image/png']);
+  assert.equal(result.metrics.tokens.total, 40);
+});
+
+test('Gemini sends references inline, batches explicit requests, and retains completed results on failure', async () => {
+  const model = 'gemini-nano-banana-2.1';
+  let requests = 0;
+  const result = await generateImage({provider: 'gemini', prompt: 'A character', references: [referenceFile('image.png')],
+    options: {n: '3', imageSize: '4K', aspectRatio: '8:1', thinkingLevel: 'MEDIUM', modalities: 'image'},
+  }, {gemini: {key: 'fixture-key', models: [model], model}}, null, {
+    origin, send: async (url, request) => {
+      assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent');
+      const body = JSON.parse(request.body);
+      assert.deepEqual(body.generationConfig, {
+        responseModalities: ['IMAGE'], imageConfig: {aspectRatio: '8:1', imageSize: '4K'}, thinkingConfig: {thinkingLevel: 'MEDIUM'},
+      });
+      assert.deepEqual(body.contents[0].parts[1].inlineData, {mimeType: 'image/png', data: fixturePNG});
+      requests++;
+      if (requests === 3) return new Response(null, {status: 429});
+      return Response.json({candidates: [{content: {parts: [{inlineData: {data: fixturePNG}}]}}], usageMetadata: {totalTokenCount: 15}});
+    },
+  });
+  assert.equal(result.images.length, 2);
+  assert.equal(result.metrics.tokens.total, 30);
+  assert.match(result.warning, /限/);
+});
