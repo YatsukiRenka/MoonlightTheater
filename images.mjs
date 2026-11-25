@@ -1,7 +1,10 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
 import {initializeImageControls} from './image-controls.mjs';
 import {mountImageDeck} from './image-deck.mjs';
-import {mergeCloudImageHistory, readImageHistory, replaceImageHistoryWithCloud, saveImageHistory, stageCloudImageHistory} from './image-history.mjs';
+import {
+  mergeCloudImageHistory, readImageHistory, releaseStagedCloudImageHistory, replaceImageHistoryWithCloud,
+  saveImageHistory, stageCloudImageHistory,
+} from './image-history.mjs';
 import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
 import {money} from './image-usage.mjs';
 import {
@@ -136,6 +139,8 @@ export function initializeImages(getPrompt, cloud) {
       } catch (error) {
         message = uploaded ? message + '暂时无法更新本机历史。' : '云图库同步失败。' + error.message;
         warning = true;
+      } finally {
+        if (staged?.saved) await releaseStagedCloudImageHistory(record.id);
       }
       try {
         const local = await readImageHistory();
@@ -428,9 +433,10 @@ export function initializeImages(getPrompt, cloud) {
       try {
         local = await (upload ? stageCloudImageHistory(record) : saveImageHistory(record));
         if (local.saved && historyOpen) void showHistory();
-        if (!local.saved && !local.disabled && !upload) showStatus(completed + ' 本机历史容量已满。', true);
+        if (!local.saved && !local.disabled && !upload) showStatus(completed
+          + ' 本机历史容量已满。可等待正在上传的批次处理完毕、在历史设置调高上限，或下载当前原图。', true);
       } catch {
-        showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
+        showStatus(completed + ' 此浏览器无法保存本次生图记录。可在历史设置检查容量，或下载当前原图。', true);
       }
       if (upload) queueCloudUpload(record, local, upload);
       else if (autoSync) showCloudStatus('请在历史设置中解锁 Google Drive。', true);

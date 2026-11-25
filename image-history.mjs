@@ -3,6 +3,53 @@ import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
 const databaseName = 'moonlight-image-history';
 const storeName = 'generations';
 const equalityChunkBytes = 1024 * 1024;
+const retentionLock = 'moonlight-image-history:retention';
+const stagedLockPrefix = 'moonlight-image-history:upload:';
+const stagedUploads = new Map();
+
+function retainInOrder(action) {
+  const locks = globalThis.navigator?.locks;
+  return locks ? locks.request(retentionLock, action) : action();
+}
+
+async function activeStagedUploads() {
+  const locks = globalThis.navigator?.locks;
+  if (!locks) return new Set(stagedUploads.keys());
+  const {held} = await locks.query();
+  return new Set(held.filter(lock => lock.name.startsWith(stagedLockPrefix))
+    .map(lock => lock.name.slice(stagedLockPrefix.length)));
+}
+
+function holdStagedCloudImage(id) {
+  if (stagedUploads.has(id)) return Promise.resolve(false);
+  const locks = globalThis.navigator?.locks;
+  if (!locks) {
+    stagedUploads.set(id, {release() {}});
+    return Promise.resolve(true);
+  }
+  return new Promise((resolve, reject) => {
+    const done = locks.request(stagedLockPrefix + id, {ifAvailable: true}, lock => {
+      if (!lock) {
+        resolve(false);
+        return;
+      }
+      return new Promise(release => {
+        stagedUploads.set(id, {release, done});
+        resolve(true);
+      });
+    });
+    done.catch(reject);
+  });
+}
+
+export async function releaseStagedCloudImageHistory(id) {
+  const key = String(id);
+  const hold = stagedUploads.get(key);
+  if (!hold) return;
+  stagedUploads.delete(key);
+  hold.release();
+  await hold.done?.catch(() => {});
+}
 
 function openHistory() {
   return new Promise((resolve, reject) => {
@@ -65,10 +112,10 @@ function cloudBacked(record) {
     && Array.isArray(cloud.renditions) && cloud.renditions.length > 0;
 }
 
-function retainImageHistory(existing, incoming, limits, {preserveOriginals, preserveStaged, cloudOnly, stageOriginal}) {
+function retainImageHistory(existing, incoming, limits, {preserveOriginals, activeUploads, cloudOnly, stageOriginal}) {
   // Cloud sync may only reclaim space from the cache. Local originals can be the only copy.
   const protectedRows = existing.filter(entry => (preserveOriginals && !cloudBacked(entry.record))
-    || (preserveStaged && entry.stagedOriginal));
+    || (entry.stagedOriginal && activeUploads?.has(entry.record.id)));
   const kept = new Set(protectedRows);
   const byId = new Map(protectedRows.map(entry => [entry.record.id, entry]));
   // When a backup contains an existing generation, preserve the local version.
@@ -167,7 +214,12 @@ export async function saveImageHistory(record, limits = readHistoryLimits()) {
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id});
   if (entry.size > imageHistoryByteLimit(limits)) throw new Error('图片超过生图记录的存储上限。');
-  const result = await writeImageHistory([entry], limits, {preserveStaged: true});
+  // Serialize the lock snapshot with staging writes. Otherwise a concurrent tab could insert
+  // an original between taking the snapshot and opening the retention transaction.
+  const result = await retainInOrder(async () => {
+    const activeUploads = await activeStagedUploads();
+    return writeImageHistory([entry], limits, {activeUploads});
+  });
   return {saved: result.added === 1, disabled: false};
 }
 
@@ -176,8 +228,15 @@ export async function stageCloudImageHistory(record, limits = readHistoryLimits(
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id, cloud: undefined});
   if (!entry.images.length) throw new Error('生图记录中的图片格式无效。');
-  const result = await writeImageHistory([entry], limits, {preserveOriginals: true, stageOriginal: true});
-  return {saved: result.added === 1, disabled: false, overLimit: result.overLimit, removed: result.removed};
+  if (!await holdStagedCloudImage(entry.id)) return {saved: false, disabled: false, overLimit: false, removed: 0};
+  let saved = false;
+  try {
+    const result = await retainInOrder(() => writeImageHistory([entry], limits, {preserveOriginals: true, stageOriginal: true}));
+    saved = result.added === 1;
+    return {saved, disabled: false, overLimit: result.overLimit, removed: result.removed};
+  } finally {
+    if (!saved) await releaseStagedCloudImageHistory(entry.id);
+  }
 }
 
 export function mergeImageHistory(records, limits = readHistoryLimits()) {
