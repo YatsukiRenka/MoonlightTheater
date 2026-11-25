@@ -117,7 +117,10 @@ export function initializeImages(getPrompt) {
     const ready = google ? config?.connected : config?.ready;
     const models = config?.ready ? config.models : [];
     const preferred = preferences.models[id];
-    setModelOptions(model, models, models.includes(preferred) ? preferred : config?.model, '请先验证接口');
+    const selected = models.includes(preferred) ? preferred : config?.model || '';
+    if (model.options.length !== models.length + 1 || models.some((id, i) => model.options[i + 1].value !== id)) {
+      setModelOptions(model, models, selected, '请先验证接口');
+    } else if (model.value !== selected) model.value = selected;
     byId('imageAuth').hidden = !google || !config?.ready;
     connect.textContent = config?.connected ? '断开 Google 授权' : '使用 Google 登录';
     for (const control of [provider, connect]) control.disabled = busy;
@@ -351,6 +354,8 @@ export function initializeImages(getPrompt) {
         ...context, model: result.model, provider: selectedProvider, time: Date.now(), metrics: result.metrics,
         images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
+      if (selectedProvider === 'gemini-oauth' && result.warningStatus === 401) authorization = undefined;
+      clearPartial();
       renderImages(record);
       const completed = '已生成 ' + record.images.length + ' 张图片。'
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');

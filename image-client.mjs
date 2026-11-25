@@ -1,6 +1,6 @@
 import {catalogPrice, combineImageUsage, modelPrice, summarizeImageUsage} from './image-usage.mjs';
 import {imageCapabilities, legacyImageOptions, prepareImageOptions, validateReferenceImages} from './image-options.mjs';
-import {readImageStream} from './image-stream.mjs';
+import {isResponseTimeout, readImageStream, readResponseChunk} from './image-stream.mjs';
 
 const resourceKey = 'moonlight-image-resources-v1';
 const resourceIds = ['openai', 'gemini', 'gemini-oauth', 'custom'];
@@ -255,39 +255,45 @@ const upstreamMessages = {
   429: '已达到接口速率限制或配额，请稍后再试。',
 };
 
-async function outbound(url, options, send, timeout = 180_000) {
+const catalogTimeout = 20_000;
+const downloadTimeout = 180_000;
+const generationTimeout = 600_000;
+const streamingTimeout = 900_000;
+
+async function outbound(url, options, send, timeout) {
+  const signal = AbortSignal.timeout(timeout);
   let response;
   try {
     response = await send(url, {
       ...options, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer',
-      redirect: 'error', signal: AbortSignal.timeout(timeout),
+      redirect: 'error', signal,
     });
   } catch (error) {
-    throw new Error(error.name === 'TimeoutError'
+    throw new Error(isResponseTimeout(error, signal)
       ? '连接接口超时。'
-      : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。');
+      : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。', {cause: error});
   }
   if (!response.ok) {
-    await response.body?.cancel();
+    await response.body?.cancel().catch(() => {});
     const error = new Error(upstreamMessages[response.status] || '接口返回 HTTP ' + response.status + '。');
     error.status = response.status;
     throw error;
   }
-  return response;
+  return {response, signal};
 }
 
-async function boundedBlob(response, limit = maxResponse) {
+async function boundedBlob({response, signal}, limit = maxResponse) {
   if (!response.body) throw new Error('接口未返回数据。');
   const reader = response.body.getReader();
   let size = 0;
   const chunks = [];
   try {
     for (;;) {
-      const {value, done} = await reader.read();
+      const {value, done} = await readResponseChunk(reader, signal);
       if (done) break;
       size += value.byteLength;
       if (size > limit) {
-        await reader.cancel();
+        await reader.cancel().catch(() => {});
         throw new Error('返回的图片数据过大。');
       }
       chunks.push(value);
@@ -298,8 +304,8 @@ async function boundedBlob(response, limit = maxResponse) {
   return new Blob(chunks);
 }
 
-async function readAPIJSON(response, limit) {
-  const text = await (await boundedBlob(response, limit)).text();
+async function readAPIJSON(request, limit) {
+  const text = await (await boundedBlob(request, limit)).text();
   try { return record(JSON.parse(text)); } catch { throw new Error('接口返回的内容不是有效 JSON。'); }
 }
 
@@ -364,7 +370,7 @@ export async function verifyImageResource(provider, values, {
   const tokens = new Set();
   const firstPage = catalog.href;
   for (;;) {
-    const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, 20_000), maxCatalogResponse);
+    const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, catalogTimeout), maxCatalogResponse);
     for (const {id, price} of pageModels(response, provider, format)) {
       models.add(id);
       if (price) prices.set(id, Object.freeze(price));
@@ -379,8 +385,8 @@ export async function verifyImageResource(provider, values, {
   if (provider === 'custom' && draft.key) {
     let status;
     try {
-      const openCatalog = await outbound(firstPage, {}, send, 20_000);
-      await openCatalog.body?.cancel();
+      const {response} = await outbound(firstPage, {}, send, catalogTimeout);
+      await response.body?.cancel();
     } catch (error) {
       status = error.status;
     }
@@ -436,7 +442,7 @@ function inline(data, output) {
 async function linkedImage(value, origin, send) {
   const url = endpoint(value, origin);
   if (!url) throw new Error('接口返回了无效的外部图片地址。');
-  const data = await boundedBlob(await outbound(url.href, {}, send));
+  const data = await boundedBlob(await outbound(url.href, {}, send, downloadTimeout));
   const mime = rasterMime(String.fromCharCode(...new Uint8Array(await data.slice(0, 12).arrayBuffer())));
   if (!mime) throw new Error('外部图片地址没有返回受支持的图片。');
   return {mime, blob: data.slice(0, data.size, mime)};
@@ -507,8 +513,8 @@ function geminiDetails(response) {
   return {text: text.join('\n').slice(0, 4000), sources};
 }
 
-async function readStreamingImages(response, onPartial, receive) {
-  await readImageStream(response, (type, event) => {
+async function readStreamingImages(request, onPartial, receive) {
+  await readImageStream(request, (type, event) => {
     if (type === 'error') throw new Error('接口报告流式生图失败。');
     if (type === 'image_generation.partial_image' || type === 'image_edit.partial_image') {
       const img = inline(event.b64_json);
@@ -580,6 +586,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
   const texts = [];
   const sources = new Map();
   let warning;
+  let warningStatus;
   function receive(batch, result) {
     images.push(...batch);
     usages.push(summarizeImageUsage(result, format, rate, batch.length));
@@ -588,12 +595,12 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
     try {
       onProgress(index + 1, requests);
       const initialCount = images.length;
-      const response = await outbound(url, {method: 'POST', headers, body}, send);
-      if (streaming && response.headers.get('content-type')?.includes('text/event-stream')) {
-        await readStreamingImages(response, onPartial, receive);
-      }
-      else {
-        const result = await readAPIJSON(response);
+      const timeout = streaming ? streamingTimeout : generationTimeout;
+      const request = await outbound(url, {method: 'POST', headers, body}, send, timeout);
+      if (streaming && request.response.headers.get('content-type')?.includes('text/event-stream')) {
+        await readStreamingImages(request, onPartial, receive);
+      } else {
+        const result = await readAPIJSON(request);
         receive(await extractImages(result, format, origin, send, params.output_format), result);
         if (format === 'gemini') {
           const details = geminiDetails(result);
@@ -605,12 +612,13 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
     } catch (error) {
       if (!images.length) throw error;
       warning = error.message;
+      warningStatus = error.status;
       break;
     }
   }
   if (!images.length) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
   const usage = combineImageUsage(usages);
   const extraCharges = Boolean(params.search || params.output_format === 'svg');
-  return {model, images, warning, text: texts.join('\n\n').slice(0, 5000), sources: [...sources.values()],
+  return {model, images, warning, warningStatus, text: texts.join('\n\n').slice(0, 5000), sources: [...sources.values()],
     metrics: {...usage, extraCharges, elapsed: performance.now() - started}};
 }

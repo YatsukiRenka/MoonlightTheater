@@ -40,8 +40,9 @@ export function initializeImageControls(optionsByModel, save, legacyAspect) {
       save();
     };
     if (['size', 'output_format', 'mimeType', 'n', 'partial_images', 'search'].includes(field.key)) input.onchange = () => {
+      if (field.key === 'size' && input.value === 'custom') advanced.open = true;
       renderSettings();
-      if (field.key === 'size') size.querySelector('select')?.focus();
+      if (field.key === 'size') size.querySelector('select')?.focus({preventScroll: true});
       else advancedFields.elements.namedItem(field.key)?.focus();
     };
     label.append(input);
@@ -133,16 +134,19 @@ export function initializeImageControls(optionsByModel, save, legacyAspect) {
   return {
     update(provider, format, model, pending, supportsReferences) {
       const next = model ? provider + ':' + format + ':' + model : '';
+      const nextCanAttach = Boolean(next && supportsReferences);
+      if (next === key && pending === busy && nextCanAttach === canAttach) return;
       if (next !== key) {
         key = next;
         current = key ? (optionsByModel[key] ??= legacyImageOptions(format, legacyAspect)) : {};
         caps = key ? imageCapabilities(provider, format, model) : null;
+        if (caps?.flexible && current.size === 'custom') advanced.open = true;
         layerType.value = '';
         layerFile.value = '';
         showNotice();
       }
       busy = pending;
-      canAttach = Boolean(caps && supportsReferences);
+      canAttach = nextCanAttach;
       renderSettings();
       renderReferences();
     },

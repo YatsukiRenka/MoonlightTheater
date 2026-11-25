@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
-import {generate, labels, materialChoices, renderPrompt, validate} from './engine.mjs';
+import {availableSelection, generate, labels, materialChoices, renderPrompt, validate} from './engine.mjs';
 import {importManualMaterials, resolveManualMaterial} from './manual-materials.mjs';
 import {catalogPrice, modelPrice, summarizeImageUsage} from './image-usage.mjs';
 import {importDesignLibrary} from './design-library.mjs';
@@ -70,6 +70,26 @@ test('merge keeps local weights and adds designs, and replace uses the incoming 
   const replaced = importDesignLibrary(profile, local, incoming, 'replace');
   assert.equal(replaced.profile.pools.hair[0].weight, incoming.pools.hair[0].weight);
   assert.deepEqual(replaced.manual.hair.map(item => item.zh), ['导入素材']);
+});
+
+test('outdated presets are resampled while valid and manual historic choices remain usable', () => {
+  const historical = generate(profile, 'old-library').selection;
+  const next = structuredClone(profile);
+  next.palettes = next.palettes.filter(entry => entry.id !== historical.palette);
+  next.pools.hair = next.pools.hair.filter(entry => entry.id !== historical.hair);
+  const {entry} = resolveManualMaterial([], '历史手动姿势', 'Historic custom pose');
+  const manual = {pose: [entry]};
+  const proposed = {
+    palette: historical.palette, hair: historical.hair, hairColor: '新版已移除的颜色',
+    style: historical.style, pose: entry.id, prop: null,
+  };
+  const fixed = availableSelection(next, proposed, manual);
+  assert.deepEqual(fixed, {style: historical.style, pose: entry.id, prop: null});
+  const result = generate(next, 'new-library', {fixed, manual});
+  assert.notEqual(result.selection.palette, historical.palette);
+  assert.notEqual(result.selection.hair, historical.hair);
+  assert.equal(result.selection.pose, entry.id);
+  assert.match(renderPrompt(next, result.selection, 'en', manual), /Historic custom pose/);
 });
 
 test('settings reflect GPT Image and Nano Banana generations and remove incompatible parameters', () => {

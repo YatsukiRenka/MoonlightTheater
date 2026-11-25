@@ -48,6 +48,22 @@ export function pool(c, k, s, manual) {
 export function materialChoices(c, key, selection, manual) {
  return [...pool(c, key, selection, manual), ...(manual?.[key] || [])];
 }
+export function availableSelection(c,selection,manual){
+ const fixed={...selection};
+ for(const [key,id] of Object.entries(selection)){
+  if(key==='hairColor'||key==='eyeColor')continue;
+  if(id===null&&Object.hasOwn(optional,key))continue;
+  if(!materialChoices(c,key,selection,manual).some(entry=>entry.id===id))delete fixed[key];
+ }
+ for(const key of ['hairColor','eyeColor']){
+  const id=selection[key];
+  if(id===undefined||manualEntry(manual,key,id))continue;
+  const found=fixed.palette?pool(c,key,fixed,manual).some(color=>color.id===id)
+   :c.palettes.some(palette=>palette[key+'s'].some(color=>color.zh===id));
+  if(!found)delete fixed[key];
+ }
+ return fixed;
+}
 export function compatible(c,s,manual){const r=c.rules;
  if(s.headAccessory&&!manualEntry(manual,'headAccessory',s.headAccessory)&&r.headAccessoryExcludeWhenNonhuman.includes(s.nonhuman))return '当前非人特征与独立头饰冲突';
  if(s.headAccessory&&r.outfitHeadAccessoryExclusion[s.outfit]?.includes(s.headAccessory))return '当前服装与头饰冲突';

@@ -200,3 +200,58 @@ test('Gemini sends references inline, batches explicit requests, and retains com
   assert.equal(result.metrics.tokens.total, 30);
   assert.match(result.warning, /限/);
 });
+
+test('Vertex batches preserve completed images and the HTTP status from a later authorization failure', async () => {
+  const model = 'gemini-nano-banana-2.1';
+  const project = 'fixture-project';
+  const clientId = 'fixture.apps.googleusercontent.com';
+  const config = {project, clientId, model, models: [model]};
+  const authorization = {project, clientId, token: 'fixture-token', expires: Date.now() + 60_000};
+  let requests = 0;
+  const result = await generateImage({provider: 'gemini-oauth', prompt: 'A character', options: {n: '3'}},
+    {'gemini-oauth': config}, authorization, {
+      origin,
+      send: async (url, request) => {
+        assert.equal(request.headers.Authorization, 'Bearer fixture-token');
+        if (++requests === 2) {
+          const body = new ReadableStream({start: stream => stream.error(new Error('Connection closed'))});
+          return new Response(body, {status: 401});
+        }
+        return Response.json({candidates: [{content: {parts: [{inlineData: {data: fixturePNG}}]}}]});
+      },
+    });
+  assert.equal(requests, 2);
+  assert.equal(result.images.length, 1);
+  assert.match(result.warning, /身份验证/);
+  assert.equal(result.warningStatus, 401);
+});
+
+test('generation uses longer deadlines and localizes body timeouts for JSON and SSE', async t => {
+  const model = 'gpt-image-2.6-flare';
+  const resources = {openai: {key: 'fixture-key', models: [model], model}};
+  const timeouts = [];
+  let controller;
+  t.mock.method(AbortSignal, 'timeout', timeout => {
+    timeouts.push(timeout);
+    controller = new AbortController();
+    return controller.signal;
+  });
+
+  for (const streaming of [false, true]) {
+    await assert.rejects(generateImage({provider: 'openai', prompt: 'A character',
+      options: streaming ? {partial_images: '1'} : {},
+    }, resources, null, {
+      origin,
+      send: async (url, request) => {
+        assert.equal(request.signal, controller.signal);
+        const body = new ReadableStream({pull(stream) {
+          controller.abort(new DOMException('The operation timed out', 'TimeoutError'));
+          // Browser fetch can expose a generic abort after response headers arrived.
+          stream.error(new DOMException('The operation was aborted', 'AbortError'));
+        }}, {highWaterMark: 0});
+        return new Response(body, {headers: {'Content-Type': streaming ? 'text/event-stream' : 'application/json'}});
+      },
+    }), {message: '读取接口响应超时。'});
+  }
+  assert.deepEqual(timeouts, [600_000, 900_000]);
+});
