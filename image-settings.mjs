@@ -1,4 +1,11 @@
-export function initializeImageSettings({save, google}) {
+export function setModelOptions(select, ids, value, placeholder) {
+  const empty = new Option(placeholder, '');
+  empty.disabled = Boolean(ids.length);
+  select.replaceChildren(empty, ...ids.map(id => new Option(id, id)));
+  select.value = ids.includes(value) ? value : '';
+}
+
+export function initializeImageSettings({verify, save, google}) {
   const page = document.getElementById('settings');
   const connection = document.getElementById('resourceConnection');
   const googleOrigin = document.getElementById('oauthOrigin');
@@ -6,7 +13,8 @@ export function initializeImageSettings({save, google}) {
   const cards = [...page.querySelectorAll('[data-resource]')].map(form => ({
     form, id: form.dataset.resource, fields: form.querySelector('fieldset'),
     state: form.querySelector('[data-state]'), remove: form.querySelector('[data-remove]'),
-    message: form.querySelector('[data-message]'), dirty: false,
+    verify: form.querySelector('[data-verify]'), save: form.querySelector('[type="submit"]'),
+    model: form.elements.namedItem('model'), message: form.querySelector('[data-message]'), dirty: false,
   }));
   const oauth = cards.find(card => card.id === 'gemini-oauth');
   const custom = cards.find(card => card.id === 'custom');
@@ -36,21 +44,25 @@ export function initializeImageSettings({save, google}) {
       const connected = card === oauth && snapshot?.providers?.['gemini-oauth']?.connected;
       card.fields.disabled = !configurable || busy;
       card.remove.hidden = !resource?.saved;
-      card.state.textContent = connected ? '已授权'
-        : resource?.saved ? '已保存' : resource?.ready ? '已配置' : '未配置';
-      card.state.classList.toggle('resource-ready', Boolean(resource?.ready));
+      card.state.textContent = card.verification ? '已验证' : connected ? '已授权'
+        : resource?.ready ? '已保存' : resource?.saved ? '待验证' : '未配置';
+      card.state.classList.toggle('resource-ready', Boolean(card.verification || resource?.ready));
       const keyField = card.form.elements.namedItem('key');
       if (keyField) keyField.placeholder = resource?.hasSecret ? '已保存，留空保留' : '';
       if (card === custom) card.form.querySelector('[data-clear-key]').hidden = !resource?.hasSecret;
       if (!card.dirty && resource) {
-        for (const name of ['clientId', 'project', 'url', 'format', 'model']) {
+        for (const name of ['clientId', 'project', 'url', 'format', 'modelsURL']) {
           const field = card.form.elements.namedItem(name);
           if (field) field.value = resource[name];
         }
       }
+      const models = card.verification?.models ?? (card.dirty ? [] : resource?.models || []);
+      setModelOptions(card.model, models, card.choice ?? resource?.model,
+        models.length ? '请选择模型' : '验证后获取模型');
+      card.model.disabled = !models.length;
+      card.save.disabled = !card.model.value;
     }
-    login.hidden = !snapshot?.providers?.['gemini-oauth']?.ready;
-    login.textContent = snapshot?.providers?.['gemini-oauth']?.connected ? '断开 Google 授权' : '使用 Google 登录';
+    login.hidden = !snapshot?.providers?.['gemini-oauth']?.connected;
     showURLHelp();
   }
 
@@ -70,14 +82,40 @@ export function initializeImageSettings({save, google}) {
     }
   }
 
+  function draft(card) {
+    const values = Object.fromEntries(new FormData(card.form));
+    if (values.clearKey) values.clearKey = true;
+    return values;
+  }
+
   for (const card of cards) {
-    card.form.oninput = () => { card.dirty = true; };
+    card.form.oninput = event => {
+      if (event.target === card.model) card.choice = card.model.value;
+      else {
+        card.dirty = true;
+        card.verification = undefined;
+        message(card, '');
+      }
+      render();
+    };
+    card.verify.onclick = () => {
+      const values = draft(card);
+      run(card, async () => {
+        card.dirty = true;
+        card.verification = undefined;
+        render();
+        message(card, '正在验证并获取模型…');
+        card.verification = await verify(card.id, values);
+        return '已获取 ' + card.verification.models.length + ' 个模型。';
+      });
+    };
     card.form.onsubmit = event => {
       event.preventDefault();
-      const values = Object.fromEntries(new FormData(card.form));
-      if (values.clearKey) values.clearKey = true;
+      if (card.save.disabled) return;
+      const values = draft(card);
       run(card, async () => {
-        await save(card.id, 'save', values);
+        await save(card.id, 'save', values, card.verification);
+        card.verification = undefined;
         card.dirty = false;
         const keyField = card.form.elements.namedItem('key');
         if (keyField) keyField.value = '';
@@ -87,6 +125,8 @@ export function initializeImageSettings({save, google}) {
     };
     card.remove.onclick = () => run(card, async () => {
       await save(card.id, 'remove');
+      card.verification = undefined;
+      card.choice = undefined;
       card.dirty = false;
       card.form.reset();
       return '已移除本地配置。';
@@ -94,7 +134,10 @@ export function initializeImageSettings({save, google}) {
   }
 
   format.onchange = showURLHelp;
-  login.onclick = () => run(oauth, google);
+  login.onclick = () => run(oauth, async () => {
+    oauth.verification = undefined;
+    return google();
+  });
   document.getElementById('copyOAuthOrigin').onclick = async () => {
     try {
       await navigator.clipboard.writeText(googleOrigin.value);

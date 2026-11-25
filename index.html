@@ -24,7 +24,7 @@
       </label>
       <div class="image-fields">
         <label class="settinglabel">模型 ID
-          <input id="imageModel" maxlength="128" spellcheck="false" autocomplete="off">
+          <select id="imageModel" disabled><option value="">请先验证接口</option></select>
         </label>
         <label class="settinglabel">画幅
           <select id="imageAspect">
@@ -64,8 +64,10 @@
         <label class="settinglabel">OpenAI API Key
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
+        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
         <div class="resource-actions">
-          <button class="copy" type="submit">保存 OpenAI</button>
+          <button class="secondary" type="button" data-verify>验证并获取模型</button>
+          <button class="copy" type="submit" disabled>保存 OpenAI</button>
           <button class="secondary" type="button" data-remove hidden>移除配置</button>
         </div>
       </fieldset>
@@ -77,8 +79,10 @@
         <label class="settinglabel">Gemini API Key
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
+        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
         <div class="resource-actions">
-          <button class="copy" type="submit">保存 Gemini</button>
+          <button class="secondary" type="button" data-verify>验证并获取模型</button>
+          <button class="copy" type="submit" disabled>保存 Gemini</button>
           <button class="secondary" type="button" data-remove hidden>移除配置</button>
         </div>
       </fieldset>
@@ -98,9 +102,11 @@
           <button class="secondary" id="copyOAuthOrigin" type="button">复制</button>
         </div>
         <p class="note">将此地址加到 Google Cloud 的 Web 应用 JavaScript 来源，并在项目中启用 Vertex AI。</p>
+        <label class="settinglabel">默认模型<select name="model" disabled><option value="">授权后获取模型</option></select></label>
         <div class="resource-actions">
-          <button class="copy" type="submit">保存 OAuth</button>
-          <button class="secondary" type="button" id="settingsGoogle" hidden>使用 Google 登录</button>
+          <button class="secondary" type="button" data-verify>授权并获取模型</button>
+          <button class="copy" type="submit" disabled>保存 OAuth</button>
+          <button class="secondary" type="button" id="settingsGoogle" hidden>断开 Google 授权</button>
           <button class="secondary" type="button" data-remove hidden>移除配置</button>
         </div>
       </fieldset>
@@ -116,15 +122,17 @@
           <input name="url" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="customURLHelp">
         </label>
         <p class="note resource-url-help" id="customURLHelp"></p>
-        <label class="settinglabel">默认模型 ID（选填）
-          <input name="model" maxlength="128" autocomplete="off" spellcheck="false" autocapitalize="none">
+        <label class="settinglabel">模型列表地址（选填）
+          <input name="modelsURL" maxlength="2048" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="留空则从生图接口推导">
         </label>
         <label class="settinglabel">网关 API Key（选填）
           <input name="key" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false">
         </label>
         <label class="resource-check" data-clear-key hidden><input type="checkbox" name="clearKey">清除已保存的网关密钥</label>
+        <label class="settinglabel">默认模型<select name="model" disabled><option value="">验证后获取模型</option></select></label>
         <div class="resource-actions">
-          <button class="copy" type="submit">保存自定义接口</button>
+          <button class="secondary" type="button" data-verify>验证并获取模型</button>
+          <button class="copy" type="submit" disabled>保存自定义接口</button>
           <button class="secondary" type="button" data-remove hidden>移除配置</button>
         </div>
       </fieldset>

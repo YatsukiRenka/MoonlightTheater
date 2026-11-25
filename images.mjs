@@ -1,7 +1,7 @@
-import {initializeImageSettings} from './image-settings.mjs';
+import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
 import {
   authorizeGoogle, currentGoogleToken, describeImageResources, generateImage,
-  imageModels, readImageResources, updateImageResource,
+  readImageResources, updateImageResource, verifyImageResource,
 } from './image-client.mjs';
 
 const names = {openai: 'OpenAI', gemini: 'Gemini', 'gemini-oauth': 'Gemini · Google OAuth', custom: '自定义接口'};
@@ -53,8 +53,10 @@ export function initializeImages(getPrompt) {
   let assets = [];
 
   const imageSettings = initializeImageSettings({
-    save(id, action, values) {
-      updateImageResource(id, action, values);
+    verify: (id, values) => verifyImageResource(id, values, {authorization}),
+    save(id, action, values, verification) {
+      updateImageResource(id, action, values, {verification});
+      if (verification?.authorization) rememberGoogle(verification.authorization);
       refreshAvailability();
     },
     google: changeGoogle,
@@ -74,14 +76,17 @@ export function initializeImages(getPrompt) {
     const config = availability?.[id];
     const google = id === 'gemini-oauth';
     const ready = google ? config?.connected : config?.ready;
-    model.placeholder = config?.model || imageModels[id] || '网关提供的模型 ID';
+    const models = config?.ready ? config.models : [];
+    const preferred = preferences.models[id];
+    setModelOptions(model, models, models.includes(preferred) ? preferred : config?.model, '请先验证接口');
     byId('imageAuth').hidden = !google || !config?.ready;
     connect.textContent = config?.connected ? '断开 Google 授权' : '使用 Google 登录';
-    for (const control of [provider, model, aspect, connect]) control.disabled = busy;
-    generate.disabled = busy || !ready;
+    for (const control of [provider, aspect, connect]) control.disabled = busy;
+    model.disabled = busy || !models.length;
+    generate.disabled = busy || !ready || !model.value;
 
     if (!availability) connection.textContent = '浏览器未允许本站使用本地存储。';
-    else if (!config?.ready) connection.textContent = '请先在「设置」中配置此接口。';
+    else if (!config?.ready) connection.textContent = '请先在「设置」中验证此接口并选择模型。';
     else if (google) connection.textContent = config.connected
       ? '已授权 Google Cloud，使用此项目的 Vertex AI 配额。'
       : '请登录 Google 并授权 Vertex AI 调用。';
@@ -104,6 +109,12 @@ export function initializeImages(getPrompt) {
     refreshControls();
   }
 
+  function rememberGoogle(result) {
+    authorization = result;
+    clearTimeout(expiryTimer);
+    expiryTimer = setTimeout(refreshAvailability, Math.max(0, result.expires - Date.now()));
+  }
+
   async function changeGoogle() {
     if (busy || !availability?.['gemini-oauth']?.ready) return '';
     busy = true;
@@ -113,8 +124,7 @@ export function initializeImages(getPrompt) {
         authorization = undefined;
         return '已断开 Google 授权。';
       }
-      authorization = await authorizeGoogle(resources['gemini-oauth']);
-      expiryTimer = setTimeout(refreshAvailability, Math.max(0, authorization.expires - Date.now()));
+      rememberGoogle(await authorizeGoogle(resources['gemini-oauth']));
       return 'Google 授权成功。';
     } finally {
       busy = false;
@@ -161,14 +171,12 @@ export function initializeImages(getPrompt) {
     gallery.hidden = false;
   }
 
-  model.value = preferences.models[provider.value] || '';
   provider.onchange = () => {
     preferences.provider = provider.value;
-    model.value = preferences.models[provider.value] || '';
     savePreferences();
     refreshControls();
   };
-  model.oninput = () => {
+  model.onchange = () => {
     preferences.models[provider.value] = model.value;
     savePreferences();
   };
@@ -201,10 +209,8 @@ export function initializeImages(getPrompt) {
     form.classList.add('image-pending');
     showStatus('正在通过 ' + names[selectedProvider] + ' 生成图片…');
     try {
-      const chosenModel = model.value.trim();
-      if (!chosenModel && !availability[selectedProvider].model) throw new Error('请填写网关提供的模型 ID。');
       const result = await generateImage({
-        provider: selectedProvider, model: chosenModel, aspect: aspect.value, prompt: context.prompt,
+        provider: selectedProvider, model: model.value, aspect: aspect.value, prompt: context.prompt,
       }, resources, authorization);
       renderImages(result.images, {...context, model: result.model});
       showStatus('已生成 ' + result.images.length + ' 张图片。');

@@ -6,12 +6,7 @@ const googleScope = 'https://www.googleapis.com/auth/cloud-platform';
 const sizes = {portrait: '1024x1536', square: '1024x1024', landscape: '1536x1024'};
 const aspects = {portrait: '2:3', square: '1:1', landscape: '3:2'};
 const maxResponse = 20 * 1024 * 1024;
-export const imageModels = {
-  openai: 'gpt-image-2',
-  gemini: 'gemini-3.1-flash-image',
-  'gemini-oauth': 'gemini-3.1-flash-image',
-  custom: '',
-};
+const verifications = new WeakMap();
 
 function record(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -51,6 +46,27 @@ function validModel(model, format) {
   return typeof model === 'string' && model.length <= 128 && pattern.test(model);
 }
 
+const providerFormat = (id, resource) => id === 'custom' ? resource.format : id === 'openai' ? 'openai' : 'gemini';
+const array = value => Array.isArray(value) ? value : [];
+function savedModels(id, resource) {
+  return [...new Set(array(resource?.models).filter(model => validModel(model, providerFormat(id, resource))))];
+}
+
+function modelListURL(resource, origin) {
+  const generation = endpoint(resource.url, origin);
+  if (!generation) return null;
+  if (resource.modelsURL) {
+    const catalog = endpoint(resource.modelsURL, origin);
+    return catalog?.origin === generation.origin ? catalog : null;
+  }
+  const suffix = resource.format === 'gemini'
+    ? /\/(?:\{model\}|%7Bmodel%7D):generateContent$/
+    : /\/images\/generations\/?$/;
+  if (!suffix.test(generation.pathname)) return null;
+  generation.pathname = generation.pathname.replace(suffix, resource.format === 'gemini' ? '' : '/models');
+  return generation;
+}
+
 function validKey(key) {
   return typeof key === 'string' && Boolean(key) && key.length <= 1024 && !/[^!-~]/.test(key);
 }
@@ -71,25 +87,42 @@ function validateResource(id, values, previous, origin) {
   if (id === 'custom') {
     const url = field('url');
     const format = field('format');
-    const model = field('model');
+    const modelsURL = field('modelsURL');
     if (url.length > 2048 || !validCustom(url, format, origin)) {
       throw new Error(format === 'gemini'
         ? '请填写包含 /models/{model}:generateContent 的外部 Gemini 接口地址。'
         : '请填写外部 HTTPS 接口或本机回环 HTTP 地址。');
     }
-    if (model && !validModel(model, format)) throw new Error('请填写有效的默认模型 ID。');
-    return {url, format, key, model};
+    const draft = {url, format, key, modelsURL};
+    if (modelsURL.length > 2048 || !modelListURL(draft, origin)) {
+      throw new Error('请填写与生图接口同源的模型列表地址。');
+    }
+    return draft;
   }
   return {key};
 }
 
 export function updateImageResource(id, action, values, {
-  storage = globalThis.localStorage, origin = location.origin,
+  storage = globalThis.localStorage, origin = location.origin, verification,
 } = {}) {
   if (!resourceIds.includes(id) || !['save', 'remove'].includes(action)) throw new Error('请选择一个有效的接口。');
   const resources = readImageResources(storage);
   if (action === 'remove') delete resources[id];
-  else resources[id] = validateResource(id, record(values), resources[id], origin);
+  else {
+    const previous = resources[id];
+    const draft = validateResource(id, record(values), previous, origin);
+    const verified = verifications.get(verification);
+    let models;
+    if (verified?.id === id && JSON.stringify(verified.draft) === JSON.stringify(draft)) {
+      models = verification.models;
+    } else if (!verification && previous
+      && Object.entries(draft).every(([name, value]) => value === previous[name])) {
+      models = savedModels(id, previous);
+    }
+    if (!models?.length) throw new Error('请先验证当前接口配置并获取模型。');
+    if (!models.includes(values.model)) throw new Error('请从返回的列表中选择一个模型。');
+    resources[id] = {...draft, models, model: values.model};
+  }
   try {
     if (Object.keys(resources).length) storage.setItem(resourceKey, JSON.stringify(resources));
     else storage.removeItem(resourceKey);
@@ -109,21 +142,30 @@ export function describeImageResources(saved, authorization, origin = location.o
   const oauth = saved['gemini-oauth'] || {};
   const custom = saved.custom || {};
   const format = custom.format || 'openai';
-  const customReady = validCustom(custom.url, format, origin) && (!custom.key || validKey(custom.key));
+  const customReady = validCustom(custom.url, format, origin) && modelListURL({...custom, format}, origin)
+    && (!custom.key || validKey(custom.key));
   const providers = {
-    openai: {ready: validKey(saved.openai?.key), model: imageModels.openai},
-    gemini: {ready: validKey(saved.gemini?.key), model: imageModels.gemini},
+    openai: {ready: validKey(saved.openai?.key)},
+    gemini: {ready: validKey(saved.gemini?.key)},
     'gemini-oauth': {
       ready: clientPattern.test(oauth.clientId || '') && projectPattern.test(oauth.project || ''),
-      connected: Boolean(currentGoogleToken(authorization, oauth)), model: imageModels['gemini-oauth'],
+      connected: Boolean(currentGoogleToken(authorization, oauth)),
     },
-    custom: {ready: customReady, model: custom.model || '', format},
+    custom: {ready: Boolean(customReady), format},
   };
+  for (const id of resourceIds) {
+    const models = savedModels(id, saved[id]);
+    const model = models.includes(saved[id]?.model) ? saved[id].model : '';
+    Object.assign(providers[id], {ready: providers[id].ready && Boolean(model), models, model});
+  }
   const resources = Object.fromEntries(resourceIds.map(id => [
-    id, {saved: Boolean(saved[id]), hasSecret: Boolean(saved[id]?.key), ready: providers[id].ready},
+    id, {
+      saved: Boolean(saved[id]), hasSecret: Boolean(saved[id]?.key), ready: providers[id].ready,
+      models: providers[id].models, model: providers[id].model,
+    },
   ]));
   Object.assign(resources['gemini-oauth'], {clientId: oauth.clientId || '', project: oauth.project || ''});
-  Object.assign(resources.custom, {url: custom.url || '', format, model: custom.model || ''});
+  Object.assign(resources.custom, {url: custom.url || '', format, modelsURL: custom.modelsURL || ''});
   return {providers, resources, canConfigure: true};
 }
 
@@ -191,12 +233,12 @@ const upstreamMessages = {
   429: '已达到接口速率限制或配额，请稍后再试。',
 };
 
-async function outbound(url, options, send) {
+async function outbound(url, options, send, timeout = 180_000) {
   let response;
   try {
     response = await send(url, {
       ...options, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer',
-      redirect: 'error', signal: AbortSignal.timeout(180_000),
+      redirect: 'error', signal: AbortSignal.timeout(timeout),
     });
   } catch (error) {
     throw new Error(error.name === 'TimeoutError'
@@ -234,6 +276,96 @@ async function boundedBlob(response) {
   return new Blob(chunks);
 }
 
+async function readAPIJSON(response) {
+  const text = await (await boundedBlob(response)).text();
+  try { return record(JSON.parse(text)); } catch { throw new Error('接口返回的内容不是有效 JSON。'); }
+}
+
+function hasImageOutput(row, id, provider, format) {
+  const output = row?.outputModalities ?? row?.output_modalities ?? row?.supportedOutputTypes
+    ?? row?.architecture?.output_modalities;
+  if (format === 'gemini' && Array.isArray(row?.supportedGenerationMethods)
+    && !row.supportedGenerationMethods.includes('generateContent')) return false;
+  if (Array.isArray(output) && output.length) return output.some(type => String(type).toLowerCase() === 'image');
+  if (provider === 'custom') return true;
+  return format === 'openai' ? /^(?:gpt-image-|chatgpt-image-latest$)/.test(id)
+    : /^gemini-(?:.*-image(?:-|$)|nano-banana(?:-|$))/.test(id);
+}
+
+function pageModelIds(response, provider, format) {
+  if (provider === 'gemini-oauth') {
+    return array(response.publisherModels).map(row => {
+      const ids = [row?.publisherModelTemplate, row?.versionId, row?.name]
+        .map(value => typeof value === 'string' ? value.split('/').at(-1).split('@')[0] : '');
+      return ids.find(id => id.startsWith('gemini-') && validModel(id, format) && hasImageOutput(row, id, provider, format));
+    }).filter(Boolean);
+  }
+  const rows = format === 'openai' ? array(response.data) : array(response.models);
+  return rows.flatMap(row => {
+    const value = typeof row === 'string' ? row : format === 'openai' ? row?.id : row?.name;
+    const id = format === 'gemini' && typeof value === 'string' ? value.replace(/^models\//, '') : value;
+    return validModel(id, format) && hasImageOutput(row, id, provider, format) ? [id] : [];
+  });
+}
+
+function providerAuthentication(provider, resource, authorization) {
+  if (provider === 'gemini-oauth') {
+    const token = currentGoogleToken(authorization, resource);
+    if (!token) throw new Error('请先完成 Google 授权。');
+    return {Authorization: 'Bearer ' + token};
+  }
+  if (!resource.key) return {};
+  return providerFormat(provider, resource) === 'openai'
+    ? {Authorization: 'Bearer ' + resource.key} : {'x-goog-api-key': resource.key};
+}
+
+export async function verifyImageResource(provider, values, {
+  storage = globalThis.localStorage, origin = location.origin, send = globalThis.fetch,
+  authorization, authorize = authorizeGoogle,
+} = {}) {
+  if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
+  const draft = validateResource(provider, record(values), readImageResources(storage)[provider], origin);
+  const format = providerFormat(provider, draft);
+  if (provider === 'gemini-oauth' && !currentGoogleToken(authorization, draft)) authorization = await authorize(draft);
+  const headers = providerAuthentication(provider, draft, authorization);
+  let catalog;
+  if (provider === 'openai') catalog = new URL('https://api.openai.com/v1/models');
+  else if (provider === 'gemini') catalog = new URL('https://generativelanguage.googleapis.com/v1beta/models');
+  else if (provider === 'gemini-oauth') {
+    catalog = new URL('https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/google/models');
+    headers['x-goog-user-project'] = draft.project;
+  } else catalog = modelListURL(draft, origin);
+  const models = new Set();
+  const tokens = new Set();
+  const firstPage = catalog.href;
+  for (;;) {
+    const response = await readAPIJSON(await outbound(catalog.href, {headers}, send, 20_000));
+    for (const model of pageModelIds(response, provider, format)) models.add(model);
+    const next = response.nextPageToken;
+    if (!next) break;
+    if (typeof next !== 'string' || tokens.has(next) || tokens.size >= 20) throw new Error('无法读取完整模型列表。');
+    tokens.add(next);
+    catalog.searchParams.set('pageToken', next);
+  }
+  if (!models.size) throw new Error('接口未返回可选的生图模型。');
+  if (provider === 'custom' && draft.key) {
+    let status;
+    try {
+      const openCatalog = await outbound(firstPage, {}, send, 20_000);
+      await openCatalog.body?.cancel();
+    } catch (error) {
+      status = error.status;
+    }
+    if (![401, 403].includes(status)) throw new Error('此模型列表无法校验网关密钥。请填写需要认证且支持 CORS 的模型列表地址。');
+  }
+  const verification = Object.freeze({
+    models: Object.freeze([...models].sort((a, b) => a.localeCompare(b, 'en', {numeric: true}))),
+    authorization: provider === 'gemini-oauth' ? authorization : undefined,
+  });
+  verifications.set(verification, {id: provider, draft});
+  return verification;
+}
+
 function rasterMime(prefix) {
   if (prefix.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
   if (prefix.startsWith('\xff\xd8\xff')) return 'image/jpeg';
@@ -257,7 +389,6 @@ async function linkedImage(value, origin, send) {
   return {mime, blob: data.slice(0, data.size, mime)};
 }
 
-const array = value => Array.isArray(value) ? value : [];
 async function extractImages(response, format, origin, send) {
   if (format === 'openai') {
     const images = [];
@@ -280,34 +411,25 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
   const {providers} = describeImageResources(resources, authorization, origin);
   const entry = providers[provider];
   if (!entry?.ready) throw new Error('请先在「设置」中配置此接口。');
-  const format = provider === 'custom' ? entry.format : provider;
-  const model = requestedModel.trim() || entry.model;
-  if (!validModel(model, format)) throw new Error('请填写有效的模型 ID。');
-  if (!prompt.trim() || prompt.length > 16000) throw new Error('请输入 1 到 16000 字符的提示词。');
   const resource = resources[provider];
+  const format = providerFormat(provider, resource);
+  const model = requestedModel || entry.model;
+  if (!entry.models.includes(model)) throw new Error('请从已验证的模型列表中选择。');
+  if (!prompt.trim() || prompt.length > 16000) throw new Error('请输入 1 到 16000 字符的提示词。');
   let url;
-  let headers = {'Content-Type': 'application/json'};
   if (provider === 'openai') {
     url = 'https://api.openai.com/v1/images/generations';
-    headers.Authorization = 'Bearer ' + resource.key;
   } else if (provider === 'gemini') {
     url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
-    headers['x-goog-api-key'] = resource.key;
   } else if (provider === 'gemini-oauth') {
-    const token = currentGoogleToken(authorization, resource);
-    if (!token) throw new Error('请先完成 Google 授权。');
     url = 'https://aiplatform.googleapis.com/v1/projects/' + resource.project
       + '/locations/global/publishers/google/models/' + model + ':generateContent';
-    headers.Authorization = 'Bearer ' + token;
   } else {
     const customURL = endpoint(resource.url.replace('{model}', model), origin);
     if (!customURL) throw new Error('自定义接口必须指向本站以外的地址。');
     url = customURL.href;
-    if (resource.key) {
-      if (format === 'openai') headers.Authorization = 'Bearer ' + resource.key;
-      else headers['x-goog-api-key'] = resource.key;
-    }
   }
+  const headers = {'Content-Type': 'application/json', ...providerAuthentication(provider, resource, authorization)};
   const payload = format === 'openai'
     ? {model, prompt, ...(sizes[aspect] ? {size: sizes[aspect]} : {})}
     : {
@@ -318,9 +440,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
         },
       };
   const response = await outbound(url, {method: 'POST', headers, body: JSON.stringify(payload)}, send);
-  const text = await (await boundedBlob(response)).text();
-  let result;
-  try { result = record(JSON.parse(text)); } catch { throw new Error('接口返回的内容不是有效 JSON。'); }
+  const result = await readAPIJSON(response);
   const images = await extractImages(result, format, origin, send);
   if (!images.length) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
   return {model, images};
