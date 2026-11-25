@@ -55,12 +55,15 @@ export function availableSelection(c,selection,manual){
   if(id===null&&Object.hasOwn(optional,key))continue;
   if(!materialChoices(c,key,selection,manual).some(entry=>entry.id===id))delete fixed[key];
  }
- for(const key of ['hairColor','eyeColor']){
-  const id=selection[key];
-  if(id===undefined||manualEntry(manual,key,id))continue;
-  const found=fixed.palette?pool(c,key,fixed,manual).some(color=>color.id===id)
-   :c.palettes.some(palette=>palette[key+'s'].some(color=>color.zh===id));
-  if(!found)delete fixed[key];
+ const nativeColors=['hairColor','eyeColor'].filter(key=>selection[key]!==undefined&&!manualEntry(manual,key,selection[key]));
+ if(fixed.palette){
+  for(const key of nativeColors)if(!pool(c,key,fixed,manual).some(color=>color.id===selection[key]))delete fixed[key];
+ }else if(nativeColors.length){
+  const palettes=c.palettes.filter(palette=>palette.weight>0);
+  const hasColor=(palette,key)=>palette[key+'s'].some(color=>color.zh===selection[key]);
+  const existingColors=nativeColors.filter(key=>palettes.some(palette=>hasColor(palette,key)));
+  const hasCommonPalette=palettes.some(palette=>existingColors.every(key=>hasColor(palette,key)));
+  for(const key of nativeColors)if(!hasCommonPalette||!existingColors.includes(key))delete fixed[key];
  }
  return fixed;
 }

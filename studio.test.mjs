@@ -92,6 +92,35 @@ test('outdated presets are resampled while valid and manual historic choices rem
   assert.match(renderPrompt(next, result.selection, 'en', manual), /Historic custom pose/);
 });
 
+test('historical native colors require a shared drawable palette', () => {
+  const next = structuredClone(profile);
+  const hair = next.palettes[0].hairColors[0];
+  const eye = next.palettes[0].eyeColors[0];
+  next.palettes = [
+    {...next.palettes[0], id: 'hair-match', weight: 1, hairColors: [hair], eyeColors: [{zh: '新瞳色', en: 'New eye color'}]},
+    {...next.palettes[1], id: 'eye-match', weight: 1, hairColors: [{zh: '新发色', en: 'New hair color'}], eyeColors: [eye]},
+    {...next.palettes[2], id: 'both-match', weight: 0, hairColors: [hair], eyeColors: [eye]},
+  ];
+  const historical = {palette: 'removed-palette', hairColor: hair.zh, eyeColor: eye.zh};
+  const fixed = availableSelection(next, historical);
+  assert.deepEqual(fixed, {});
+  assert.notEqual(generate(next, 'redraw-with-split-palettes', {fixed}).selection.palette, 'both-match');
+
+  const {entry} = resolveManualMaterial([], '定制瞳色', 'Custom eye color');
+  const manual = {eyeColor: [entry]};
+  assert.deepEqual(availableSelection(next, {...historical, eyeColor: entry.id}, manual), {
+    hairColor: hair.zh, eyeColor: entry.id,
+  });
+  assert.deepEqual(availableSelection(next, {...historical, palette: 'both-match'}), {
+    palette: 'both-match', hairColor: hair.zh, eyeColor: eye.zh,
+  });
+
+  next.palettes[2].weight = 1;
+  const jointlyAvailable = availableSelection(next, historical);
+  assert.deepEqual(jointlyAvailable, {hairColor: hair.zh, eyeColor: eye.zh});
+  assert.equal(generate(next, 'redraw-with-compatible-palette', {fixed: jointlyAvailable}).selection.palette, 'both-match');
+});
+
 test('settings reflect GPT Image and Nano Banana generations and remove incompatible parameters', () => {
   const fields = (provider, format, model) => Object.fromEntries(
     imageOptionFields(imageCapabilities(provider, format, model)).map(item => [item.key, item.values]));

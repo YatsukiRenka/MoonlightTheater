@@ -48,7 +48,13 @@ function pruneProfiles(){
 function saveLibrary(profile){
  storeLibrary(profile);pruneProfiles();persist();
 }
-function fixed(){const s=cur()?.selection||{};const f=Object.fromEntries(model.locks.filter(k=>k in s).map(k=>[k,s[k]]));if(pref.branch)f.branch=pref.branch;f.style=pref.style;return f}
+function fixed(){
+ const s=cur()?.selection||{};
+ const f=Object.fromEntries(model.locks.filter(key=>Object.hasOwn(s,key)).map(key=>[key,s[key]]));
+ if(pref.branch)f.branch=pref.branch;
+ if(!Object.hasOwn(f,'style'))f.style=pref.style;
+ return f;
+}
 function commit(seed,result){
  const profile=libraryProfile(),s=result.selection,manual=manualFor(s);
  model.active=model.library;
@@ -60,7 +66,7 @@ function commit(seed,result){
 }
 function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();if(!seed)throw Error('请先输入随机种子');
  const profile=libraryProfile();
- const selected=kind==='fresh'?{style:pref.style,presentation:cur()?.selection.presentation??profile.settings.defaultPresentation}:fixed();
+ const selected=kind==='fresh'?{style:fixed().style,presentation:cur()?.selection.presentation??profile.settings.defaultPresentation}:fixed();
  const manual=manualFor(selected),f=availableSelection(profile,selected,manual);
  const history=kind==='replay'?[]:model.history.map(entry=>entry.selection);
  const result=generate(profile,seed,{fixed:f,manual,exploration:pref.exploration,history});
@@ -69,7 +75,7 @@ function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();
  pref.style=result.selection.style;
  commit(seed,result);if(kind==='replay')notify('已按当前设置重现种子');
 }
-function setSlot(k,value,random=false,manual=model.manualMaterials){
+function setSlot(k,value,random=false,manual=model.manualMaterials,message=''){
  if(model.locks.includes(k))throw Error('请先解锁'+labels[k]);
  const profile=libraryProfile(),s=sel(),selected={...s};delete selected[k];
  if(k==='palette'&&!manualFor({palette:value},manual).palette?.some(entry=>entry.id===value))for(const color of ['hairColor','eyeColor'])if(!model.locks.includes(color))delete selected[color];
@@ -77,11 +83,17 @@ function setSlot(k,value,random=false,manual=model.manualMaterials){
  const effectiveManual=manualFor(selected,manual),f=availableSelection(profile,selected,effectiveManual);
  if(!random&&!Object.hasOwn(f,k))throw Error('当前设计库没有可用的'+labels[k]+'，请选择其他素材。');
  const seed=newSeed(),result=generate(profile,seed,{fixed:f,manual:effectiveManual,exploration:pref.exploration,exclude:random?{[k]:s[k]}:{}});
+ const replaced=rowKeys.filter(key=>Object.hasOwn(selected,key)&&!Object.hasOwn(f,key));
+ const unlocked=replaced.filter(key=>model.locks.includes(key));
  model.manualMaterials=manual;
  model.locks=model.locks.filter(key=>Object.hasOwn(f,key));
  if(k==='branch'&&pref.branch)pref.branch=result.selection.branch;
  if(k==='style')pref.style=result.selection.style;
- commit(seed,result)
+ commit(seed,result);
+ const notices=[message];
+ if(replaced.length)notices.push('当前设计库的素材有变化，已一并重抽「'+replaced.map(key=>labels[key]).join('、')+'」。');
+ if(unlocked.length)notices.push('已解除「'+unlocked.map(key=>labels[key]).join('、')+'」的锁定。');
+ if(notices.some(Boolean))notify(notices.filter(Boolean).join(' '));
 }
 function choicesFor(k,s,profile=characterProfile()){return materialChoices(profile,k,s,manualFor(s))}
 function labelFor(k,s,profile=characterProfile()){return choicesFor(k,s,profile).find(e=>e.id===s[k])?.zh||'无'}
@@ -130,9 +142,10 @@ function choose(key) {
    if (created || updated) {
     manual = {...manual,[key]:created?[...saved,entry]:saved.map(item=>item.id===entry.id?entry:item)};
    }
-   if (entry.id!==current || manual!==model.manualMaterials) setSlot(key,entry.id,false,manual);
+   const message=created?'已使用并保存为新条目':updated?'已更新手动条目':'已使用现有条目';
+   if (entry.id!==current || manual!==model.manualMaterials) setSlot(key,entry.id,false,manual,message);
+   else notify(message);
    closeDialog();
-   notify(created?'已使用并保存为新条目':updated?'已更新手动条目':'已使用现有条目');
   } catch (error) {
    $('manualChoiceError').hidden=false;
    $('manualChoiceError').textContent=error.message;
@@ -223,7 +236,14 @@ $('file').onchange=async()=>{
   };
  }catch(error){notify('导入失败：'+error.message)}
 };
-$('records').onclick=e=>{let b=e.target.closest('[data-restore]');if(!b)return;let rec=model.history.find(x=>x.id===b.dataset.restore);model.current=structuredClone(rec);model.active=rec.profileId;pref.branch='';model.locks=[];persist();draw();location.hash='studio';notify('已恢复角色设定和编辑文本')};
+$('records').onclick=event=>{
+ const button=event.target.closest('[data-restore]');if(!button)return;
+ const record=model.history.find(entry=>entry.id===button.dataset.restore);
+ model.current=structuredClone(record);model.active=record.profileId;
+ if(choicesFor('style',sel(),libraryProfile()).some(entry=>entry.id===sel().style))pref.style=sel().style;
+ pref.branch='';model.locks=[];
+ persist();draw();location.hash='studio';notify('已恢复角色设定和编辑文本');
+};
 $('moreSettings').onclick=()=>{
  const keys={accessoryProbability:'头饰出现概率',nonhumanProbability:'非人特征出现概率',propProbability:'道具出现概率',similarityThreshold:'历史相似度阈值'};
  const settings=libraryProfile().settings;
