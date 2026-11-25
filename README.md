@@ -20,7 +20,11 @@
 - 「导入历史」会把备份合并到当前设备，同 ID 记录保留本地版本，导入结果受本机保留上限限制。默认保留 100 条提示词和 30 批生图，图片容量默认为 64 MiB（67.108864 MB）。在「设置 → 历史设置」可直接填写图片容量并选 MB 或 GB，实际可用空间由浏览器决定。本地原图和已缓存的缩略图都计入容量。提示词条数或生图批数可设为 0。
 - Drive 整库备份在浏览器中加密，每次产生一个独立版本，可用于恢复提示词和本地生图记录。恢复需要对应备份的口令。较大的本地图片库可用分批同步或导出到文件。生图 API Key、OAuth 令牌和资源设置留在当前浏览器。
 
-连接 Google Drive 时，在 Google Cloud 项目启用 Drive API，设置 OAuth 同意屏幕并创建 **Web 应用**客户端。把「历史设置 → Google Drive 备份」显示的 JavaScript 来源加入客户端配置。若应用处于测试模式，把自己的账号加入测试用户。填写 Client ID 并连接，授权范围为 `drive.appdata`。在另一台设备使用同一个 Client ID 和 Google 帐号，可选取备份并输入原口令合并恢复。应用数据目录从 Drive 网页中隐藏，版本列表在月光剧场内查看。 [Drive 应用数据目录](https://developers.google.com/workspace/drive/api/guides/appdata) · [Google 浏览器 OAuth](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
+在「历史设置 → Google Drive 备份」点「使用 Google 登录」，在 Google 弹窗选账号并授权。授权范围是 `drive.appdata`。在另一台设备登录同一个 Google 账号，可选择备份并输入原口令合并恢复。OAuth 访问令牌只保留在当前页面内存。整库备份和云图库仍各自使用加密口令。 [Drive 应用数据目录](https://developers.google.com/workspace/drive/api/guides/appdata) · [Google 浏览器 OAuth](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
+
+站点维护者需在 Google Cloud 启用 Drive API，设置 OAuth 同意屏幕并创建 **Web 应用**客户端。把托管站点的来源加入客户端的「已获授权的 JavaScript 来源」。GitHub Pages 使用 `https://yatsukirenka.github.io`。将公开的 Client ID 存为仓库 Actions 变量 `MOONLIGHT_DRIVE_CLIENT_ID`，或在运行 `npm run build` 时提供这个环境变量。授权可用性由 Google Cloud 的用户范围设置决定。 [Google Web 客户端配置](https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid)
+
+自建站点、或需要继续访问此前用个人 OAuth 客户端备份的数据时，可在「高级登录设置」选用原客户端。Drive 备份依附于最初授权的 OAuth 应用。 [Drive 应用数据目录](https://developers.google.com/workspace/drive/api/guides/appdata)
 
 ### 云端图库与按需加载
 

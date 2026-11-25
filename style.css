@@ -296,6 +296,18 @@ dialog.image-preview:has(.image-deck-nav) {
 .history-settings .pagehead h2, .history-settings .section-heading h3 { margin: 0; }
 .history-settings .section-heading h3 { font-size: 17px; }
 .history-settings #driveOAuthOrigin { text-overflow: ellipsis; }
+#driveLoginHelp { margin: 8px 0 12px; }
+#driveLoginHelp:empty { display: none; }
+.drive-advanced {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+}
+.drive-advanced summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.drive-advanced [type="checkbox"] { margin: 2px 0 0; accent-color: var(--accent); }
+.drive-client-mode { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.drive-advanced .note { margin: 6px 0 0; }
 .history-limit-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 105px), 1fr));

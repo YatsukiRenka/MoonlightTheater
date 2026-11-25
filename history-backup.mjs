@@ -4,8 +4,10 @@ import {historyLimitRanges, imageCapacityUnits, readHistoryLimits, saveHistoryLi
 import {mergeImageHistory, pruneImageHistory, readImageHistory} from './image-history.mjs';
 import {validatePromptBackup} from './prompt-history.mjs';
 import {isSafeHistoryImage} from './image-file.mjs';
+import {validGoogleClientId} from './google-oauth.mjs';
 
 const driveClientKey = 'moonlight-history-drive-client';
+const driveModeKey = 'moonlight-history-drive-client-mode';
 const extension = '.mlhistory';
 const mib = 1024 * 1024;
 const formatSize = bytes => (Number(bytes) / mib).toFixed(1) + ' MiB';
@@ -55,6 +57,10 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   const limitsStatus = byId('historyLimitStatus');
   const connect = byId('connectDrive');
   const disconnect = byId('disconnectDrive');
+  const loginHelp = byId('driveLoginHelp');
+  const advanced = byId('driveAdvanced');
+  const useCustomClient = byId('driveUseCustomClient');
+  const customFields = byId('driveCustomClientFields');
   const clientId = byId('driveClientId');
   const driveActions = byId('driveHistoryActions');
   const backupList = byId('driveBackupList');
@@ -80,9 +86,19 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   let auth;
   let expiryTimer;
   let syncTimer;
+  let googleLogin = 'idle';
 
+  const configuredClientId = document.querySelector('meta[name="moonlight-drive-client-id"]')?.content;
+  const hostedClientId = validGoogleClientId(configuredClientId) ? configuredClientId : '';
+  let savedMode;
   byId('driveOAuthOrigin').value = location.origin;
-  try { clientId.value = localStorage.getItem(driveClientKey) || ''; } catch {}
+  try {
+    clientId.value = localStorage.getItem(driveClientKey) || '';
+    savedMode = localStorage.getItem(driveModeKey);
+  } catch {}
+  useCustomClient.checked = !hostedClientId || savedMode === 'custom'
+    || (!savedMode && validGoogleClientId(clientId.value));
+  advanced.open = useCustomClient.checked;
   for (const [key, {min, max}] of Object.entries(historyLimitRanges)) {
     Object.assign(limitsForm.elements.namedItem(key), {min, max});
   }
@@ -92,13 +108,38 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     element.classList.toggle('history-backup-error', error);
   }
 
+  function selectedClientId() {
+    const value = useCustomClient.checked ? clientId.value.trim() : hostedClientId;
+    return validGoogleClientId(value) ? value : '';
+  }
+
+  function preloadLogin() {
+    if (!selectedClientId() || googleLogin === 'loading' || googleLogin === 'ready') return;
+    googleLogin = 'loading';
+    render();
+    void preloadDriveAuthorization().then(() => { googleLogin = 'ready'; })
+      .catch(() => { googleLogin = 'failed'; }).finally(render);
+  }
+
+  function preloadInSettings() {
+    if (location.hash === '#settings' || location.hash === '#historyBackup') preloadLogin();
+  }
+
   function render() {
     const connected = Boolean(auth && auth.expires > Date.now());
     byId('driveHistoryState').textContent = connected ? '已连接' : '未连接';
     byId('driveHistoryState').classList.toggle('resource-ready', connected);
-    connect.disabled = busy;
+    const canConnect = Boolean(selectedClientId());
+    connect.disabled = busy || !canConnect || googleLogin === 'idle' || googleLogin === 'loading';
+    connect.textContent = connected ? '切换 Google 账号' : googleLogin === 'failed' ? '重试加载 Google 登录' : '使用 Google 登录';
+    loginHelp.textContent = !hostedClientId && !canConnect ? '此站点尚未配置 Google 登录。可在高级设置使用自己的 OAuth 客户端。'
+      : !canConnect ? '请填写有效的 Web 应用 Client ID，或切回使用站点的 Google 登录。'
+      : googleLogin === 'loading' ? '正在加载 Google 登录…' : useCustomClient.checked ? '当前使用你自己的 Google OAuth 客户端。' : '';
+    loginHelp.hidden = !loginHelp.textContent;
     disconnect.disabled = busy;
     disconnect.hidden = !connected;
+    useCustomClient.disabled = busy || !hostedClientId;
+    customFields.hidden = !useCustomClient.checked;
     clientId.disabled = busy;
     driveActions.disabled = busy || !connected;
     restore.disabled = !backupList.value;
@@ -273,19 +314,33 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
     }, Math.max(0, auth.expires - Date.now()));
   }
 
-  clientId.onfocus = () => { void preloadDriveAuthorization().catch(() => {}); };
-  clientId.oninput = disconnectDrive;
+  useCustomClient.onchange = () => {
+    disconnectDrive();
+    try { localStorage.setItem(driveModeKey, useCustomClient.checked ? 'custom' : 'hosted'); } catch {}
+    if (useCustomClient.checked && !selectedClientId()) clientId.focus();
+    preloadLogin();
+  };
+  clientId.oninput = () => {
+    disconnectDrive();
+    preloadLogin();
+  };
   backupList.onchange = render;
-  connect.onclick = () => run(driveStatus, async () => {
-    const id = clientId.value.trim();
-    const authorization = await authorizeDrive(id);
-    const backups = await listDriveBackups(authorization);
-    rememberDrive(authorization);
-    showBackups(backups);
-    try { localStorage.setItem(driveClientKey, id); }
-    catch { return '已连接 Google Drive。Client ID 只在当前页面保留。'; }
-    return '已连接 Google Drive。';
-  });
+  connect.onclick = () => {
+    if (googleLogin === 'failed') { preloadLogin(); return; }
+    const id = selectedClientId();
+    if (!id || googleLogin !== 'ready') return;
+    void run(driveStatus, async () => {
+      const authorization = await authorizeDrive(id);
+      const backups = await listDriveBackups(authorization);
+      rememberDrive(authorization);
+      showBackups(backups);
+      if (useCustomClient.checked) {
+        try { localStorage.setItem(driveClientKey, id); }
+        catch { return '已连接 Google Drive。自定义 Client ID 只在当前页面保留。'; }
+      }
+      return '已连接 Google Drive。';
+    });
+  };
   disconnect.onclick = () => {
     disconnectDrive();
     status(driveStatus, '已断开当前页面的 Drive 连接。');
@@ -376,5 +431,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   renderLimits(true);
   showBackups([]);
   render();
+  preloadInSettings();
+  window.addEventListener('hashchange', preloadInSettings);
   window.addEventListener('storage', () => renderLimits());
 }

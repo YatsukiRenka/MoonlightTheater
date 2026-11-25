@@ -206,13 +206,21 @@
       </form>
       <section class="panel resource-card" aria-labelledby="driveHistoryHeading">
         <div class="section-heading"><h3 id="driveHistoryHeading">Google Drive 备份</h3><span class="resource-state right" id="driveHistoryState">未连接</span></div>
-        <label class="settinglabel">Drive OAuth Client ID<input id="driveClientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none"></label>
-        <label class="settinglabel">已获授权的 JavaScript 来源<input id="driveOAuthOrigin" readonly></label>
-        <p class="note">在 Google Cloud 启用 Drive API，并将上述来源填入 Web 应用的 OAuth 客户端。授权限于 Drive 应用数据目录。</p>
         <div class="resource-actions">
-          <button class="secondary" type="button" id="connectDrive">连接 Google Drive</button>
+          <button class="copy" type="button" id="connectDrive" aria-describedby="driveLoginHelp">使用 Google 登录</button>
           <button class="secondary" type="button" id="disconnectDrive" hidden>断开连接</button>
         </div>
+        <p id="driveLoginHelp" class="note">授权范围为此应用在 Drive 的数据目录。</p>
+        <details id="driveAdvanced" class="drive-advanced">
+          <summary>高级登录设置</summary>
+          <label class="drive-client-mode"><input type="checkbox" id="driveUseCustomClient">使用自己的 OAuth 客户端</label>
+          <p class="note">自建站点或恢复旧备份时，可选用原来的 OAuth 客户端。</p>
+          <div id="driveCustomClientFields" hidden>
+            <label class="settinglabel">Drive OAuth Client ID<input id="driveClientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none"></label>
+            <label class="settinglabel">已获授权的 JavaScript 来源<input id="driveOAuthOrigin" readonly></label>
+            <p class="note">在 Google Cloud 启用 Drive API，并将此来源添加到 Web 应用的 OAuth 客户端。</p>
+          </div>
+        </details>
         <fieldset id="driveHistoryActions" disabled>
           <label class="settinglabel">备份口令<input id="drivePassphrase" type="password" maxlength="256" autocomplete="off"></label>
           <p class="note">在浏览器内加密后上传。恢复时输入该备份的口令。</p>
