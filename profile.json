@@ -1,0 +1,1585 @@
+{
+  "schemaVersion": 1,
+  "profileVersion": "0.1.0",
+  "note": "初始权重为待验证的设计假设，不是对54个角色统计的结果。zh/en为可直接拼接的提示词片段。",
+  "settings": {
+    "exploration": 0.18,
+    "branchAffinityMultiplier": 2.2,
+    "accessoryProbability": 0.65,
+    "nonhumanProbability": 0.22,
+    "propProbability": 0.28,
+    "historySize": 20,
+    "candidateCount": 12,
+    "similarityThreshold": 0.72,
+    "defaultStyle": "clean_cel",
+    "defaultPresentation": "white_fullbody"
+  },
+  "branches": [
+    {
+      "id": "sweet",
+      "zh": "纯甜软萌",
+      "weight": 24,
+      "preferredTags": [
+        "sweet",
+        "soft",
+        "casual"
+      ]
+    },
+    {
+      "id": "cool",
+      "zh": "清冷呆萌",
+      "weight": 22,
+      "preferredTags": [
+        "cool",
+        "soft",
+        "casual"
+      ]
+    },
+    {
+      "id": "gothic",
+      "zh": "哥特人偶",
+      "weight": 14,
+      "preferredTags": [
+        "gothic",
+        "doll",
+        "soft"
+      ]
+    },
+    {
+      "id": "mischief",
+      "zh": "俏皮小恶魔",
+      "weight": 10,
+      "preferredTags": [
+        "playful",
+        "graphic",
+        "gothic"
+      ]
+    },
+    {
+      "id": "pop",
+      "zh": "流行偶像与街头",
+      "weight": 9,
+      "preferredTags": [
+        "pop",
+        "graphic",
+        "playful"
+      ]
+    },
+    {
+      "id": "airy",
+      "zh": "轻盈空灵",
+      "weight": 8,
+      "preferredTags": [
+        "airy",
+        "soft"
+      ]
+    },
+    {
+      "id": "intellectual",
+      "zh": "古典知性与中性",
+      "weight": 8,
+      "preferredTags": [
+        "tailored",
+        "cool"
+      ]
+    },
+    {
+      "id": "elegant",
+      "zh": "冷艳成熟",
+      "weight": 5,
+      "preferredTags": [
+        "elegant",
+        "tailored",
+        "cool"
+      ]
+    }
+  ],
+  "pools": {
+    "silhouette": [
+      {
+        "id": "petite",
+        "zh": "娇小纤巧的萌系人物轮廓，柔和圆润的脸型",
+        "en": "petite delicate anime character silhouette, soft rounded face",
+        "weight": 5,
+        "tags": [
+          "sweet",
+          "cool",
+          "doll",
+          "soft",
+          "playful",
+          "airy"
+        ]
+      },
+      {
+        "id": "slender",
+        "zh": "轻盈匀称的少女感轮廓，柔和脸型",
+        "en": "light slender anime silhouette with a soft face",
+        "weight": 4,
+        "tags": [
+          "cool",
+          "sweet",
+          "pop",
+          "airy",
+          "tailored"
+        ]
+      },
+      {
+        "id": "compact",
+        "zh": "紧凑而俏皮的轮廓，比例自然",
+        "en": "compact playful silhouette, balanced stylized proportions",
+        "weight": 3,
+        "tags": [
+          "playful",
+          "sweet",
+          "pop"
+        ]
+      },
+      {
+        "id": "neutral",
+        "zh": "纤细中性的利落轮廓",
+        "en": "slender androgynous silhouette, neat proportions",
+        "weight": 2,
+        "tags": [
+          "tailored",
+          "cool"
+        ]
+      },
+      {
+        "id": "tall",
+        "zh": "高挑优雅的成年女性轮廓",
+        "en": "tall elegant adult woman silhouette",
+        "weight": 1,
+        "tags": [
+          "elegant",
+          "tailored"
+        ]
+      }
+    ],
+    "face": [
+      {
+        "id": "round",
+        "zh": "略圆的脸颊，短而柔和的下巴，清晰眼部细节",
+        "en": "soft round cheeks, gentle short chin, clearly detailed eyes",
+        "weight": 5,
+        "tags": [
+          "soft",
+          "sweet",
+          "doll"
+        ]
+      },
+      {
+        "id": "oval",
+        "zh": "柔和的鹅蛋脸，下颌不过分尖锐，清晰眼部细节",
+        "en": "soft oval face, gently curved jaw, clearly detailed eyes",
+        "weight": 4,
+        "tags": [
+          "cool",
+          "airy",
+          "tailored",
+          "elegant"
+        ]
+      },
+      {
+        "id": "small",
+        "zh": "精致的小脸，柔和五官，略大的杏眼",
+        "en": "delicate small face, soft features, slightly large almond eyes",
+        "weight": 3,
+        "tags": [
+          "doll",
+          "playful",
+          "pop"
+        ]
+      }
+    ],
+    "hair": [
+      {
+        "id": "loose_twins",
+        "zh": "松软低双马尾，空气感刘海",
+        "en": "soft low twin tails, airy bangs",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "cool",
+          "soft"
+        ]
+      },
+      {
+        "id": "high_twins",
+        "zh": "高双马尾，轻微外翘",
+        "en": "high twin tails with gently flipped ends",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "playful",
+          "sweet"
+        ]
+      },
+      {
+        "id": "drill",
+        "zh": "蓬松双纵卷，弧形刘海",
+        "en": "fluffy twin ringlets, curved bangs",
+        "weight": 3,
+        "tags": [
+          "doll",
+          "gothic",
+          "sweet"
+        ]
+      },
+      {
+        "id": "long_wave",
+        "zh": "长而轻盈的波浪披发",
+        "en": "long airy wavy hair",
+        "weight": 4,
+        "tags": [
+          "airy",
+          "elegant",
+          "soft"
+        ]
+      },
+      {
+        "id": "long_straight",
+        "zh": "顺直长发，层次自然的刘海",
+        "en": "long straight hair, softly layered bangs",
+        "weight": 4,
+        "tags": [
+          "cool",
+          "elegant",
+          "airy"
+        ]
+      },
+      {
+        "id": "bob",
+        "zh": "圆润短波波头，轻薄刘海",
+        "en": "rounded bob with wispy bangs",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "tailored",
+          "casual"
+        ]
+      },
+      {
+        "id": "braid",
+        "zh": "松散侧麻花辫，碎发自然垂落",
+        "en": "loose side braid with delicate flyaway strands",
+        "weight": 2,
+        "tags": [
+          "soft",
+          "casual",
+          "airy"
+        ]
+      },
+      {
+        "id": "twin_braids",
+        "zh": "双麻花辫，柔软发尾",
+        "en": "twin braids with soft ends",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "doll",
+          "casual"
+        ]
+      },
+      {
+        "id": "buns",
+        "zh": "双丸子头，少量短碎发",
+        "en": "twin buns with a few loose strands",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "playful"
+        ]
+      },
+      {
+        "id": "half_up",
+        "zh": "半扎发，柔软外卷",
+        "en": "half-up hair with soft outward curls",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "airy",
+          "elegant"
+        ]
+      },
+      {
+        "id": "ponytail",
+        "zh": "侧高马尾，斜刘海",
+        "en": "high side ponytail, side-swept bangs",
+        "weight": 2,
+        "tags": [
+          "pop",
+          "playful"
+        ]
+      },
+      {
+        "id": "short_layer",
+        "zh": "轻盈层次短发，偏分刘海",
+        "en": "airy layered short hair with side-parted bangs",
+        "weight": 3,
+        "tags": [
+          "tailored",
+          "cool",
+          "casual"
+        ]
+      },
+      {
+        "id": "hime",
+        "zh": "姬发式侧发，长直发",
+        "en": "long straight hair with hime-cut side locks",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "elegant",
+          "cool"
+        ]
+      },
+      {
+        "id": "asym_bob",
+        "zh": "不对称短发，一侧刘海稍长",
+        "en": "asymmetric bob with longer fringe on one side",
+        "weight": 2,
+        "tags": [
+          "cool",
+          "graphic",
+          "tailored"
+        ]
+      }
+    ],
+    "expression": [
+      {
+        "id": "neutral",
+        "zh": "安静自然的淡漠表情",
+        "en": "quiet natural neutral expression",
+        "weight": 4,
+        "tags": [
+          "cool",
+          "tailored"
+        ]
+      },
+      {
+        "id": "sleepy",
+        "zh": "半垂眼，轻微困倦感",
+        "en": "half-lidded eyes, mildly sleepy expression",
+        "weight": 4,
+        "tags": [
+          "cool",
+          "soft"
+        ]
+      },
+      {
+        "id": "gentle",
+        "zh": "温柔含蓄的小笑容",
+        "en": "gentle restrained smile",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "airy",
+          "soft"
+        ]
+      },
+      {
+        "id": "happy",
+        "zh": "明亮自然的笑容",
+        "en": "bright natural smile",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "pop",
+          "playful"
+        ]
+      },
+      {
+        "id": "shy",
+        "zh": "略显腼腆，目光自然",
+        "en": "slightly shy expression, natural gaze",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "soft"
+        ]
+      },
+      {
+        "id": "mischievous",
+        "zh": "带一点狡黠的微笑",
+        "en": "subtle mischievous smile",
+        "weight": 3,
+        "tags": [
+          "playful",
+          "gothic",
+          "pop"
+        ]
+      },
+      {
+        "id": "curious",
+        "zh": "略带好奇，眼神专注",
+        "en": "quietly curious, attentive gaze",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "casual",
+          "tailored"
+        ]
+      },
+      {
+        "id": "composed",
+        "zh": "从容而略带距离感",
+        "en": "composed, slightly aloof expression",
+        "weight": 3,
+        "tags": [
+          "elegant",
+          "tailored",
+          "cool"
+        ]
+      },
+      {
+        "id": "deadpan",
+        "zh": "平静呆萌的面无表情",
+        "en": "adorably deadpan expression",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "doll",
+          "playful"
+        ]
+      }
+    ],
+    "outfit": [
+      {
+        "id": "sweet_jsk",
+        "zh": "甜系吊带裙搭配泡泡袖衬衫，适量蝴蝶结",
+        "en": "sweet jumper skirt over a puff-sleeve blouse, a few bows",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "doll",
+          "soft"
+        ]
+      },
+      {
+        "id": "sailor",
+        "zh": "清爽水手领制服，百褶裙",
+        "en": "fresh sailor-collar uniform with pleated skirt",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "sweet",
+          "casual"
+        ]
+      },
+      {
+        "id": "hoodie",
+        "zh": "宽松连帽卫衣与简洁短裙，轻松日常",
+        "en": "oversized hoodie and simple skirt, relaxed everyday styling",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "casual",
+          "pop"
+        ]
+      },
+      {
+        "id": "cardigan",
+        "zh": "宽松针织开衫搭配简约连衣裙",
+        "en": "loose knit cardigan over a simple dress",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "cool",
+          "casual",
+          "soft"
+        ]
+      },
+      {
+        "id": "gothic_dress",
+        "zh": "哥特人偶式洋装，结构明确的荷叶边与蕾丝",
+        "en": "gothic doll-inspired dress, clearly structured ruffles and lace",
+        "weight": 4,
+        "tags": [
+          "gothic",
+          "doll"
+        ]
+      },
+      {
+        "id": "classic_lolita",
+        "zh": "古典洛丽塔洋装，精简的花边与束腰结构",
+        "en": "classic Lolita fashion dress, restrained lace and tailored waist",
+        "weight": 3,
+        "tags": [
+          "doll",
+          "gothic",
+          "tailored"
+        ]
+      },
+      {
+        "id": "patisserie",
+        "zh": "甜点店主题制服，圆领、短围裙和精简点缀",
+        "en": "patisserie-inspired uniform, rounded collar, short apron and restrained accents",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "soft",
+          "casual"
+        ]
+      },
+      {
+        "id": "idol",
+        "zh": "轻快偶像舞台装，清晰色块与不对称裙摆",
+        "en": "light idol stage outfit, clear color blocks and asymmetric skirt",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "playful",
+          "graphic"
+        ]
+      },
+      {
+        "id": "street",
+        "zh": "短款运动外套、宽松袖口与层叠街头裙装",
+        "en": "cropped sporty jacket, loose cuffs and layered streetwear skirt",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "graphic",
+          "casual"
+        ]
+      },
+      {
+        "id": "retro_sport",
+        "zh": "复古运动套装，滚边与宽松版型",
+        "en": "retro sportswear set, contrast piping and relaxed tailoring",
+        "weight": 2,
+        "tags": [
+          "pop",
+          "casual",
+          "graphic"
+        ]
+      },
+      {
+        "id": "harlequin",
+        "zh": "精简小丑主题服装，菱形纹样与圆领",
+        "en": "restrained harlequin-inspired outfit, diamond pattern and rounded collar",
+        "weight": 2,
+        "tags": [
+          "playful",
+          "gothic",
+          "graphic"
+        ]
+      },
+      {
+        "id": "cape",
+        "zh": "轻斗篷搭配简洁裙装，边缘有少量精致纹样",
+        "en": "light capelet over a simple dress with subtle edge motifs",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "doll",
+          "soft"
+        ]
+      },
+      {
+        "id": "church",
+        "zh": "教会风高领洋装，简洁的垂坠领巾",
+        "en": "church-inspired high-neck dress with a simple draped collar",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "gothic",
+          "tailored"
+        ]
+      },
+      {
+        "id": "ribbon_dress",
+        "zh": "轻纱叠层裙，少量长缎带",
+        "en": "layered airy dress with a few long ribbons",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "sweet",
+          "elegant"
+        ]
+      },
+      {
+        "id": "kimono",
+        "zh": "和风改良洋装，短羽织与柔软裙摆",
+        "en": "Japanese-inspired dress with short haori and soft skirt",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "sweet",
+          "elegant"
+        ]
+      },
+      {
+        "id": "qipao",
+        "zh": "新中式立领服饰，精简盘扣与流畅裙摆",
+        "en": "modern Chinese-inspired stand-collar outfit, understated frog buttons and flowing skirt",
+        "weight": 2,
+        "tags": [
+          "elegant",
+          "tailored",
+          "airy"
+        ]
+      },
+      {
+        "id": "tailcoat",
+        "zh": "短礼服外套与高腰长裤，利落中性剪裁",
+        "en": "short formal tailcoat and high-waisted trousers, neat androgynous tailoring",
+        "weight": 2,
+        "tags": [
+          "tailored",
+          "cool"
+        ]
+      },
+      {
+        "id": "coat",
+        "zh": "冬季短大衣、围巾与裙装，整体轮廓简明",
+        "en": "short winter coat, scarf and skirt, clean overall silhouette",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "casual",
+          "tailored"
+        ]
+      },
+      {
+        "id": "long_coat",
+        "zh": "修身长外套与结构化内搭，优雅简洁",
+        "en": "tailored long coat and structured inner layers, elegant and simple",
+        "weight": 2,
+        "tags": [
+          "elegant",
+          "tailored"
+        ]
+      },
+      {
+        "id": "techwear",
+        "zh": "轻量科幻制服，圆润模块与少量功能性细节",
+        "en": "light futuristic uniform, rounded modules and a few functional details",
+        "weight": 2,
+        "tags": [
+          "graphic",
+          "cool",
+          "pop"
+        ]
+      },
+      {
+        "id": "romper",
+        "zh": "宽松背带短裤搭配圆领衬衫，轻巧日常",
+        "en": "loose short overalls over a rounded-collar shirt, light everyday style",
+        "weight": 2,
+        "tags": [
+          "sweet",
+          "casual",
+          "playful"
+        ]
+      }
+    ],
+    "headAccessory": [
+      {
+        "id": "bow",
+        "zh": "柔软的缎带蝴蝶结",
+        "en": "soft satin ribbon bow",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "doll",
+          "airy"
+        ]
+      },
+      {
+        "id": "beret",
+        "zh": "小贝雷帽",
+        "en": "small beret",
+        "weight": 3,
+        "tags": [
+          "tailored",
+          "doll",
+          "cool"
+        ]
+      },
+      {
+        "id": "bonnet",
+        "zh": "简洁的洛丽塔软帽",
+        "en": "simple Lolita fashion bonnet",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "doll",
+          "sweet"
+        ]
+      },
+      {
+        "id": "hood",
+        "zh": "柔软宽松的兜帽",
+        "en": "soft loose hood",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "casual",
+          "airy"
+        ]
+      },
+      {
+        "id": "clip",
+        "zh": "一两枚几何发夹",
+        "en": "one or two geometric hair clips",
+        "weight": 4,
+        "tags": [
+          "pop",
+          "graphic",
+          "casual"
+        ]
+      },
+      {
+        "id": "headband",
+        "zh": "简洁发箍",
+        "en": "simple headband",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "doll",
+          "casual"
+        ]
+      },
+      {
+        "id": "veil",
+        "zh": "轻薄短头纱",
+        "en": "light short veil",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "airy",
+          "elegant"
+        ]
+      },
+      {
+        "id": "cap",
+        "zh": "小型棒球帽",
+        "en": "small baseball cap",
+        "weight": 2,
+        "tags": [
+          "pop",
+          "casual",
+          "graphic"
+        ]
+      },
+      {
+        "id": "mini_hat",
+        "zh": "偏戴小礼帽",
+        "en": "small tilted formal hat",
+        "weight": 2,
+        "tags": [
+          "tailored",
+          "playful",
+          "gothic"
+        ]
+      },
+      {
+        "id": "flower",
+        "zh": "单朵小花发饰",
+        "en": "single small flower hair ornament",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "sweet",
+          "soft"
+        ]
+      }
+    ],
+    "nonhuman": [
+      {
+        "id": "fox",
+        "zh": "柔软狐耳，颜色与发色协调",
+        "en": "soft fox ears coordinated with hair color",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "airy",
+          "cool"
+        ]
+      },
+      {
+        "id": "cat",
+        "zh": "小猫耳",
+        "en": "small cat ears",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "playful",
+          "cool"
+        ]
+      },
+      {
+        "id": "rabbit",
+        "zh": "轻巧兔耳",
+        "en": "light rabbit ears",
+        "weight": 2,
+        "tags": [
+          "sweet",
+          "doll",
+          "playful"
+        ]
+      },
+      {
+        "id": "horns",
+        "zh": "小巧的装饰性角",
+        "en": "small decorative horns",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "playful"
+        ]
+      },
+      {
+        "id": "doll",
+        "zh": "细微的球形人偶关节",
+        "en": "subtle ball-jointed doll details",
+        "weight": 2,
+        "tags": [
+          "doll",
+          "gothic"
+        ]
+      },
+      {
+        "id": "halo",
+        "zh": "简洁的悬浮几何光环",
+        "en": "simple floating geometric halo",
+        "weight": 2,
+        "tags": [
+          "airy",
+          "graphic"
+        ]
+      },
+      {
+        "id": "pointed",
+        "zh": "略尖的精灵耳",
+        "en": "slightly pointed elf ears",
+        "weight": 2,
+        "tags": [
+          "airy",
+          "elegant"
+        ]
+      },
+      {
+        "id": "robot",
+        "zh": "局部简洁的非写实机械结构",
+        "en": "small clean stylized mechanical details",
+        "weight": 2,
+        "tags": [
+          "graphic",
+          "cool"
+        ]
+      }
+    ],
+    "legwear": [
+      {
+        "id": "white_tights",
+        "zh": "奶白色哑光不透明裤袜",
+        "en": "milky white matte opaque tights",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "doll",
+          "soft"
+        ]
+      },
+      {
+        "id": "dark_tights",
+        "zh": "深色哑光不透明裤袜",
+        "en": "dark matte opaque tights",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "gothic",
+          "elegant"
+        ]
+      },
+      {
+        "id": "knee_socks",
+        "zh": "简洁的及膝袜",
+        "en": "simple knee-high socks",
+        "weight": 3,
+        "tags": [
+          "sweet",
+          "casual",
+          "doll"
+        ]
+      },
+      {
+        "id": "crew_socks",
+        "zh": "短袜，颜色呼应服装",
+        "en": "crew socks matching outfit colors",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "casual",
+          "playful"
+        ]
+      },
+      {
+        "id": "bare",
+        "zh": "不额外添加袜装",
+        "en": "no additional legwear",
+        "weight": 2,
+        "tags": [
+          "airy",
+          "casual"
+        ]
+      },
+      {
+        "id": "none",
+        "zh": "裤装或长裙自然遮盖，不单独指定袜装",
+        "en": "no separate legwear specification",
+        "weight": 2,
+        "tags": [
+          "tailored",
+          "elegant"
+        ]
+      }
+    ],
+    "footwear": [
+      {
+        "id": "mary_jane",
+        "zh": "圆头玛丽珍皮鞋",
+        "en": "rounded Mary Jane shoes",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "doll",
+          "gothic"
+        ]
+      },
+      {
+        "id": "loafers",
+        "zh": "简洁小皮鞋",
+        "en": "simple loafers",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "casual",
+          "tailored"
+        ]
+      },
+      {
+        "id": "sneakers",
+        "zh": "轻巧圆头运动鞋",
+        "en": "light rounded sneakers",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "casual",
+          "playful"
+        ]
+      },
+      {
+        "id": "ankle_boot",
+        "zh": "短靴，鞋型利落",
+        "en": "neat ankle boots",
+        "weight": 3,
+        "tags": [
+          "gothic",
+          "tailored",
+          "elegant"
+        ]
+      },
+      {
+        "id": "flat",
+        "zh": "柔和线条的平底鞋",
+        "en": "softly shaped flat shoes",
+        "weight": 3,
+        "tags": [
+          "airy",
+          "sweet"
+        ]
+      },
+      {
+        "id": "lace_boot",
+        "zh": "低跟系带靴",
+        "en": "low-heeled lace-up boots",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "tailored"
+        ]
+      }
+    ],
+    "prop": [
+      {
+        "id": "plush",
+        "zh": "一个小型原创毛绒玩偶",
+        "en": "one small original plush companion",
+        "weight": 4,
+        "tags": [
+          "sweet",
+          "doll",
+          "soft"
+        ]
+      },
+      {
+        "id": "book",
+        "zh": "一本小册子",
+        "en": "a small notebook",
+        "weight": 3,
+        "tags": [
+          "cool",
+          "tailored",
+          "casual"
+        ]
+      },
+      {
+        "id": "headphones",
+        "zh": "一副轻巧耳机",
+        "en": "lightweight headphones",
+        "weight": 3,
+        "tags": [
+          "pop",
+          "casual"
+        ]
+      },
+      {
+        "id": "bag",
+        "zh": "一只简洁斜挎包",
+        "en": "one simple crossbody bag",
+        "weight": 4,
+        "tags": [
+          "casual",
+          "sweet",
+          "tailored"
+        ]
+      },
+      {
+        "id": "umbrella",
+        "zh": "一柄收拢的小伞",
+        "en": "a small folded umbrella",
+        "weight": 2,
+        "tags": [
+          "gothic",
+          "elegant"
+        ]
+      },
+      {
+        "id": "instrument",
+        "zh": "小巧的便携乐器",
+        "en": "a small portable musical instrument",
+        "weight": 2,
+        "tags": [
+          "pop",
+          "airy"
+        ]
+      },
+      {
+        "id": "charm",
+        "zh": "一个几何形小挂件",
+        "en": "one small geometric charm",
+        "weight": 3,
+        "tags": [
+          "graphic",
+          "playful"
+        ]
+      },
+      {
+        "id": "flowers",
+        "zh": "一小束花",
+        "en": "a small bouquet",
+        "weight": 2,
+        "tags": [
+          "airy",
+          "sweet"
+        ]
+      }
+    ],
+    "pose": [
+      {
+        "id": "front",
+        "zh": "正面自然站立，双手放松",
+        "en": "front view, relaxed natural standing pose, hands at ease",
+        "weight": 4,
+        "tags": []
+      },
+      {
+        "id": "right",
+        "zh": "右侧四分之三视角，身体自然转向画面右侧",
+        "en": "right-facing three-quarter view, body naturally turned toward the right",
+        "weight": 4,
+        "tags": []
+      },
+      {
+        "id": "left",
+        "zh": "左侧四分之三视角，重心自然落于一侧",
+        "en": "left-facing three-quarter view, weight naturally shifted to one side",
+        "weight": 3,
+        "tags": []
+      },
+      {
+        "id": "side",
+        "zh": "右侧面站姿，头部轻微回望",
+        "en": "right profile standing pose, head gently turned back",
+        "weight": 3,
+        "tags": []
+      },
+      {
+        "id": "step",
+        "zh": "正面略带迈步感，手臂自然摆动",
+        "en": "front-facing gentle stepping pose, arms naturally moving",
+        "weight": 3,
+        "tags": []
+      },
+      {
+        "id": "hands_back",
+        "zh": "正面站立，双手自然放在背后",
+        "en": "front-facing standing pose, hands naturally behind the back",
+        "weight": 3,
+        "tags": []
+      },
+      {
+        "id": "tilt",
+        "zh": "正面轻微偏头，一手自然搭在身侧",
+        "en": "front view, slight head tilt, one hand resting naturally at the side",
+        "weight": 3,
+        "tags": []
+      },
+      {
+        "id": "turn",
+        "zh": "侧身回望，衣摆轻微摆动",
+        "en": "side-facing pose looking back, skirt or coat hem gently moving",
+        "weight": 2,
+        "tags": []
+      }
+    ]
+  },
+  "palettes": [
+    {
+      "id": "strawberry",
+      "zh": "奶白与草莓粉为主，少量深莓红点缀",
+      "en": "milky ivory and strawberry pink, small deep berry-red accents",
+      "weight": 4,
+      "tags": [
+        "sweet",
+        "soft",
+        "pop"
+      ],
+      "hairColors": [
+        {
+          "zh": "浅桃粉",
+          "en": "light peach pink"
+        },
+        {
+          "zh": "奶油金",
+          "en": "cream blonde"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "莓红",
+          "en": "berry red"
+        },
+        {
+          "zh": "雾玫瑰",
+          "en": "dusty rose"
+        }
+      ]
+    },
+    {
+      "id": "soda",
+      "zh": "浅蓝与奶白，少量海军蓝点缀",
+      "en": "pale blue and milky white with small navy accents",
+      "weight": 4,
+      "tags": [
+        "cool",
+        "sweet",
+        "airy"
+      ],
+      "hairColors": [
+        {
+          "zh": "浅水蓝",
+          "en": "pale aqua blue"
+        },
+        {
+          "zh": "银灰",
+          "en": "silver gray"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "蓝灰",
+          "en": "blue gray"
+        },
+        {
+          "zh": "浅金",
+          "en": "pale gold"
+        }
+      ]
+    },
+    {
+      "id": "lilac",
+      "zh": "薰衣草紫与奶白，深紫少量收边",
+      "en": "lavender and milky white, restrained deep violet trim",
+      "weight": 4,
+      "tags": [
+        "doll",
+        "sweet",
+        "airy"
+      ],
+      "hairColors": [
+        {
+          "zh": "淡紫",
+          "en": "pale lavender"
+        },
+        {
+          "zh": "雾粉",
+          "en": "misty pink"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "紫罗兰",
+          "en": "violet"
+        },
+        {
+          "zh": "灰蓝",
+          "en": "gray blue"
+        }
+      ]
+    },
+    {
+      "id": "mint",
+      "zh": "薄荷绿与奶白，浅黄或深青点缀",
+      "en": "mint green and ivory, pale yellow or deep teal accents",
+      "weight": 3,
+      "tags": [
+        "sweet",
+        "airy",
+        "pop"
+      ],
+      "hairColors": [
+        {
+          "zh": "薄荷绿",
+          "en": "mint green"
+        },
+        {
+          "zh": "浅亚麻金",
+          "en": "light flax blonde"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "琥珀",
+          "en": "amber"
+        },
+        {
+          "zh": "青绿",
+          "en": "teal green"
+        }
+      ]
+    },
+    {
+      "id": "ink_rose",
+      "zh": "墨黑与玫瑰粉，奶白用于留白",
+      "en": "ink black and rose pink with milky white accents",
+      "weight": 3,
+      "tags": [
+        "gothic",
+        "playful",
+        "graphic"
+      ],
+      "hairColors": [
+        {
+          "zh": "墨黑带粉色挑染",
+          "en": "ink black with pink highlights"
+        },
+        {
+          "zh": "雾粉",
+          "en": "misty pink"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "玫红",
+          "en": "rose red"
+        },
+        {
+          "zh": "灰紫",
+          "en": "gray violet"
+        }
+      ]
+    },
+    {
+      "id": "porcelain",
+      "zh": "奶白与炭黑，淡金属色小面积点缀",
+      "en": "milky white and charcoal, small pale metallic accents",
+      "weight": 3,
+      "tags": [
+        "gothic",
+        "cool",
+        "doll",
+        "elegant"
+      ],
+      "hairColors": [
+        {
+          "zh": "浅金",
+          "en": "pale blonde"
+        },
+        {
+          "zh": "银白",
+          "en": "silver white"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "琥珀金",
+          "en": "golden amber"
+        },
+        {
+          "zh": "冷灰",
+          "en": "cool gray"
+        }
+      ]
+    },
+    {
+      "id": "apricot",
+      "zh": "奶油黄与杏色，辅以清爽浅蓝",
+      "en": "cream yellow and apricot with refreshing pale blue",
+      "weight": 3,
+      "tags": [
+        "sweet",
+        "soft",
+        "casual"
+      ],
+      "hairColors": [
+        {
+          "zh": "浅栗棕",
+          "en": "light chestnut"
+        },
+        {
+          "zh": "杏金",
+          "en": "apricot blonde"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "蜂蜜色",
+          "en": "honey"
+        },
+        {
+          "zh": "浅蓝",
+          "en": "pale blue"
+        }
+      ]
+    },
+    {
+      "id": "navy",
+      "zh": "海军蓝与灰白，少量铜色",
+      "en": "navy and gray-white with small copper accents",
+      "weight": 3,
+      "tags": [
+        "tailored",
+        "cool",
+        "elegant"
+      ],
+      "hairColors": [
+        {
+          "zh": "深蓝黑",
+          "en": "deep blue black"
+        },
+        {
+          "zh": "灰蓝",
+          "en": "slate blue"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "金棕",
+          "en": "golden brown"
+        },
+        {
+          "zh": "浅灰",
+          "en": "light gray"
+        }
+      ]
+    },
+    {
+      "id": "black_red",
+      "zh": "黑白高反差，少量朱红作为视觉焦点",
+      "en": "high-contrast black and white, small vermilion focal accents",
+      "weight": 3,
+      "tags": [
+        "gothic",
+        "graphic",
+        "playful",
+        "elegant"
+      ],
+      "hairColors": [
+        {
+          "zh": "黑色",
+          "en": "black"
+        },
+        {
+          "zh": "深棕红",
+          "en": "dark reddish brown"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "暗红",
+          "en": "dark red"
+        },
+        {
+          "zh": "金色",
+          "en": "gold"
+        }
+      ]
+    },
+    {
+      "id": "pearl",
+      "zh": "珍珠白、雾紫与浅金，层次通透",
+      "en": "pearl white, misty violet and pale gold, airy contrast",
+      "weight": 3,
+      "tags": [
+        "airy",
+        "elegant",
+        "doll"
+      ],
+      "hairColors": [
+        {
+          "zh": "淡金",
+          "en": "pale gold"
+        },
+        {
+          "zh": "浅雾紫",
+          "en": "pale misty violet"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "淡紫",
+          "en": "light violet"
+        },
+        {
+          "zh": "青灰",
+          "en": "blue green gray"
+        }
+      ]
+    },
+    {
+      "id": "pop_coral",
+      "zh": "珊瑚橙与浅蓝，深色局部收边",
+      "en": "coral orange and pale blue, small dark trim",
+      "weight": 2,
+      "tags": [
+        "pop",
+        "graphic",
+        "playful"
+      ],
+      "hairColors": [
+        {
+          "zh": "珊瑚橙",
+          "en": "coral orange"
+        },
+        {
+          "zh": "深棕",
+          "en": "dark brown"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "青蓝",
+          "en": "cyan blue"
+        },
+        {
+          "zh": "琥珀",
+          "en": "amber"
+        }
+      ]
+    },
+    {
+      "id": "forest",
+      "zh": "松石绿与浅米白，深棕细节点缀",
+      "en": "turquoise green and light ivory, dark brown detail accents",
+      "weight": 2,
+      "tags": [
+        "tailored",
+        "airy",
+        "elegant"
+      ],
+      "hairColors": [
+        {
+          "zh": "深栗棕",
+          "en": "deep chestnut"
+        },
+        {
+          "zh": "灰绿",
+          "en": "gray green"
+        }
+      ],
+      "eyeColors": [
+        {
+          "zh": "橄榄绿",
+          "en": "olive green"
+        },
+        {
+          "zh": "金棕",
+          "en": "golden brown"
+        }
+      ]
+    }
+  ],
+  "styles": [
+    {
+      "id": "clean_cel",
+      "zh": "日系二次元平涂，干净纤细线稿，清晰色块，轻柔且克制的局部晕染，眼部细节精致，画面通透，无杂乱线条与过度纹理",
+      "en": "clean Japanese anime illustration, fine tidy linework, crisp cel-shaded color blocks, restrained soft local shading, carefully detailed eyes, luminous clean finish without cluttered lines or excessive texture"
+    },
+    {
+      "id": "soft_pastel",
+      "zh": "清透水色系日系插画，纤细灰彩线稿，轻柔粉彩色块，少量局部晕染，人物边缘干净",
+      "en": "luminous pastel anime illustration, fine muted-color linework, soft pastel color blocks, subtle local gradients, clean character edges"
+    },
+    {
+      "id": "graphic_cel",
+      "zh": "清晰的平面赛璐璐插画，简洁造型，明确的深浅关系与图形化高光，精致五官",
+      "en": "graphic cel-shaded anime illustration, simplified shapes, clear light-dark contrast, graphic highlights and delicate facial features"
+    }
+  ],
+  "presentations": [
+    {
+      "id": "white_fullbody",
+      "zh": "干净的单人全身立绘，纯白背景，完整显示头顶至鞋底，居中且留有适当边距，无文字、无分镜、无设定展示、无边框",
+      "en": "single-character full-body standing illustration on a pure white background, entire figure visible from head to soles, centered with breathing room, no text, panels, character sheet elements or border"
+    }
+  ],
+  "rules": {
+    "headAccessoryExcludeWhenNonhuman": [
+      "fox",
+      "cat",
+      "rabbit",
+      "horns",
+      "halo"
+    ],
+    "forceLegwearNoneForOutfits": [
+      "tailcoat",
+      "long_coat"
+    ],
+    "outfitHeadAccessoryExclusion": {
+      "hoodie": [
+        "hood"
+      ],
+      "church": [
+        "hood",
+        "bonnet",
+        "cap"
+      ]
+    },
+    "similarityWeights": {
+      "silhouette": 0.07,
+      "face": 0.03,
+      "hair": 0.19,
+      "palette": 0.19,
+      "hairColor": 0.07,
+      "outfit": 0.22,
+      "expression": 0.08,
+      "headAccessory": 0.05,
+      "nonhuman": 0.04,
+      "pose": 0.06
+    }
+  }
+}
