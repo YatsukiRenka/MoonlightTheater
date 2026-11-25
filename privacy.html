@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#faf8fb">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>隐私政策 / Privacy Policy / プライバシーポリシー · 月光剧场</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="navwrap">
+      <a class="brand" href="index.html#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a>
+      <nav aria-label="主导航">
+        <a href="index.html#studio">创作台</a>
+        <a href="index.html#library">设计库</a>
+        <a href="index.html#history">历史记录</a>
+        <a href="index.html#settings">设置</a>
+      </nav>
+      <span class="local"><b></b> 本地工作区</span>
+    </div>
+  </header>
+  <main class="legal-page">
+    <nav class="legal-nav" aria-label="页面语言">
+      <a href="#zh" lang="zh-CN" hreflang="zh-CN">中文</a>
+      <a href="#en" lang="en" hreflang="en">English</a>
+      <a href="#ja" lang="ja" hreflang="ja">日本語</a>
+    </nav>
+
+    <section class="panel legal-copy" id="zh" lang="zh-CN" aria-labelledby="title-zh">
+      <h1 class="legal-title" id="title-zh">隐私政策</h1>
+      <p class="note">最后更新 <time datetime="2026-11-26">2026-11-26</time></p>
+      <p>月光剧场用于编写中英双语角色绘画提示词，也可通过你配置的接口生成图片。</p>
+
+      <h2>网站托管与 Google 登录</h2>
+      <p>本站由 GitHub Pages 提供静态文件，没有应用服务器或服务端数据库。GitHub 会收到常规网页请求中的信息，例如 IP 地址和浏览器发出的 User-Agent 请求头，并依照其<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">隐私声明</a>处理这些信息。</p>
+      <p>本站代码不设置 Cookie，也不包含分析、广告或追踪代码。本站代码加载的唯一第三方脚本是来自 <code>accounts.google.com</code> 的 Google Identity Services。配置有效的 Drive OAuth 客户端后，Drive 备份卡片靠近可视区域、卡片内的控件获得焦点或指针移入卡片时，应用可预加载该脚本。修改 Drive 登录设置、重试加载或使用 Gemini 的 Google OAuth 授权也可触发加载。</p>
+
+      <h2>浏览器中的数据</h2>
+      <p>应用在浏览器的 <code>localStorage</code> 中保存明文 API 密钥、资源设置、创作偏好、提示词历史和保留上限。生图偏好保存在 <code>sessionStorage</code>，本地生图历史保存在 <code>IndexedDB</code>。同源脚本可读取 <code>localStorage</code> 和 <code>IndexedDB</code> 中的数据。使用同一 GitHub Pages 域名的不同项目路径属于同一来源。<code>sessionStorage</code> 还按浏览器标签页隔离。</p>
+
+      <h2>生图请求</h2>
+      <p>浏览器将提示词、生图参数、你提供的参考图和编辑素材，以及适用的 API 密钥或 Google OAuth 访问令牌，直接发送给你配置的服务（OpenAI、Google Gemini API、Google Vertex AI 或自定义网关）。如需了解相关服务如何处理请求，请查看该服务的条款和隐私政策。</p>
+
+      <h2>Google 用户数据</h2>
+      <p>Google Drive 备份和云图库只请求 <code>https://www.googleapis.com/auth/drive.appdata</code> 权限。该权限仅允许应用访问它在你的 Drive 中专用的隐藏应用数据文件夹。浏览器将访问令牌直接发送给 Google Drive，仅为提供历史备份和云图库功能而访问其中的文件及其元数据（如文件标识、大小和创建时间），包括保存、列出、查看和恢复。</p>
+      <p>上传前，应用在浏览器内用你选择的口令加密历史备份（可包含提示词和本地生图记录）、云图库图片和记录清单。口令不会发送到 Drive。启用云图库自动同步后，应用可在图库解锁期间自动上传新生成的图片。</p>
+      <p>「Gemini · Google OAuth」是独立的生图资源类型。应用使用你自己的 OAuth 客户端请求 <code>https://www.googleapis.com/auth/cloud-platform</code> 权限，用令牌获取 Vertex AI 模型列表，并在你配置的 Google Cloud 项目中调用 Vertex AI 生图。两种 Google OAuth 流程的访问令牌都只保留在当前页面的内存中。</p>
+      <p>项目维护者不会通过本应用接收、存储、出售或共享这些数据。本应用不将这些数据用于广告或模型训练。本应用对从 Google API 获得的信息的使用及向其他应用的传输，均遵守 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API 服务用户数据政策</a>，包括其中的有限使用要求。</p>
+
+      <h2>删除数据与撤销授权</h2>
+      <p>清除浏览器中此来源的站点数据，即可删除保存在浏览器中的数据。如需删除云端备份和图库，请在 Google Drive 的「设置 → 管理应用」中找到授权时使用的应用，删除隐藏应用数据。如需撤销授权，请前往 <a href="https://myaccount.google.com/connections">Google 帐号权限页面</a>，移除相应应用的访问权限。</p>
+
+      <h2>联系</h2>
+      <p>如有隐私问题，请通过<a href="https://github.com/YatsukiRenka/MoonlightTheater/issues">项目问题追踪器</a>联系项目维护者。<a href="index.html">返回月光剧场</a></p>
+    </section>
+
+    <section class="panel legal-copy" id="en" lang="en" aria-labelledby="title-en">
+      <h2 class="legal-title" id="title-en">Privacy Policy</h2>
+      <p class="note">Last updated <time datetime="2026-11-26">2026-11-26</time></p>
+      <p>Moonlight Theater helps you write character illustration prompts in Chinese and English. It can also generate images through a service you configure.</p>
+
+      <h3>Hosting and Google sign-in</h3>
+      <p>GitHub Pages serves the site's static files. The site has no application server or server-side database. GitHub receives ordinary web request information, such as IP addresses and any User-Agent headers browsers send, and handles it under its <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">privacy statement</a>.</p>
+      <p>The site's code sets no cookies and includes no analytics, advertising, or tracking code. It loads one third-party script, Google Identity Services, from <code>accounts.google.com</code>. When a valid Drive OAuth client is configured, the app can preload the script when the Drive backup card comes close to being visible, a control inside it receives focus, or the pointer moves onto it. Changing Drive sign-in settings, retrying the load, or authorizing Gemini through Google OAuth can also load the script.</p>
+
+      <h3>Data in your browser</h3>
+      <p>The app saves plain-text API keys, resource settings, studio preferences, prompt history, and retention limits in your browser's <code>localStorage</code>. It saves image-generation preferences in <code>sessionStorage</code> and local image history in <code>IndexedDB</code>. Scripts from the same origin can read data in <code>localStorage</code> and <code>IndexedDB</code>. Project paths on the same GitHub Pages domain share an origin. <code>sessionStorage</code> is also scoped to a browser tab.</p>
+
+      <h3>Image generation requests</h3>
+      <p>Your browser sends the prompt, generation settings, any reference images and editing materials you supply, and the applicable API key or Google OAuth access token directly to the service you configure (OpenAI, Google Gemini API, Google Vertex AI, or a custom gateway). See that service's terms and privacy policy for how it handles these requests.</p>
+
+      <h3>Google user data</h3>
+      <p>Google Drive backup and the cloud gallery request only the <code>https://www.googleapis.com/auth/drive.appdata</code> scope, which gives the app access only to its own hidden application-data folder in your Drive. The browser sends the access token directly to Google Drive. The app accesses files and metadata (such as file IDs, sizes, and creation times) in that folder only to provide history backup and cloud gallery features, including storing, listing, viewing, and restoring data.</p>
+      <p>Before upload, the app uses a passphrase you choose to encrypt history backups (which can contain prompts and local image history), gallery images, and gallery manifests in your browser. It does not send the passphrase to Drive. If you enable automatic gallery sync, the app can upload new images automatically while the gallery is unlocked.</p>
+      <p>Gemini with Google OAuth is a separate image generation resource. The app uses your own OAuth client to request the <code>https://www.googleapis.com/auth/cloud-platform</code> scope. It uses that token to list Vertex AI models and call Vertex AI for image generation in your configured Google Cloud project. The app keeps both kinds of Google OAuth access token only in the current page's memory.</p>
+      <p>The project maintainer does not receive, store, sell, or share this data through the app. The app does not use it for advertising or model training. Moonlight Theater's use of information received from Google APIs, including any transfer to another app, complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+      <h3>Deleting data and revoking access</h3>
+      <p>Clear this origin's site data in your browser to remove data saved there. To delete cloud backups and the gallery, go to Settings → Manage apps in Google Drive, find the app you authorized, and delete its hidden app data. To revoke authorization, go to your <a href="https://myaccount.google.com/connections">Google Account permissions page</a> and remove access for the relevant app.</p>
+
+      <h3>Contact</h3>
+      <p>For privacy questions, contact the project maintainer through the <a href="https://github.com/YatsukiRenka/MoonlightTheater/issues">project issue tracker</a>. <a href="index.html">Back to Moonlight Theater</a></p>
+    </section>
+
+    <section class="panel legal-copy" id="ja" lang="ja" aria-labelledby="title-ja">
+      <h2 class="legal-title" id="title-ja">プライバシーポリシー</h2>
+      <p class="note">最終更新日 <time datetime="2026-11-26">2026-11-26</time></p>
+      <p>Moonlight Theater は、キャラクターイラスト用のプロンプトを中国語と英語で作成するためのツールです。設定したサービスを使って画像を生成することもできます。</p>
+
+      <h3>サイトのホスティングと Google ログイン</h3>
+      <p>このサイトは GitHub Pages で静的ファイルを配信しており、アプリケーションサーバーやサーバー側のデータベースはありません。GitHub は、IP アドレスやブラウザーが送信する User-Agent ヘッダーなど、通常のウェブリクエストに伴う情報を受け取り、同社の<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">プライバシーに関する声明</a>に従って取り扱います。</p>
+      <p>このサイトのコードは Cookie を設定せず、アクセス解析、広告、トラッキングのためのコードも含みません。読み込む外部スクリプトは、<code>accounts.google.com</code> が配信する Google Identity Services のみです。有効な Drive 用の OAuth クライアントが設定されている場合、Drive バックアップ欄が画面の表示範囲に近づいたとき、欄内の操作項目にフォーカスが移ったとき、またはポインターが欄内に入ったときに、スクリプトを事前に読み込むことがあります。Drive のログイン設定を変更したとき、読み込みをやり直したとき、Gemini 用に Google OAuth で認可するときにも読み込まれることがあります。</p>
+
+      <h3>ブラウザー内に保存されるデータ</h3>
+      <p>API キーは暗号化せずにブラウザーの <code>localStorage</code> に保存します。API リソースの設定、プロンプト作成時の設定、プロンプトの履歴、履歴の保存上限も <code>localStorage</code> に保存します。画像生成の設定は <code>sessionStorage</code>、端末上の画像生成履歴は <code>IndexedDB</code> に保存します。同じオリジンのスクリプトは <code>localStorage</code> と <code>IndexedDB</code> のデータを読み取れます。GitHub Pages では、同じドメイン上の異なるプロジェクトパスも同じオリジンに属します。<code>sessionStorage</code> はブラウザーのタブごとに分かれています。</p>
+
+      <h3>画像生成時に送信するデータ</h3>
+      <p>ブラウザーは、プロンプト、生成設定、利用者が指定した参照画像や編集用の素材、必要に応じて API キーまたは Google OAuth アクセストークンを、設定先のサービス（OpenAI、Google Gemini API、Google Vertex AI、またはカスタムゲートウェイ）に直接送信します。リクエストの取り扱いについては、そのサービスの利用規約とプライバシーポリシーをご確認ください。</p>
+
+      <h3>Google ユーザーデータ</h3>
+      <p>Google Drive のバックアップとクラウドギャラリーがリクエストするスコープは <code>https://www.googleapis.com/auth/drive.appdata</code> のみです。このスコープでアクセスできるのは、利用者の Drive にある、このアプリ専用の非表示のアプリケーションデータフォルダだけです。ブラウザーはアクセストークンを Google Drive に直接送信します。アプリがこのフォルダ内のファイルとメタデータ（ファイル ID、サイズ、作成日時など）にアクセスするのは、保存、一覧表示、閲覧、復元など、履歴バックアップとクラウドギャラリーの機能を提供するためだけです。</p>
+      <p>履歴バックアップ（プロンプトや端末上の画像生成履歴を含む場合があります）、ギャラリーの画像、ギャラリーの記録一覧は、利用者が選んだパスフレーズでブラウザー内で暗号化してからアップロードします。パスフレーズは Drive に送信しません。ギャラリーの自動同期を有効にすると、ギャラリーのロックが解除されている間は、新しく生成した画像が自動でアップロードされることがあります。</p>
+      <p>「Gemini · Google OAuth」は別の画像生成用リソースです。利用者自身の OAuth クライアントを使って <code>https://www.googleapis.com/auth/cloud-platform</code> スコープをリクエストします。アプリはそのトークンで Vertex AI のモデル一覧を取得し、設定された Google Cloud プロジェクトで Vertex AI に画像生成をリクエストします。いずれの Google OAuth アクセストークンも、現在開いているページのメモリにのみ保持します。</p>
+      <p>プロジェクトのメンテナーは、このアプリを通じてこれらのデータを受け取ることも、保存、販売、共有することもありません。アプリはこれらのデータを広告やモデルの学習には使用しません。Moonlight Theater は、Google API から取得した情報の利用および他のアプリへの転送について、利用制限の要件を含む<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API サービスのユーザーデータに関するポリシー</a>を遵守します。</p>
+
+      <h3>データの削除とアクセス権の取り消し</h3>
+      <p>ブラウザーに保存されたデータを削除するには、このオリジンのサイトデータを消去してください。クラウドのバックアップとギャラリーを削除するには、Google Drive の「設定 → アプリの管理」でアクセスを許可したアプリを探し、非表示のアプリデータを削除してください。アクセス権を取り消すには、<a href="https://myaccount.google.com/connections">Google アカウントのアクセス権管理ページ</a>で対象のアプリのアクセス権を削除してください。</p>
+
+      <h3>お問い合わせ</h3>
+      <p>プライバシーについては、<a href="https://github.com/YatsukiRenka/MoonlightTheater/issues">プロジェクトの Issue トラッカー</a>からメンテナーにお問い合わせください。<a href="index.html">Moonlight Theater に戻る</a></p>
+    </section>
+
+    <footer class="site-footer">
+      <span>☾ &nbsp; 月光剧场</span>
+      <div class="site-footer-links"><a href="privacy.html" aria-current="page">隐私政策</a><a href="terms.html">服务条款</a></div>
+      <span lang="en">Moonlight Theater</span>
+    </footer>
+  </main>
+</body>
+</html>

@@ -112,6 +112,8 @@ OpenAI 公布的「Sign in with ChatGPT」预览明确排除图片生成工具�
 
 本仓库的项目站点地址是 `https://yatsukirenka.github.io/MoonlightTheater/`，与同一账号下使用默认域名的其他 Pages 站点共用 `https://yatsukirenka.github.io` 这个来源。浏览器按来源划分存储，`/MoonlightTheater/` 和同源的其他路径共用 `localStorage` 和 `IndexedDB`。其他同源站点的脚本可读取 `localStorage` 中的明文 API Key 和提示词记录，以及 `IndexedDB` 中的生图记录。 [GitHub Pages 站点类型](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
 
+站点页脚链接至[隐私政策](https://yatsukirenka.github.io/MoonlightTheater/privacy.html)和[服务条款](https://yatsukirenka.github.io/MoonlightTheater/terms.html)，两页均提供中文、英文和日文版本。
+
 OAuth 客户端（包括 Drive 备份）的「已获授权的 JavaScript 来源」和网关的 CORS 允许项均使用 `https://yatsukirenka.github.io`。为项目站点配置独立的自定义域名后，应用将拥有单独的来源，这两项也需改为该自定义域名对应的来源。
 
 ## 开源许可
