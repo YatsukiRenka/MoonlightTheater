@@ -249,6 +249,27 @@ dialog.image-preview {
   .image-empty { min-height: 150px; }
 }
 .history-heading { margin-bottom: 12px; }
+.history-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.history-file-actions .subtle { padding: 8px; }
+.history-feedback:empty { display: none; }
+.history-backup-error { color: #972f52; }
+.history-settings { margin-top: 32px; scroll-margin-top: 18px; }
+.history-settings .pagehead { margin-bottom: 12px; }
+.history-settings .pagehead h2, .history-settings .section-heading h3 { margin: 0; }
+.history-settings .section-heading h3 { font-size: 17px; }
+.history-settings #driveOAuthOrigin { text-overflow: ellipsis; }
+.history-limit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 105px), 1fr));
+  gap: 0 10px;
+}
+.history-limit-fields .settinglabel { margin-bottom: 0; }
 .history-switch button {
   min-height: 36px;
   padding-inline: 12px;

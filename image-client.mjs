@@ -1,11 +1,12 @@
+import {rasterMime, sanitizeSVG} from './image-file.mjs';
 import {catalogPrice, combineImageUsage, modelPrice, summarizeImageUsage} from './image-usage.mjs';
 import {imageCapabilities, legacyImageOptions, prepareImageOptions, validateReferenceImages} from './image-options.mjs';
 import {isResponseTimeout, readImageStream, readResponseChunk} from './image-stream.mjs';
+import {requestGoogleToken, validGoogleClientId} from './google-oauth.mjs';
 
 const resourceKey = 'moonlight-image-resources-v1';
 const resourceIds = ['openai', 'gemini', 'gemini-oauth', 'custom'];
 const projectPattern = /^(?:[a-z][a-z0-9-]{4,28}[a-z0-9]|[0-9]{6,20})$/;
-const clientPattern = /^[A-Za-z0-9_-]{4,220}\.apps\.googleusercontent\.com$/;
 const googleScope = 'https://www.googleapis.com/auth/cloud-platform';
 const maxResponse = 128 * 1024 * 1024;
 const maxCatalogResponse = 20 * 1024 * 1024;
@@ -95,7 +96,7 @@ function validateResource(id, values, previous, origin) {
   if (id === 'gemini-oauth') {
     const clientId = field('clientId');
     const project = field('project');
-    if (!clientPattern.test(clientId)) throw new Error('请填写 Google Cloud 的 Web 应用 Client ID。');
+    if (!validGoogleClientId(clientId)) throw new Error('请填写 Google Cloud 的 Web 应用 Client ID。');
     if (!projectPattern.test(project)) throw new Error('请填写有效的 Google Cloud 项目 ID 或项目编号。');
     return {clientId, project};
   }
@@ -170,7 +171,7 @@ export function describeImageResources(saved, authorization, origin = location.o
     openai: {ready: validKey(saved.openai?.key)},
     gemini: {ready: validKey(saved.gemini?.key)},
     'gemini-oauth': {
-      ready: clientPattern.test(oauth.clientId || '') && projectPattern.test(oauth.project || ''),
+      ready: validGoogleClientId(oauth.clientId) && projectPattern.test(oauth.project || ''),
       connected: Boolean(currentGoogleToken(authorization, oauth)),
     },
     custom: {ready: Boolean(customReady), format, supportsReferences: format === 'gemini' || Boolean(editURL(custom, origin))},
@@ -191,59 +192,13 @@ export function describeImageResources(saved, authorization, origin = location.o
   return {providers, resources, canConfigure: true};
 }
 
-let googleScript;
-function loadGoogleOAuth() {
-  if (globalThis.google?.accounts?.oauth2) return Promise.resolve(globalThis.google.accounts.oauth2);
-  googleScript ??= new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    const failed = () => {
-      script.remove();
-      reject(new Error('无法加载 Google 登录，请检查网络后重试。'));
-    };
-    script.onload = () => {
-      if (globalThis.google?.accounts?.oauth2) resolve(globalThis.google.accounts.oauth2);
-      else failed();
-    };
-    script.onerror = failed;
-    document.head.append(script);
-  }).catch(error => {
-    googleScript = undefined;
-    throw error;
-  });
-  return googleScript;
-}
-
 export function authorizeGoogle(resource) {
-  if (!clientPattern.test(resource?.clientId || '') || !projectPattern.test(resource?.project || '')) {
+  if (!validGoogleClientId(resource?.clientId) || !projectPattern.test(resource?.project || '')) {
     throw new Error('请先保存 Google OAuth 配置。');
   }
   const {clientId, project} = resource;
-  const request = oauth => new Promise((resolve, reject) => {
-    const client = oauth.initTokenClient({
-      client_id: clientId,
-      scope: googleScope,
-      include_granted_scopes: false,
-      callback(response) {
-        const seconds = Number(response.expires_in);
-        if (!response.access_token || !Number.isFinite(seconds) || seconds <= 0
-          || !oauth.hasGrantedAllScopes(response, googleScope)) {
-          reject(new Error('Google 授权未完成，或未授予 Cloud 调用权限。'));
-          return;
-        }
-        resolve({clientId, project, token: response.access_token, expires: Date.now() + seconds * 1000});
-      },
-      error_callback(error) {
-        reject(new Error(error.type === 'popup_failed_to_open'
-          ? '浏览器拦截了 Google 登录窗口。请允许弹出窗口，再点击登录。'
-          : 'Google 登录窗口已关闭或授权失败。'));
-      },
-    });
-    client.requestAccessToken({prompt: 'select_account'});
-  });
-  const oauth = globalThis.google?.accounts?.oauth2;
-  return oauth ? request(oauth) : loadGoogleOAuth().then(request);
+  return requestGoogleToken(clientId, googleScope, 'Google 授权未完成，或未授予 Cloud 调用权限。')
+    .then(auth => ({clientId, project, ...auth}));
 }
 
 const upstreamMessages = {
@@ -401,41 +356,13 @@ export async function verifyImageResource(provider, values, {
   return verification;
 }
 
-function rasterMime(prefix) {
-  if (prefix.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
-  if (prefix.startsWith('\xff\xd8\xff')) return 'image/jpeg';
-  if (prefix.startsWith('RIFF') && prefix.slice(8, 12) === 'WEBP') return 'image/webp';
-  if (prefix.startsWith('GIF89a') || prefix.startsWith('GIF87a')) return 'image/gif';
-}
-
-function svgBlob(base64) {
-  const namespace = 'http://www.w3.org/2000/svg';
-  const text = new TextDecoder().decode(Uint8Array.from(atob(base64), ch => ch.charCodeAt(0)));
-  if (/<!DOCTYPE|<!ENTITY/i.test(text)) return null;
-  const svg = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
-  if (svg.localName !== 'svg' || svg.namespaceURI !== namespace || svg.querySelector('parsererror')) return null;
-  const allowed = new Set('svg g defs title desc path rect circle ellipse line polyline polygon text tspan textPath symbol use clipPath mask pattern linearGradient radialGradient stop marker filter feGaussianBlur feColorMatrix feComponentTransfer feFuncR feFuncG feFuncB feFuncA feComposite feBlend feDropShadow feOffset feMerge feMergeNode'.split(' '));
-  for (const node of [svg, ...svg.querySelectorAll('*')]) {
-    if (node.namespaceURI !== namespace || !allowed.has(node.localName)) { node.remove(); continue; }
-    for (const attribute of [...node.attributes]) {
-      const {localName, value} = attribute;
-      if (/^on/i.test(localName) || localName === 'base'
-        || (localName === 'href' && !/^#[\w.:-]+$/.test(value))
-        || /[\\\u0000]/.test(value) || /url\s*\((?!\s*['"]?#[\w.:-]+['"]?\s*\))/i.test(value)) {
-        node.removeAttributeNode(attribute);
-      }
-    }
-  }
-  return new Blob([new XMLSerializer().serializeToString(svg)], {type: 'image/svg+xml'});
-}
-
 function inline(data, output) {
   if (typeof data !== 'string' || data.length < 16 || data.length % 4 || /[^A-Za-z0-9+/=]/.test(data)) return null;
   const padding = data.indexOf('=');
   if (padding !== -1 && !/^={1,2}$/.test(data.slice(padding))) return null;
   const mime = rasterMime(atob(data.slice(0, 16)));
   if (mime) return {mime, base64: data};
-  const blob = output === 'svg' ? svgBlob(data) : null;
+  const blob = output === 'svg' ? sanitizeSVG(new TextDecoder().decode(Uint8Array.from(atob(data), ch => ch.charCodeAt(0)))) : null;
   return blob ? {mime: blob.type, blob} : null;
 }
 

@@ -361,8 +361,8 @@ export function initializeImages(getPrompt) {
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');
       showStatus(completed, Boolean(result.warning));
       try {
-        await saveImageHistory(record);
-        if (historyOpen) void showHistory();
+        const saved = await saveImageHistory(record);
+        if (saved.saved && historyOpen) void showHistory();
       } catch {
         showStatus(completed + ' 此浏览器无法保存本次生图记录。', true);
       }
