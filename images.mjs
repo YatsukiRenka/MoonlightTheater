@@ -72,7 +72,7 @@ export function initializeImages(getPrompt) {
   const partial = byId('imagePartial');
   const partialAsset = byId('imagePartialAsset');
   const preview = byId('imagePreview');
-  const previewImage = byId('imagePreviewAsset');
+  const previewContent = byId('imagePreviewAsset');
   const history = byId('imageRecords');
   const historyStatus = byId('imageHistoryStatus');
 
@@ -84,9 +84,9 @@ export function initializeImages(getPrompt) {
   let resources = {};
   let authorization;
   let expiryTimer;
-  let galleryURLs = [];
-  let historyURLs = [];
-  let previewURL;
+  let galleryDeck;
+  let historyDecks = [];
+  let activePreview;
   let partialURL;
   let historyOpen = false;
   let historyRead = 0;
@@ -182,9 +182,21 @@ export function initializeImages(getPrompt) {
       model.value, busy, id !== 'custom' || config?.supportsReferences);
   }
 
-  function openPreview(blob) {
-    previewURL = URL.createObjectURL(blob);
-    previewImage.src = previewURL;
+  function closePreviewDeck() {
+    if (!activePreview) return;
+    const {deck, select} = activePreview;
+    deck.dispose();
+    select(deck.currentIndex);
+    activePreview = undefined;
+  }
+
+  function openPreview({record, index, ratio, select}) {
+    if (preview.open) return;
+    closePreviewDeck();
+    const deck = mountImageDeck(previewContent, record, {
+      preview: true, initialIndex: index, initialRatio: ratio, keyboardScope: preview,
+    });
+    activePreview = {deck, select};
     preview.showModal();
   }
 
@@ -219,9 +231,8 @@ export function initializeImages(getPrompt) {
   }
 
   function renderImages(record) {
-    galleryURLs.forEach(url => URL.revokeObjectURL(url));
-    gallery.replaceChildren();
-    galleryURLs = mountImageDeck(gallery, record, openPreview);
+    galleryDeck?.dispose();
+    galleryDeck = mountImageDeck(gallery, record, {openPreview});
     renderMetrics(metricsBox, record.metrics);
     renderDetails(resultDetails, record);
     empty.hidden = true;
@@ -248,8 +259,8 @@ export function initializeImages(getPrompt) {
   }
 
   function releaseHistory() {
-    historyURLs.forEach(url => URL.revokeObjectURL(url));
-    historyURLs = [];
+    historyDecks.forEach(deck => deck.dispose());
+    historyDecks = [];
     history.replaceChildren();
   }
 
@@ -282,7 +293,7 @@ export function initializeImages(getPrompt) {
       date.dateTime = new Date(record.time).toISOString();
       date.textContent = new Date(record.time).toLocaleString('zh-CN');
       const thumbnails = document.createElement('div');
-      historyURLs.push(...mountImageDeck(thumbnails, record, openPreview, true));
+      historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview}));
       const metrics = document.createElement('div');
       metrics.className = 'image-metrics';
       metrics.hidden = true;
@@ -311,11 +322,7 @@ export function initializeImages(getPrompt) {
     updateModelControls();
   };
   byId('closeImagePreview').onclick = () => preview.close();
-  preview.onclose = () => {
-    previewImage.removeAttribute('src');
-    URL.revokeObjectURL(previewURL);
-    previewURL = undefined;
-  };
+  preview.onclose = () => { if (!preview.open) closePreviewDeck(); };
 
   connect.onclick = async () => {
     try {
