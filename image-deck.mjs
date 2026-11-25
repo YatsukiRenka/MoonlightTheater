@@ -3,7 +3,7 @@ import {icon} from './icons.mjs';
 const extensions = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg'};
 
 export function mountImageDeck(container, record, {
-  compact = false, preview = false, initialIndex = 0, initialRatio = 1, keyboardScope, openPreview,
+  compact = false, preview = false, initialIndex = 0, initialRatio = 1, keyboardScope, openPreview, cloud,
 } = {}) {
   const {images, model, language, seed} = record;
   const urls = images.map(image => URL.createObjectURL(image));
@@ -20,6 +20,10 @@ export function mountImageDeck(container, record, {
   let current = initialIndex;
   let swipe;
   let suppressClick = false;
+  const remote = record.cloud && cloud;
+  const mediaURLs = new Set();
+  const pending = new Map();
+  const originals = new Map();
 
   function setImageRatio(image) {
     if (image.naturalWidth && image.naturalHeight) {
@@ -52,7 +56,7 @@ export function mountImageDeck(container, record, {
     }
     card.append(image);
     stage.append(card);
-    return {card, image};
+    return {card, image, tier: 0};
   });
   const caption = document.createElement('figcaption');
   if (!compact && !preview) {
@@ -64,12 +68,94 @@ export function mountImageDeck(container, record, {
   counter.className = 'image-deck-count';
   counter.setAttribute('aria-live', 'polite');
   counter.hidden = images.length < 2;
-  const link = document.createElement('a');
+  const link = document.createElement(remote ? 'button' : 'a');
   link.textContent = '下载原图';
   const fileSeed = seed.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
   caption.append(counter, link);
+  const progress = document.createElement('p');
+  let originalButton;
+  if (remote) {
+    link.type = 'button';
+    link.className = 'secondary cloud-image-action';
+    progress.className = 'note cloud-image-status';
+    progress.setAttribute('role', 'status');
+    caption.append(progress);
+    if (preview) {
+      originalButton = document.createElement('button');
+      originalButton.type = 'button';
+      originalButton.className = link.className;
+      originalButton.textContent = '查看原图';
+      caption.insertBefore(originalButton, link);
+      originalButton.onclick = () => void originalAction(false);
+    }
+    link.onclick = () => void originalAction(true);
+  }
   deck.append(stage, caption);
   container.append(deck);
+
+  function fetchTier(index, tier) {
+    const key = index + ':' + tier;
+    if (tier === 'original' && originals.has(index)) return Promise.resolve(originals.get(index));
+    if (!pending.has(key)) {
+      pending.set(key, Promise.resolve().then(() => remote.image(record, index, tier)).finally(() => pending.delete(key)));
+    }
+    return pending.get(key);
+  }
+
+  function displayTier(index, blob, level) {
+    const card = cards[index];
+    if (!deck.parentNode || card.tier >= level) return;
+    card.tier = level;
+    if (card.remoteURL) {
+      URL.revokeObjectURL(card.remoteURL);
+      mediaURLs.delete(card.remoteURL);
+    }
+    card.remoteURL = URL.createObjectURL(blob);
+    mediaURLs.add(card.remoteURL);
+    card.image.src = card.remoteURL;
+  }
+
+  async function loadPreview() {
+    const index = current;
+    if (cards[index].tier >= 2) return;
+    progress.textContent = '正在加载预览图…';
+    try {
+      displayTier(index, await fetchTier(index, 'preview'), 2);
+      if (current === index && cards[index].tier === 2) progress.textContent = '预览图';
+    } catch (error) {
+      if (current === index && cards[index].tier < 2) progress.textContent = '已显示本地缩略图。' + error.message;
+    }
+  }
+
+  async function originalAction(download) {
+    const index = current;
+    progress.textContent = '正在读取原图…';
+    link.disabled = true;
+    if (originalButton) originalButton.disabled = true;
+    try {
+      const blob = await fetchTier(index, 'original');
+      if (!deck.parentNode) return;
+      if (download) {
+        const file = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        file.href = url;
+        file.download = 'moonlight-' + fileSeed + '-' + (index + 1) + '.' + extensions[blob.type];
+        document.body.append(file);
+        file.click();
+        file.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      } else {
+        originals.set(index, blob);
+        displayTier(index, blob, 3);
+      }
+      if (index === current) progress.textContent = download ? '已准备原图下载。' : '原图';
+    } catch (error) {
+      if (index === current) progress.textContent = error.message;
+    } finally {
+      link.disabled = false;
+      if (originalButton) originalButton.disabled = false;
+    }
+  }
 
   function show(index, focus = false) {
     if (!deck.parentNode) return;
@@ -89,8 +175,13 @@ export function mountImageDeck(container, record, {
     const active = cards[current];
     setImageRatio(active.image);
     counter.textContent = (current + 1) + ' / ' + cards.length;
-    link.href = urls[current];
-    link.download = 'moonlight-' + fileSeed + '-' + (current + 1) + '.' + extensions[images[current].type];
+    if (remote) {
+      progress.textContent = active.tier === 3 ? '原图' : preview && active.tier === 2 ? '预览图' : '';
+      if (preview) void loadPreview();
+    } else {
+      link.href = urls[current];
+      link.download = 'moonlight-' + fileSeed + '-' + (current + 1) + '.' + extensions[images[current].type];
+    }
     if (focus) active.card.focus({preventScroll: true});
   }
 
@@ -135,6 +226,8 @@ export function mountImageDeck(container, record, {
       keyTarget.removeEventListener('keydown', handleKeys);
       deck.remove();
       urls.forEach(url => URL.revokeObjectURL(url));
+      mediaURLs.forEach(url => URL.revokeObjectURL(url));
+      originals.clear();
     },
   };
 }

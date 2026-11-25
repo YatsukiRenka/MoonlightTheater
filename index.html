@@ -47,6 +47,7 @@
     </form>
     <div class="image-results">
       <p id="imageStatus" class="image-status" role="status" aria-live="polite"></p>
+      <p id="imageCloudStatus" class="image-status" role="status" hidden></p>
       <div id="imageMetrics" class="image-metrics" hidden></div>
       <div id="imageEmpty" class="image-empty"><i data-icon="image"></i><span>生成的角色图将在这里显示</span></div>
       <figure class="image-partial" id="imagePartial" hidden><img id="imagePartialAsset" alt="生成中的图片预览"><figcaption>生成中 · 流式预览</figcaption></figure>
@@ -66,12 +67,19 @@
       <button type="button" id="imageHistoryTab" role="tab" aria-selected="false" aria-controls="imageHistory" tabindex="-1">生图记录</button>
     </div>
   </div>
+  <div class="history-file-actions">
+    <button class="secondary" type="button" id="exportHistory"><i data-icon="download"></i>导出历史</button>
+    <button class="secondary" type="button" id="importHistory"><i data-icon="upload"></i>导入历史</button>
+    <a class="subtle" href="#historyBackup">历史备份设置</a>
+    <input type="file" id="historyFile" accept=".mlhistory,.moonlight-history,.enc,application/octet-stream" hidden>
+  </div>
+  <p class="note history-feedback" id="historyFileStatus" role="status"></p>
   <div id="promptHistory" role="tabpanel" aria-labelledby="promptHistoryTab">
-    <p class="note history-note">保留最近 100 条提示词记录</p>
+    <p class="note history-note" id="promptHistoryLimit"></p>
     <div id="records"></div>
   </div>
   <div id="imageHistory" role="tabpanel" aria-labelledby="imageHistoryTab" hidden>
-    <p class="note history-note">此浏览器最多保留最近 30 批图片，总计 64 MB</p>
+    <p class="note history-note" id="imageHistoryLimit"></p>
     <p class="note" id="imageHistoryStatus" role="status"></p>
     <div class="image-history-list" id="imageRecords"></div>
   </div>
@@ -81,6 +89,7 @@
     <div><h1 id="settingsHeading">API 资源库</h1><p>资源配置只保存在当前浏览器。</p></div>
     <div class="actions">
       <button class="copy" id="addApiResource" type="button" disabled>添加 API 资源</button>
+      <a class="secondary" href="#historyBackup">历史设置</a>
       <a class="secondary" href="#imageStudio">返回图片生成</a>
     </div>
   </div>
@@ -88,6 +97,72 @@
   <p id="resourceFeedback" class="resource-message" role="status"></p>
   <ul id="apiResourceList" class="resource-list" aria-label="已保存的 API 资源"></ul>
   <div id="apiResourceEmpty" class="panel resource-empty" hidden><p>还没有 API 资源。</p></div>
+  <section class="history-settings" id="historyBackup" aria-labelledby="historyBackupHeading">
+    <div class="pagehead">
+      <h2 id="historyBackupHeading">历史设置</h2>
+      <a class="secondary" href="#history">返回历史</a>
+    </div>
+    <div class="resources-grid">
+      <form class="panel resource-card" id="historyLimits" method="post" aria-labelledby="historyLimitsHeading">
+        <div class="section-heading"><h3 id="historyLimitsHeading">本地保留上限</h3></div>
+        <div class="history-limit-fields">
+          <label class="settinglabel">提示词（条）<input name="promptCount" type="number" step="1" required></label>
+          <label class="settinglabel">生图（批）<input name="imageCount" type="number" step="1" required></label>
+          <label class="settinglabel">本地图片容量<input name="imageCapacity" type="number" min="0" step="any" required></label>
+          <label class="settinglabel">容量单位<select name="imageUnit"><option>MB</option><option>GB</option></select></label>
+        </div>
+        <p class="note">条数或批数设为 0 可停用对应历史。调低上限会清理较旧的本地记录。</p>
+        <p class="note">开启云图库自动上传时，新图会先保存原图。排队或上传时可能超过设置的上限，上传失败后按本机规则保留和轮换。</p>
+        <div class="resource-actions"><button type="submit" class="copy">保存保留设置</button></div>
+        <p class="resource-message" id="historyLimitStatus" role="status"></p>
+        <p class="note">浏览器管理历史数据库的位置。导出历史时可用浏览器的保存对话框选择备份文件位置。</p>
+      </form>
+      <section class="panel resource-card" id="driveHistoryCard" aria-labelledby="driveHistoryHeading">
+        <div class="section-heading"><h3 id="driveHistoryHeading">Google Drive 备份</h3><span class="resource-state right" id="driveHistoryState">未连接</span></div>
+        <div class="resource-actions">
+          <button class="copy" type="button" id="connectDrive" aria-describedby="driveLoginHelp">使用 Google 登录</button>
+          <button class="secondary" type="button" id="disconnectDrive" hidden>断开连接</button>
+        </div>
+        <p id="driveLoginHelp" class="note">授权范围为此应用在 Drive 的数据目录。</p>
+        <details id="driveAdvanced" class="drive-advanced">
+          <summary>高级登录设置</summary>
+          <label class="drive-client-mode"><input type="checkbox" id="driveUseCustomClient">使用自己的 OAuth 客户端</label>
+          <p class="note">自建站点或恢复旧备份时，可选用原来的 OAuth 客户端。</p>
+          <div id="driveCustomClientFields" hidden>
+            <label class="settinglabel">Drive OAuth Client ID<input id="driveClientId" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none"></label>
+            <label class="settinglabel">已获授权的 JavaScript 来源<input id="driveOAuthOrigin" readonly></label>
+            <p class="note">在 Google Cloud 启用 Drive API，并将此来源添加到 Web 应用的 OAuth 客户端。</p>
+          </div>
+        </details>
+        <fieldset id="driveHistoryActions" disabled>
+          <label class="settinglabel">备份口令<input id="drivePassphrase" type="password" maxlength="256" autocomplete="off"></label>
+          <p class="note">在浏览器内加密后上传。恢复时输入该备份的口令。</p>
+          <div class="resource-actions"><button class="copy" type="button" id="backupToDrive">加密备份到 Drive</button></div>
+          <label class="settinglabel">Drive 备份<select id="driveBackupList"></select></label>
+          <div class="resource-actions">
+            <button class="secondary" type="button" id="refreshDriveBackups">刷新列表</button>
+            <button class="secondary" type="button" id="restoreFromDrive" disabled>合并恢复</button>
+          </div>
+        </fieldset>
+        <div class="cloud-gallery-options">
+          <h4>云端图库</h4>
+          <label class="cloud-gallery-mode"><input type="checkbox" id="cloudGalleryEnabled">自动同步云图库，新图上传后本机只存缩略图</label>
+          <label class="settinglabel">同步间隔（分钟）<input id="cloudGalleryInterval" type="number" min="1" max="1440" step="1" required></label>
+          <p class="note" id="cloudGallerySchedule">定时同步在本次 Drive 授权有效时运行。授权到期后需重新连接并解锁。</p>
+          <label class="settinglabel">云图库口令<input id="cloudGalleryPassword" type="password" maxlength="256" autocomplete="off"></label>
+          <label class="settinglabel">重复云图库口令（首次使用）<input id="cloudGalleryConfirm" type="password" maxlength="256" autocomplete="off"></label>
+          <p class="note">各设备使用同一个云图库口令。同步只下载缩略图，点开后再按需加载预览图或原图。</p>
+          <div class="resource-actions">
+            <button class="secondary" type="button" id="unlockCloudGallery" disabled>解锁云图库</button>
+            <button class="secondary" type="button" id="restoreCloudGallery" disabled>合并云端生图</button>
+            <button class="secondary" type="button" id="optimizeCloudGallery" disabled>用缩略图替换本地原图</button>
+          </div>
+          <details class="note"><summary>管理 Drive 储存空间</summary><p>本地清理保留 Drive 副本。如需清空云端，在 Google Drive 的「设置 → 管理应用」找到用于授权的应用，删除隐藏应用数据。这会同时清空云图库和整库备份。</p></details>
+        </div>
+        <p class="resource-message" id="driveHistoryStatus" role="status"></p>
+      </section>
+    </div>
+  </section>
 </section>
 <footer><span>☾ &nbsp; 月光剧场</span><span>Moonlight Theater</span></footer></main><dialog id="dialog" aria-labelledby="dtitle"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div></dialog>
 <dialog id="apiResourceEditor" class="resource-editor" aria-labelledby="apiResourceEditorTitle">
@@ -141,6 +216,14 @@
       </div>
     </fieldset>
     <p class="resource-message" id="apiResourceEditorFeedback" role="status"></p>
+  </form>
+</dialog>
+<dialog id="historyImportDialog" aria-labelledby="historyImportHeading">
+  <div class="dialoghead"><h2 id="historyImportHeading">解密历史备份</h2><button type="button" id="closeHistoryImport" aria-label="关闭"><i data-icon="x"></i></button></div>
+  <form id="historyImportForm" method="post">
+    <label class="settinglabel">备份口令<input id="importHistoryPassphrase" type="password" maxlength="256" autocomplete="off" required></label>
+    <button class="copy" type="submit">解密并导入</button>
+    <p class="resource-message" id="historyImportStatus" role="status"></p>
   </form>
 </dialog>
 <dialog id="imagePreview" class="image-preview" aria-labelledby="imagePreviewTitle">
