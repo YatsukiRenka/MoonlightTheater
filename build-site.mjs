@@ -13,7 +13,7 @@ const assets = [
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'history-limits.mjs', 'history-archive.mjs', 'history-backup.mjs', 'prompt-history.mjs', 'google-oauth.mjs', 'drive-history.mjs', 'image-file.mjs',
   'cloud-history.mjs', 'cloud-image-store.mjs', 'image-renditions.mjs', 'vendor/noble-sha256.mjs',
-  'profile.json', 'assets/banner.webp',
+  'profile.json', 'assets/banner.avif', 'assets/banner.webp',
 ];
 const output = new URL('./dist/', import.meta.url);
 await rm(output, {recursive: true, force: true});
@@ -26,12 +26,13 @@ if (!html.includes('</head>')) {
   throw new Error('找不到可加入 modulepreload 的页面头部。');
 }
 const modulePreloads = assets
-  .filter(path => path.endsWith('.mjs') && path !== 'app.mjs')
+  .filter(path => path.endsWith('.mjs'))
   .map(path => `  <link rel="modulepreload" href="${path}">`)
   .join('\n');
 html = html.replace('</head>', `${modulePreloads}\n</head>`);
 if (driveClientId) html = html.replace('</head>', `<meta name="moonlight-drive-client-id" content="${driveClientId}"></head>`);
 await writeFile(page, html);
+// Hosts such as Cloudflare Pages or Netlify apply _headers, while GitHub Pages ignores it.
 await writeFile(new URL('_headers', output), [
   '/*',
   '  Cross-Origin-Opener-Policy: same-origin-allow-popups',

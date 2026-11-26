@@ -33,6 +33,23 @@ function imageBlob(image) {
   ], {type: image.mime});
 }
 
+function dimensionsRatio(image) {
+  const {width, height} = image ?? {};
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) return width / height;
+}
+
+async function decodeImageRatio(blob) {
+  if (!blob || typeof createImageBitmap !== 'function') return 1;
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const ratio = dimensionsRatio(bitmap);
+    bitmap.close();
+    return ratio ?? 1;
+  } catch {
+    return 1;
+  }
+}
+
 function renderMetrics(container, metrics) {
   if (!metrics) return;
   const formatted = value => value.toLocaleString('zh-HK');
@@ -90,6 +107,7 @@ export function initializeImages(getPrompt, cloud) {
   let expiryTimer;
   let galleryDeck;
   let currentResultId;
+  let galleryRenderToken = 0;
   let historyDecks = [];
   let activePreview;
   let partialURL;
@@ -315,14 +333,20 @@ export function initializeImages(getPrompt, cloud) {
     container.hidden = !children.length;
   }
 
-  function renderImages(record) {
-    currentResultId = record.id;
+  async function renderImages(record) {
+    const renderToken = ++galleryRenderToken;
+    const firstImage = record.images[0];
+    const initialRatio = await decodeImageRatio(firstImage);
+    if (renderToken !== galleryRenderToken) return;
+    const deck = mountImageDeck(gallery, record, {openPreview, initialRatio});
     galleryDeck?.dispose();
-    galleryDeck = mountImageDeck(gallery, record, {openPreview});
-    renderMetrics(metricsBox, record.metrics);
-    renderDetails(resultDetails, record);
+    galleryDeck = deck;
+    currentResultId = record.id;
+    clearPartial();
     empty.hidden = true;
     gallery.hidden = false;
+    renderMetrics(metricsBox, record.metrics);
+    renderDetails(resultDetails, record);
   }
 
   function showPartial(image) {
@@ -451,16 +475,18 @@ export function initializeImages(getPrompt, cloud) {
         images: result.images.map(imageBlob), text: result.text, sources: result.sources,
       };
       if (result.warningStatus === 401 && authorizations.get(id) === authorization) authorizations.delete(id);
-      clearPartial();
-      renderImages(record);
+      const rendering = renderImages(record);
       const completed = '已生成 ' + record.images.length + ' 张图片。'
         + (result.warning ? ' 后续请求未完成。' + result.warning : '');
-      showStatus(completed, Boolean(result.warning));
       const autoSync = cloud.enabled;
       const upload = autoSync && cloud.ready ? cloud.prepareUpload() : undefined;
+      const saving = upload ? stageCloudImageHistory(record) : saveImageHistory(record);
+      void saving.catch(() => {});
+      await rendering;
+      showStatus(completed, Boolean(result.warning));
       let local;
       try {
-        local = await (upload ? stageCloudImageHistory(record) : saveImageHistory(record));
+        local = await saving;
         if (local.saved && historyOpen) void showHistory();
         if (!local.saved && !local.disabled && !upload) showStatus(completed
           + ' 本机历史容量已满。可等待正在上传的批次处理完毕、在历史设置调高上限，或下载当前原图。', true);

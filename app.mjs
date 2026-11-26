@@ -37,8 +37,10 @@ function manualFor(selection, manual=model.manualMaterials) {
  return selected;
 }
 const notify=m=>{let n=$('toast');n.textContent=m;n.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>n.classList.remove('show'),3100)};
-function persist(){try{localStorage.setItem(storage,JSON.stringify(model))}catch{notify('浏览器存储空间不足，当前修改仅在本页保留')}}
-function saveCurrent(){const i=model.history.findIndex(e=>e.id===cur().id);if(i>=0)model.history[i]=cur();persist()}
+const notifyStorageFailure=()=>notify('浏览器存储空间不足，当前修改仅在本页保留');
+let storageFailed=false;
+function persist(){try{localStorage.setItem(storage,JSON.stringify(model));storageFailed=false;return true}catch{storageFailed=true;const dialog=$('dialog');if(dialog.open)dialog.addEventListener('close',notifyStorageFailure,{once:true});else notifyStorageFailure();return false}}
+function saveCurrent(){const i=model.history.findIndex(e=>e.id===cur().id);if(i>=0)model.history[i]=cur();return persist()}
 function profileId(){return 'profile-'+newSeed()}
 const libraryProfile=()=>model.profiles[model.library];
 const characterProfile=()=>model.profiles[cur()?.profileId]??libraryProfile();
@@ -50,7 +52,7 @@ function pruneProfiles(){
  for(const id of Object.keys(model.profiles))if(!used.has(id))delete model.profiles[id];
 }
 function saveLibrary(profile){
- storeLibrary(profile);pruneProfiles();persist();
+ storeLibrary(profile);pruneProfiles();return persist();
 }
 function fixed(){
  const s=cur()?.selection||{};
@@ -65,7 +67,8 @@ function commit(seed,result){
  model.current={id:crypto.randomUUID(),time:Date.now(),seed,algorithmVersion:1,profileVersion:profile.profileVersion,profileId:model.library,selection:s,prompt:{zh:renderPrompt(profile,s,'zh',manual),en:renderPrompt(profile,s,'en',manual)},edits:{}};
  model.history.push(cur());
  Object.assign(model,trimPromptHistory(model,readHistoryLimits().promptCount));
- persist();draw();if(result.similarityWarning)notify('部分设定与近期角色相似，已保留差异最大的组合');
+ const saved=persist();draw();if(saved&&result.similarityWarning)notify('部分设定与近期角色相似，已保留差异最大的组合');
+ return saved;
 }
 function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();if(!seed)throw Error('请先输入随机种子');
  const profile=libraryProfile();
@@ -76,7 +79,7 @@ function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();
  model.locks=model.locks.filter(key=>Object.hasOwn(f,key));
  if(!f.branch)pref.branch='';
  pref.style=result.selection.style;
- commit(seed,result);if(kind==='replay')notify('已按当前设置重现种子');
+ if(commit(seed,result)&&kind==='replay')notify('已按当前设置重现种子');
 }
 function setSlot(k,value,random=false,manual=model.manualMaterials,message=''){
  if(model.locks.includes(k))throw Error('请先解锁'+labels[k]);
@@ -92,7 +95,7 @@ function setSlot(k,value,random=false,manual=model.manualMaterials,message=''){
  model.locks=model.locks.filter(key=>Object.hasOwn(f,key));
  if(k==='branch'&&pref.branch)pref.branch=result.selection.branch;
  if(k==='style')pref.style=result.selection.style;
- commit(seed,result);
+ if(!commit(seed,result))return;
  const notices=[message];
  if(replaced.length)notices.push('当前设计库的素材有变化，已一并重抽「'+replaced.map(key=>labels[key]).join('、')+'」。');
  if(unlocked.length)notices.push('已解除「'+unlocked.map(key=>labels[key]).join('、')+'」的锁定。');
@@ -123,14 +126,14 @@ function draw(){
 function count(){$('counter').textContent=$('output').value.length+' 字符'}
 function restoreButtonFocus(button) {
  if(!button?.matches('button')||button.isConnected)return;
- for(const attr of ['data-lock','data-roll','data-edit','data-lib']){
+ for(const attr of ['data-lock','data-roll','data-edit','data-lib','data-rate']){
   const value=button.getAttribute(attr);
   if(value!==null){document.querySelector('button['+attr+'="'+CSS.escape(value)+'"]')?.focus();return}
  }
 }
-function showDialog(title,content){dialogOpener=document.activeElement;$('dtitle').textContent=title;$('dbody').innerHTML=content;$('dstatus').textContent='';$('dialog').showModal()}
+function showDialog(title,content,opener=document.activeElement){dialogOpener=opener;$('dtitle').textContent=title;$('dbody').innerHTML=content;$('dstatus').textContent='';$('dialog').showModal()}
 function closeDialog(){$('dialog').close()}
-function choose(key) {
+function choose(key,opener) {
  if (model.locks.includes(key)) throw Error('请先解锁'+labels[key]);
  const current = sel()[key];
  const list = (model.manualMaterials[key] || []).toReversed().concat(pool(libraryProfile(),key,sel(),manualFor(sel())));
@@ -142,7 +145,7 @@ function choose(key) {
   + '<button type="submit" class="copy">使用手动输入</button><p class="note" id="manualChoiceError" role="status" hidden></p></form>';
  const options = list.map((entry, index) => '<button type="button" data-choice="'+index+'" class="'+(entry.id===current?'selected':'')+'"'+(entry.id===current?' autofocus':'')+'>'
   +esc(entry.zh)+(entry.id===current?'　✓':'')+(entry.manual?'<span class="choice-manual">手动条目</span>':'')+'</button>').join('');
- showDialog('设置'+labels[key], manualForm+'<h3 class="choice-title">从素材中选择</h3><div class="choices">'+options+'</div>');
+ showDialog('设置'+labels[key], manualForm+'<h3 class="choice-title">从素材中选择</h3><div class="choices">'+options+'</div>',opener);
  $('manualChoice').onsubmit = event => {
   event.preventDefault();
   try {
@@ -173,7 +176,10 @@ function libraryPalette(profile){
 }
 function libraries(){const profile=libraryProfile();const keys=Object.keys(labels);$('libtabs').innerHTML=keys.map(k=>'<button class="'+(libKey===k?'selected':'')+'" data-lib="'+k+'" aria-pressed="'+(libKey===k)+'">'+labels[k]+'</button>').join('');
  $('materials').innerHTML=materialChoices(profile,libKey,libraryPalette(profile),model.manualMaterials).map((e,i)=>'<div class="material"><div>'+esc(e.zh)+'<small>'+esc(e.manual?'手动条目'+(e.en!==e.zh?' · '+e.en:''):e.en||e.preferredTags?.join(' · '))+'</small></div>'+('weight' in e?'<label>权重 <input aria-label="'+esc(e.zh)+'权重" type="number" min="0" step="any" data-weight="'+i+'" value="'+e.weight+'"></label>':'')+'</div>').join('')}
-function records(){const rating=$('ratingFilter').value,filtered=model.history.filter(e=>matchesRating(e,rating)).toReversed();$('records').innerHTML=model.history.length&&!filtered.length?'<p class="note">没有符合筛选条件的提示词记录。</p>':filtered.map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('')}
+function records(){const rating=$('ratingFilter').value,filtered=model.history.filter(e=>matchesRating(e,rating)).toReversed();$('records').innerHTML=filtered.map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('');
+ const status=$('ratingFilterStatus'),message=model.history.length?(filtered.length?`显示 ${filtered.length} 条提示词记录。`:'没有符合筛选条件的提示词记录。'):'';
+ if(status.textContent!==message)status.textContent=message;
+}
 function page() {
  const anchor=location.hash.slice(1);
  const key=anchor==='historyBackup'?'settings':['library','history','settings'].includes(anchor)?anchor:'studio';
@@ -201,15 +207,15 @@ for(const [id,type] of [['generate','new'],['fresh','fresh'],['replay','replay']
 $('branch').onchange=()=>{const v=$('branch').value;if(model.locks.includes('branch')&&v!==sel().branch){notify('请先解锁风格分支');configControls();return}pref.branch=v;persist()};
 $('style').onchange=()=>{const old=pref.style;try{setSlot('style',$('style').value)}catch(e){pref.style=old;configControls();notify(e.message)}};
 $('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('exploreValue').textContent=$('explore').value+'%';persist()};
-$('unlock').onclick=()=>{model.locks=[];pref.branch='';persist();draw();notify('已解除全部锁定')};
-$('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;const focused=document.activeElement;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}});restoreButtonFocus(focused)};
+$('unlock').onclick=()=>{model.locks=[];pref.branch='';const saved=persist();draw();if(saved)notify('已解除全部锁定')};
+$('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit,b);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}});restoreButtonFocus(b)};
 $('expand').onclick=()=>{expanded=!expanded;draw()};
 document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{pref.lang=b.dataset.lang;persist();draw()});
 $('output').oninput=()=>{cur().edits[pref.lang]=$('output').value;count();saveCurrent()};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('output').value);notify('已复制当前提示词')}catch{$('output').select();notify(document.execCommand('copy')?'已复制当前提示词':'已选中提示词，可手动复制')}};
-$('ratings').onclick=e=>{let b=e.target.closest('[data-rate]');if(!b)return;const rating=b.dataset.rate;showDialog('记录评价 · '+rating,'<label class="settinglabel">评价对象<select id="rateTarget" autofocus>'+opt('design','角色设定')+opt('image','实际成图')+'</select></label><label class="settinglabel">备注（选填）<input id="rateNote" maxlength="500" placeholder="哪些细节合你的口味？"></label><button class="copy" id="saveRate">保存评价</button>');$('rateTarget').value=cur().feedback?.target||'design';$('rateNote').value=cur().feedback?.note||'';$('saveRate').onclick=()=>{cur().feedback={rating,target:$('rateTarget').value,note:$('rateNote').value,time:Date.now(),selection:{...sel()}};saveCurrent();closeDialog();draw();notify('评价已保存')}};
-$('libtabs').onclick=e=>{const b=e.target.closest('[data-lib]');if(b){const focused=document.activeElement;libKey=b.dataset.lib;libraries();restoreButtonFocus(focused)}};
-$('materials').onchange=e=>{if(!e.target.matches('[data-weight]'))return;try{const next=structuredClone(libraryProfile());const v=e.target.valueAsNumber;pool(next,libKey,libraryPalette(next))[+e.target.dataset.weight].weight=v;saveLibrary(validate(next));notify('抽取权重已保存，将用于后续生成')}catch(err){notify(err.message);libraries()}};
+$('ratings').onclick=e=>{let b=e.target.closest('[data-rate]');if(!b)return;const rating=b.dataset.rate;showDialog('记录评价 · '+rating,'<label class="settinglabel">评价对象<select id="rateTarget" autofocus>'+opt('design','角色设定')+opt('image','实际成图')+'</select></label><label class="settinglabel">备注（选填）<input id="rateNote" maxlength="500" placeholder="哪些细节合你的口味？"></label><button class="copy" id="saveRate">保存评价</button>',b);$('rateTarget').value=cur().feedback?.target||'design';$('rateNote').value=cur().feedback?.note||'';$('saveRate').onclick=()=>{cur().feedback={rating,target:$('rateTarget').value,note:$('rateNote').value,time:Date.now(),selection:{...sel()}};const saved=saveCurrent();closeDialog();draw();restoreButtonFocus(b);if(saved)notify('评价已保存')}};
+$('libtabs').onclick=e=>{const b=e.target.closest('[data-lib]');if(b){libKey=b.dataset.lib;libraries();restoreButtonFocus(b)}};
+$('materials').onchange=e=>{if(!e.target.matches('[data-weight]'))return;try{const next=structuredClone(libraryProfile());const v=e.target.valueAsNumber;pool(next,libKey,libraryPalette(next))[+e.target.dataset.weight].weight=v;if(saveLibrary(validate(next)))notify('抽取权重已保存，将用于后续生成')}catch(err){notify(err.message);libraries()}};
 $('exportConfig').onclick=()=>{
  const {schemaVersion,profileVersion,note,branches,palettes,styles,presentations,pools,settings,rules}=libraryProfile();
  dl('moonlight-theater-design-library.json',{schemaVersion,profileVersion,note,branches,palettes,styles,presentations,pools,settings,rules,manualMaterials:model.manualMaterials});
@@ -224,15 +230,16 @@ $('file').onchange=async()=>{
   validate(incoming);
   showDialog('选择导入方式','<p class="note">'+esc(file.name)+'</p><div class="import-modes">'
    +'<div><button type="button" class="copy" data-mode="merge">合并设计库</button><p>新增素材与手动条目，重复项保留本地版本。当前角色、偏好和锁定项会保留。</p></div>'
-   +'<div><button type="button" class="secondary" data-mode="replace">替换设计库</button><p>改用文件里的素材、设置与手动条目，并生成一个新角色。历史记录会保留。</p></div></div>');
+   +'<div><button type="button" class="secondary" data-mode="replace">替换设计库</button><p>改用文件里的素材、设置与手动条目，并生成一个新角色。历史记录会保留。</p></div></div>',$('import'));
   $('dbody').onclick=event=>{
    const mode=event.target.closest('[data-mode]')?.dataset.mode;
    if(!mode)return;
    attempt(()=>{
     const {profile,manual}=importDesignLibrary(libraryProfile(),model.manualMaterials,incoming,mode);
+    let saved;
     if(mode==='merge'){
      model.manualMaterials=manual;
-     saveLibrary(profile);
+     saved=saveLibrary(profile);
      configControls();
     }else{
      const seed=newSeed(),result=generate(profile,seed);
@@ -241,10 +248,10 @@ $('file').onchange=async()=>{
      model.manualMaterials=manual;
      storeLibrary(profile);
      pref.branch='';pref.style=profile.settings.defaultStyle;pref.exploration=profile.settings.exploration;model.locks=[];
-     commit(seed,result);
+     saved=commit(seed,result);
     }
     libraries();closeDialog();
-    notify(mode==='merge'?'已合并设计库':'已替换设计库');
+    if(saved)notify(mode==='merge'?'已合并设计库':'已替换设计库');
    });
   };
  }catch(error){showError('导入失败：'+error.message)}
@@ -256,32 +263,41 @@ $('records').onclick=event=>{
  model.current=structuredClone(record);model.active=record.profileId;
  if(choicesFor('style',sel(),libraryProfile()).some(entry=>entry.id===sel().style))pref.style=sel().style;
  pref.branch='';model.locks=[];
- persist();draw();location.hash='studio';notify('已恢复角色设定和编辑文本');
+ const saved=persist();draw();location.hash='studio';if(saved)notify('已恢复角色设定和编辑文本');
 };
-$('moreSettings').onclick=()=>{
+$('moreSettings').onclick=event=>{
  const keys={accessoryProbability:'头饰出现概率',nonhumanProbability:'非人特征出现概率',propProbability:'道具出现概率',similarityThreshold:'历史相似度阈值'};
  const settings=libraryProfile().settings;
- showDialog('高级设置','<form id="settingsForm" method="post">'+Object.entries(keys).map(([k,t])=>'<label class="settinglabel">'+t+'（%）<input type="number" min="0" max="100" required step="any" value="'+Math.round(settings[k]*1e4)/100+'" id="'+k+'"></label>').join('')+'<p class="note">新设置用于后续生成。重现种子时使用当前设置，并跳过历史查重。</p><button type="submit" id="saveSettings" class="copy">保存设置</button></form>');
- $('settingsForm').onsubmit=event=>{
+ showDialog('高级设置','<form id="settingsForm" method="post">'+Object.entries(keys).map(([k,t])=>'<label class="settinglabel">'+t+'（%）<input type="number" min="0" max="100" required step="any" value="'+Math.round(settings[k]*1e4)/100+'" id="'+k+'"></label>').join('')+'<p class="note">新设置用于后续生成。重现种子时使用当前设置，并跳过历史查重。</p><button type="submit" id="saveSettings" class="copy">保存设置</button></form>',event.currentTarget);
+ const form=$('settingsForm'),edited=new Set();
+ form.oninput=event=>edited.add(event.target.id);
+ const changed=k=>edited.has(k)&&$(k).valueAsNumber/100!==settings[k];
+ form.onsubmit=event=>{
   event.preventDefault();
+  if(!Object.keys(keys).some(changed)){if(storageFailed)persist();closeDialog();return}
   attempt(()=>{
    const next=structuredClone(libraryProfile());
-   for(const k of Object.keys(keys))next.settings[k]=$(k).valueAsNumber/100;
-   saveLibrary(validate(next));closeDialog();notify('生成设置已保存');
+   for(const k of Object.keys(keys))if(changed(k))next.settings[k]=$(k).valueAsNumber/100;
+   const saved=saveLibrary(validate(next));closeDialog();if(saved)notify('生成设置已保存');
   });
  };
 };
 const dialog=$('dialog');
 $('close').onclick=closeDialog;
 dialog.onclose=()=>{
+ if(dialog.open)return;
  $('dbody').onclick=null;
  const active=document.activeElement;
- if(!active||active===document.body||dialog.contains(active))restoreButtonFocus(dialogOpener);
+ if(!active||active===document.body||dialog.contains(active)){
+  if(dialogOpener?.matches('button')&&dialogOpener.isConnected)dialogOpener.focus();
+  else restoreButtonFocus(dialogOpener);
+ }
  dialogOpener=null;
 };
 if(!('closedBy' in HTMLDialogElement.prototype)){
  const outside=e=>{const rect=dialog.getBoundingClientRect();return e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom};
  let outsidePointer;
+ dialog.addEventListener('close',()=>{outsidePointer=undefined});
  dialog.onpointerdown=e=>{if(e.isPrimary&&e.button===0)outsidePointer=outside(e)?e.pointerId:undefined};
  dialog.onpointerup=e=>{
   if(e.pointerId!==outsidePointer)return;
@@ -322,7 +338,7 @@ historyTabs.forEach((tab,index)=>{
 });
 
 function persistPromptPatch(patch) {
- try{localStorage.setItem(storage,JSON.stringify({...model,...patch}));}
+ try{localStorage.setItem(storage,JSON.stringify({...model,...patch}));storageFailed=false;}
  catch(error){throw new Error('当前浏览器没有足够空间写入提示词历史。',{cause:error});}
  Object.assign(model,patch);
 }

@@ -16,6 +16,8 @@ function record(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+const loopbackHost = hostname => ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+
 export function readImageResources(storage = globalThis.localStorage) {
   const raw = storage.getItem(resourceKey);
   if (!raw) return {};
@@ -32,7 +34,7 @@ function endpoint(value, origin) {
   if (typeof value !== 'string' || !value || /[\\\s\x00-\x1f\x7f]/.test(value)) return null;
   try {
     const url = new URL(value);
-    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    const loopback = loopbackHost(url.hostname);
     if (url.origin === origin || url.username || url.password || url.hash) return null;
     if (url.protocol === 'https:' || (loopback && url.protocol === 'http:')) return url;
   } catch {}
@@ -222,7 +224,7 @@ async function outbound(url, options, send, timeout) {
     throw new Error(isResponseTimeout(error, signal)
       ? '连接接口超时。'
       : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。'
-        + (url.startsWith('http://') ? '本机服务还需在浏览器网站设置中允许本站访问本机网络。' : ''), {cause: error});
+        + (loopbackHost(new URL(url).hostname) ? '本机服务还需在浏览器网站设置中允许本站访问本机网络。' : ''), {cause: error});
   }
   if (!response.ok) {
     await response.body?.cancel().catch(() => {});

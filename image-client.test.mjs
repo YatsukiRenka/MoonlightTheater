@@ -134,6 +134,26 @@ test('gateway pricing is saved during verification and used with returned image 
 const fixturePNG = 'iVBORw0KGgoAAAANSUhEUg==';
 const referenceFile = name => new File([Uint8Array.from(atob(fixturePNG), char => char.charCodeAt(0))], name, {type: 'image/png'});
 
+test('request failures include local network permission hint only for loopback endpoints', async () => {
+  const model = 'fixture-model';
+  const request = {provider: 'custom', model, aspect: 'auto', prompt: 'A character'};
+  const resources = url => ({custom: {url, format: 'openai', models: [model], model}});
+  const failure = url => generateImage(request, resources(url), null, {
+    origin, send: async () => { throw new Error('network failure'); },
+  });
+  const hint = /允许本站访问本机网络/;
+  for (const url of [
+    'http://127.0.0.1:8765/v1/images/generations', 'https://localhost:8765/v1/images/generations',
+  ]) {
+    await assert.rejects(failure(url), hint);
+  }
+  await assert.rejects(failure('https://gateway.example/v1/images/generations'), error => {
+    assert.match(error.message, /CORS/);
+    assert.doesNotMatch(error.message, hint);
+    return true;
+  });
+});
+
 test('linked image URLs follow the configured endpoint protocol', async t => {
   const model = 'fixture-model';
   const resources = url => ({custom: {url, format: 'openai', models: [model], model}});
@@ -151,11 +171,37 @@ test('linked image URLs follow the configured endpoint protocol', async t => {
     assert.deepEqual(sent, ['https://gateway.example/v1/images/generations']);
   });
 
+  await t.test('loopback HTTPS endpoint rejects loopback HTTP image URLs without requesting them', async () => {
+    const sent = [];
+    await assert.rejects(generateImage(request, resources('https://localhost:8765/v1/images/generations'), null, {
+      origin, send: async url => {
+        sent.push(url);
+        return Response.json({data: [{url: 'http://127.0.0.1:8765/image.png'}]});
+      },
+    }), {message: '接口返回了无效的外部图片地址。'});
+    assert.deepEqual(sent, ['https://localhost:8765/v1/images/generations']);
+  });
+
+  await t.test('loopback HTTP endpoint rejects external HTTP image URLs without requesting them', async () => {
+    const sent = [];
+    await assert.rejects(generateImage(request, resources('http://127.0.0.1:8765/v1/images/generations'), null, {
+      origin, send: async url => {
+        sent.push(url);
+        return Response.json({data: [{url: 'http://images.example/x.png'}]});
+      },
+    }), {message: '接口返回了无效的外部图片地址。'});
+    assert.deepEqual(sent, ['http://127.0.0.1:8765/v1/images/generations']);
+  });
+
   await t.test('remote HTTPS endpoint accepts HTTPS image URLs', async () => {
     const sent = [];
     const result = await generateImage(request, resources('https://gateway.example/v1/images/generations'), null, {
-      origin, send: async url => {
+      origin, send: async (url, options) => {
         sent.push(url);
+        if (sent.length === 2) {
+          assert.equal(options.credentials, 'omit');
+          assert.equal(options.referrerPolicy, 'no-referrer');
+        }
         return sent.length === 1
           ? Response.json({data: [{url: 'https://images.example/image.png'}]})
           : new Response(png, {headers: {'Content-Type': 'image/png'}});
@@ -171,8 +217,12 @@ test('linked image URLs follow the configured endpoint protocol', async t => {
   await t.test('loopback HTTP endpoint accepts loopback image URLs', async () => {
     const sent = [];
     const result = await generateImage(request, resources('http://127.0.0.1:8765/v1/images/generations'), null, {
-      origin, send: async url => {
+      origin, send: async (url, options) => {
         sent.push(url);
+        if (sent.length === 2) {
+          assert.equal(options.credentials, 'omit');
+          assert.equal(options.referrerPolicy, 'no-referrer');
+        }
         return sent.length === 1
           ? Response.json({data: [{url: 'http://127.0.0.1:8766/image.png'}]})
           : new Response(png, {headers: {'Content-Type': 'image/png'}});
