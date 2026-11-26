@@ -185,12 +185,11 @@ function buildOuterRing(ring) {
   ring.append(group);
 }
 
-function textRingContent(seed, act) {
-  const source = `MOONLIGHT THEATER · 月光剧场 · Nº ${seed} · ACT ${romanNumeral(act)} · `;
-  const sourceCharacters = Array.from(source);
-  const targetLength = Math.max(145, sourceCharacters.length);
-  const repeated = source.repeat(Math.ceil(targetLength / sourceCharacters.length));
-  return Array.from(repeated).slice(0, targetLength).join('');
+export function textRingContent(seed, act) {
+  const unit = `MOONLIGHT THEATER · 月光剧场 · Nº ${seed} · ACT ${romanNumeral(act)} · `;
+  const unitLength = Array.from(unit).length;
+  const repetitionCount = Math.max(1, Math.round(145 / unitLength));
+  return unit.repeat(repetitionCount);
 }
 
 function buildTextRing(ring) {
@@ -207,7 +206,7 @@ function buildTextRing(ring) {
     'font-size': '15',
     'letter-spacing': '5',
     'textLength': formattedNumber(2 * Math.PI * 284),
-    'lengthAdjust': 'spacingAndGlyphs'
+    'lengthAdjust': 'spacing'
   });
   const textPath = svgElement('textPath', {href: '#dialTextPath', startOffset: '0%'});
   text.append(textPath);

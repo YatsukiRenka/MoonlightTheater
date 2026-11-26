@@ -152,8 +152,7 @@ select:disabled {
   cursor: not-allowed;
 }
 
-:focus-visible,
-.seedinput:focus-within {
+:focus-visible {
   outline: 2px solid var(--focus-ring, var(--lilac));
   outline-offset: 3px;
 }
@@ -468,7 +467,6 @@ header nav a :is(svg, i),
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 1.5rem #bba5d840);
   letter-spacing: .06em;
   writing-mode: vertical-rl;
   grid-area: title;
@@ -707,7 +705,7 @@ dialog::before {
 
 .section-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: .75rem;
   min-width: 0;
   padding-bottom: .875rem;
@@ -721,7 +719,7 @@ dialog::before {
   letter-spacing: .12em;
   font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.2;
 }
 
 .section-heading h3 {
@@ -729,13 +727,13 @@ dialog::before {
   overflow-wrap: anywhere;
   font-size: 1rem;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .section-heading .act {
   flex: 0 0 auto;
   color: var(--lilac);
-  font: italic 1.5rem / 1 var(--f-latin);
+  font: italic 1.5rem / 1.2 var(--f-latin);
   font-variant-numeric: oldstyle-nums;
 }
 
@@ -746,9 +744,22 @@ dialog::before {
   font: italic 1.0625rem / 1.2 var(--f-latin);
 }
 
-.section-heading .right { margin-inline-start: auto; }
+.section-heading :is(.seg, .resource-state) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+}
 
-.settings-actions { display: contents; }
+.section-heading :is(.subtle, .seg, .seg button, .resource-state) { line-height: 1.2; }
+
+.section-heading > .right { margin-inline-start: auto; }
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-inline-start: auto;
+}
 
 .settings-actions .subtle { white-space: nowrap; }
 
@@ -781,6 +792,12 @@ dialog::before {
   margin-block: 2.5rem 1.75rem;
 }
 
+.history-heading {
+  flex-direction: column;
+  align-items: flex-start;
+  row-gap: 0;
+}
+
 .pagehead .actions,
 .history-file-actions,
 .resource-actions,
@@ -798,7 +815,7 @@ dialog::before {
   text-align: center;
 }
 
-.pagehead > :is(.actions, .history-switch, .secondary) { margin-inline-start: auto; }
+.pagehead > :is(.actions, .secondary) { margin-inline-start: auto; }
 
 .pagehead .actions { justify-content: flex-end; }
 
@@ -896,8 +913,7 @@ select:hover {
 .material input:focus-visible,
 dialog input:focus-visible,
 select:focus-visible,
-#explore:focus-visible,
-.seedinput:focus-within {
+#explore:focus-visible {
   outline-offset: 2px;
 }
 
@@ -1002,6 +1018,11 @@ input:disabled {
   background: var(--ink-3);
 }
 
+.seedinput:focus-within {
+  outline: 2px solid var(--lilac);
+  outline-offset: 2px;
+}
+
 .seedinput::before {
   flex: 0 0 auto;
   padding-inline-start: .75rem;
@@ -1023,7 +1044,7 @@ input:disabled {
   letter-spacing: .12em;
 }
 
-.seedinput input:focus-visible { outline: 0; }
+#seed:focus-visible { outline: none; }
 
 .seedinput button {
   flex: 0 0 auto;
@@ -1036,6 +1057,8 @@ input:disabled {
 }
 
 .seedinput button:hover { color: var(--lilac); }
+
+#replay:focus-visible { outline-offset: -3px; }
 
 /* Cast list */
 .slot {
@@ -1245,12 +1268,13 @@ input:disabled {
 }
 
 textarea#output {
+  --output-padding-block: .875rem;
   display: block;
   width: 100%;
   min-width: 0;
   height: 18rem;
   min-height: 12rem;
-  padding: .875rem 1.25rem;
+  padding: var(--output-padding-block) 1.25rem;
   border: 1px solid var(--field-line);
   border-radius: 2px;
   background:
@@ -1261,7 +1285,11 @@ textarea#output {
       #e8634f2e calc(.75rem + 1px),
       transparent calc(.75rem + 1px)
     ),
-    linear-gradient(transparent calc(2em - 1px), var(--line) 0) 0 .875rem / 100% 2em local,
+    repeating-linear-gradient(
+      transparent 0 1.62em,
+      var(--line) 1.62em calc(1.62em + 1px),
+      transparent calc(1.62em + 1px) 2em
+    ) 0 var(--output-padding-block) / 100% 100% no-repeat local,
     var(--ink-3);
   color: var(--moon-2);
   font-size: .9375rem;
@@ -1944,6 +1972,8 @@ dialog.image-preview:has(.image-deck-nav) {
 
 .history-limit-fields .settinglabel { margin-bottom: 0; }
 
+.history-switch { margin-top: .75rem; }
+
 .history-switch button {
   white-space: nowrap;
   font-family: var(--f-song);
@@ -2444,6 +2474,8 @@ dialog.resource-editor {
 
 /* Responsive layout */
 @media (min-width: 60em) {
+  body { padding-inline-start: 5.5rem; }
+
   header {
     position: fixed;
     inset-block: 0;
@@ -2539,11 +2571,7 @@ dialog.resource-editor {
 
   .local b { flex: 0 0 .375rem; }
 
-  main {
-    width: calc(100% - 5.5rem);
-    margin-inline: 5.5rem auto;
-    padding-block-start: 2rem;
-  }
+  main { padding-block-start: 2rem; }
 
   .fields > label:nth-child(n + 2):nth-child(-n + 4) {
     padding-inline-start: 1rem;
@@ -2787,6 +2815,16 @@ dialog.resource-editor {
     margin-top: .5rem;
   }
 
+  .pagehead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pagehead > :is(.actions, .history-switch, .secondary) {
+    justify-content: flex-start;
+    margin-inline-start: 0;
+  }
+
   .history-switch { max-width: 100%; }
 
   .history-switch button { text-align: center; }
@@ -2823,19 +2861,16 @@ dialog.resource-editor {
     height: .5625rem;
   }
 
-  .section-heading { flex-wrap: wrap; }
-
   .section-heading .aside { display: none; }
 
-  .section-heading h2 { white-space: normal; }
+  .settings .section-heading h2 {
+    flex: 1;
+    min-inline-size: min-content;
+  }
 
   .settings-actions {
-    display: flex;
-    flex: 1 1 100%;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: .5rem;
-    margin-inline-start: auto;
   }
 
   .fields { gap: .75rem; }
@@ -3398,7 +3433,6 @@ dialog.resource-editor {
   .hero-title {
     background: none;
     color: CanvasText;
-    filter: none;
     -webkit-text-fill-color: CanvasText;
   }
 
@@ -3452,6 +3486,8 @@ dialog.resource-editor {
   }
 
   :root { --focus-ring: Highlight; }
+
+  .seedinput:focus-within { outline-color: Highlight; }
 
   .panel,
   .record,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {constellation, dialAngle, romanNumeral, seedRandom, sigil} from './stage.mjs';
+import {constellation, dialAngle, romanNumeral, seedRandom, sigil, textRingContent} from './stage.mjs';
 
 function angularSeparation(stars, cx, cy) {
   const angles = stars.map(star => {
@@ -102,6 +102,20 @@ test('Roman numerals cover standard subtractive forms and pass unsupported value
     [0, '0'], [4000, '4000'], [-3, '-3'], [2.5, '2.5']
   ];
   for (const [value, expected] of cases) assert.equal(romanNumeral(value), expected);
+});
+
+test('dial text ring repeats complete units without slicing at the seam', () => {
+  const seed = 'sample-月-🌙';
+  const act = 4;
+  const unit = `MOONLIGHT THEATER · 月光剧场 · Nº ${seed} · ACT IV · `;
+  const repetitionCount = Math.max(1, Math.round(145 / Array.from(unit).length));
+  const emptySeedUnit = 'MOONLIGHT THEATER · 月光剧场 · Nº  · ACT I · ';
+  const emptySeedRepetitions = Math.max(1, Math.round(145 / Array.from(emptySeedUnit).length));
+  const longSeedUnit = `MOONLIGHT THEATER · 月光剧场 · Nº ${'x'.repeat(145)} · ACT I · `;
+
+  assert.equal(textRingContent(seed, act), unit.repeat(repetitionCount));
+  assert.equal(textRingContent('', 1), emptySeedUnit.repeat(emptySeedRepetitions));
+  assert.equal(textRingContent('x'.repeat(145), 1), longSeedUnit);
 });
 
 test('dial angle stays within integer degrees', () => {

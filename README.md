@@ -39,8 +39,10 @@
 下载或克隆仓库，在包含 `index.html` 的目录运行以下命令（需要 Python 3）。
 
 ```bash
-python -m http.server 8000 --bind 127.0.0.1
+python -c "import http.server as s; s.SimpleHTTPRequestHandler.extensions_map['.mjs'] = 'text/javascript'; s.test(HandlerClass=s.SimpleHTTPRequestHandler, port=8000, bind='127.0.0.1')"
 ```
+
+Windows 可能把 `.mjs` 识别为纯文本，导致脚本无法加载。
 
 浏览器打开 <http://127.0.0.1:8000> 即可使用创作台。整个应用都由静态文件提供，提示词生成无需 API Key。
 
