@@ -1,5 +1,6 @@
 import {validate} from './engine.mjs';
 import {importManualMaterials} from './manual-materials.mjs';
+import {t} from './i18n.mjs';
 
 function addUnique(current, incoming, key, combine = entry => entry) {
   const entries = new Map(current.map(entry => [key(entry), entry]));
@@ -20,7 +21,7 @@ export function importDesignLibrary(current, manual, file, mode) {
   if (mode === 'replace') {
     return {profile: incoming, manual: importManualMaterials({}, manualMaterials)};
   }
-  if (mode !== 'merge') throw new Error('请选择导入方式。');
+  if (mode !== 'merge') throw new Error(t('请选择导入方式。'));
   const rules = {...current.rules};
   const exclusions = new Map(Object.entries(rules.outfitHeadAccessoryExclusion));
   for (const [outfit, ids] of Object.entries(incoming.rules.outfitHeadAccessoryExclusion)) {

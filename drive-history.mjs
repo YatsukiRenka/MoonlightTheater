@@ -1,5 +1,6 @@
 import {requestGoogleToken, validGoogleClientId} from './google-oauth.mjs';
 import {archiveIsEncrypted} from './history-archive.mjs';
+import {t} from './i18n.mjs';
 
 export {loadGoogleOAuth as preloadDriveAuthorization} from './google-oauth.mjs';
 export const maxDriveBackupBytes = 544 * 1024 * 1024;
@@ -27,8 +28,8 @@ const fileTimeout = 1_800_000;
 const uploadedRenditions = new WeakMap();
 
 export async function authorizeDrive(clientId) {
-  if (!validGoogleClientId(clientId)) throw new Error('请填写 Google Cloud 的 Web 应用 Client ID。');
-  return requestGoogleToken(clientId, driveScope, 'Google 授权未完成，或未授予 Drive 应用数据权限。');
+  if (!validGoogleClientId(clientId)) throw new Error(t('请填写 Google Cloud 的 Web 应用 Client ID。'));
+  return requestGoogleToken(clientId, driveScope, t('Google 授权未完成，或未授予 Drive 应用数据权限。'));
 }
 
 function driveURL(path, parameters) {
@@ -39,17 +40,17 @@ function driveURL(path, parameters) {
 
 function statusError(status) {
   const messages = {
-    401: 'Google Drive 授权已过期或失效，请重新授权。',
-    403: 'Google Drive 权限不足或已达到存储或用量上限。',
-    404: 'Google Drive 备份或上传会话已不存在。',
-    429: 'Google Drive 请求太频繁，请稍后重试。',
+    401: t('Google Drive 授权已过期或失效，请重新授权。'),
+    403: t('Google Drive 权限不足或已达到存储或用量上限。'),
+    404: t('Google Drive 备份或上传会话已不存在。'),
+    429: t('Google Drive 请求太频繁，请稍后重试。'),
   };
-  return Object.assign(new Error(messages[status] || 'Google Drive 请求失败（HTTP ' + status + '）。'), {status});
+  return Object.assign(new Error(messages[status] || t(t('Google Drive 请求失败（HTTP {status}）。'), {status})), {status});
 }
 
 function transferError(error, signal) {
   const timeout = error?.name === 'TimeoutError' || signal.reason?.name === 'TimeoutError';
-  return new Error(timeout ? 'Google Drive 传输超时，请检查网络后重试。' : '无法连接 Google Drive，请检查网络后重试。', {cause: error});
+  return new Error(timeout ? t('Google Drive 传输超时，请检查网络后重试。') : t('无法连接 Google Drive，请检查网络后重试。'), {cause: error});
 }
 
 async function driveRequest(auth, url, send, {headers, incomplete = false, timeout = metadataTimeout, ...init} = {}) {
@@ -73,7 +74,7 @@ async function driveRequest(auth, url, send, {headers, incomplete = false, timeo
 async function driveJSON({response, signal}) {
   try { return await response.json(); }
   catch (error) {
-    if (error instanceof SyntaxError) throw new Error('Google Drive 返回的备份信息无效。', {cause: error});
+    if (error instanceof SyntaxError) throw new Error(t('Google Drive 返回的备份信息无效。'), {cause: error});
     throw transferError(error, signal);
   }
 }
@@ -93,7 +94,7 @@ export async function listDriveBackups(auth, {send = globalThis.fetch} = {}) {
 }
 
 export async function listDriveImageManifests(auth, {limit, send = globalThis.fetch} = {}) {
-  if (!Number.isSafeInteger(limit) || limit < 0) throw new Error('云图库读取数量无效。');
+  if (!Number.isSafeInteger(limit) || limit < 0) throw new Error(t('云图库读取数量无效。'));
   return listAppDataFiles(auth, fileKinds.manifest, send, limit);
 }
 
@@ -115,7 +116,7 @@ async function listAppDataFiles(auth, kind, send, limit = Infinity) {
     url.searchParams.set('pageSize', Math.min(pageCapacity, limit - seen));
     const page = await driveJSON(await driveRequest(auth, url, send));
     if (!page || typeof page !== 'object' || Array.isArray(page)
-      || (page.files !== undefined && !Array.isArray(page.files))) throw new Error('Google Drive 返回的备份列表无效。');
+      || (page.files !== undefined && !Array.isArray(page.files))) throw new Error(t('Google Drive 返回的备份列表无效。'));
     for (const item of (page.files || []).slice(0, limit - seen)) {
       seen++;
       const file = fileRecord(item, kind);
@@ -124,7 +125,7 @@ async function listAppDataFiles(auth, kind, send, limit = Infinity) {
     }
     if (seen >= limit || !page.nextPageToken) break;
     if (typeof page.nextPageToken !== 'string' || tokens.has(page.nextPageToken) || tokens.size >= pageLimit - 1) {
-      throw new Error('无法读取完整的 Google Drive 备份列表。');
+      throw new Error(t('无法读取完整的 Google Drive 备份列表。'));
     }
     tokens.add(page.nextPageToken);
     url.searchParams.set('pageToken', page.nextPageToken);
@@ -170,7 +171,7 @@ async function openUploadSession(auth, metadata, kind, size, send) {
   try { session = new URL(location); } catch {}
   if (session?.origin !== driveOrigin || session.pathname !== uploadPath || session.username || session.password
     || session.hash || !session.searchParams.get('upload_id')) {
-    throw new Error('Google Drive 未返回可用的大文件上传地址。');
+    throw new Error(t('Google Drive 未返回可用的大文件上传地址。'));
   }
   return session;
 }
@@ -213,7 +214,7 @@ async function uploadResumable(auth, blob, metadata, kind, send, onProgress) {
     const match = /^bytes=0-(\d+)$/.exec(range);
     const next = match && Number(match[1]) + 1;
     if (!next || next < offset || (!checked && next === offset) || next > end || next === blob.size) {
-      throw new Error('Google Drive 返回的上传进度无效。');
+      throw new Error(t('Google Drive 返回的上传进度无效。'));
     }
     if (next > offset) {
       offset = next;
@@ -221,23 +222,23 @@ async function uploadResumable(auth, blob, metadata, kind, send, onProgress) {
       onProgress(offset, blob.size);
     }
   }
-  throw new Error('Google Drive 未确认备份上传完成。');
+  throw new Error(t('Google Drive 未确认备份上传完成。'));
 }
 
 export async function uploadDriveBackup(auth, blob, {send = globalThis.fetch, onProgress = () => {}} = {}) {
-  if (!(blob instanceof Blob) || !blob.size) throw new Error('没有可上传的备份文件。');
-  if (blob.size > maxDriveBackupBytes) throw new Error('备份超过 544 MiB 的上传上限。');
-  if (!await archiveIsEncrypted(blob)) throw new Error('请先加密历史备份，再上传到 Google Drive。');
+  if (!(blob instanceof Blob) || !blob.size) throw new Error(t('没有可上传的备份文件。'));
+  if (blob.size > maxDriveBackupBytes) throw new Error(t('备份超过 544 MiB 的上传上限。'));
+  if (!await archiveIsEncrypted(blob)) throw new Error(t('请先加密历史备份，再上传到 Google Drive。'));
   return uploadAppDataFile(auth, blob, fileKinds.backup, send, onProgress);
 }
 
 export async function uploadDriveImageObject(auth, blob, type, {send = globalThis.fetch, generatedAt} = {}) {
   if (!(blob instanceof Blob) || !blob.size || blob.size > maxDriveBackupBytes
     || (type !== 'manifest' && type !== 'rendition') || await blob.slice(0, driveImageHeader.length).text() !== driveImageHeader) {
-    throw new Error('云端图片文件无效或尚未加密。');
+    throw new Error(t('云端图片文件无效或尚未加密。'));
   }
   if (type === 'manifest' && (!Number.isFinite(generatedAt) || generatedAt < 0 || generatedAt > 8.64e15)) {
-    throw new Error('云端生图记录的生成时间无效。');
+    throw new Error(t('云端生图记录的生成时间无效。'));
   }
   const uploaded = await uploadAppDataFile(auth, blob, fileKinds[type], send, () => {}, type === 'manifest' ? generatedAt : undefined);
   if (type === 'rendition') uploadedRenditions.set(uploaded, Object.freeze({...uploaded}));
@@ -253,46 +254,46 @@ async function uploadAppDataFile(auth, blob, kind, send, onProgress, timestamp) 
   const response = blob.size <= multipartLimit ? await uploadMultipart(auth, blob, metadata, kind, send)
     : await uploadResumable(auth, blob, metadata, kind, send, onProgress);
   const saved = fileRecord(response, kind);
-  if (!saved || saved.size !== blob.size) throw new Error('Google Drive 未确认备份上传完成。');
+  if (!saved || saved.size !== blob.size) throw new Error(t('Google Drive 未确认备份上传完成。'));
   if (kind === fileKinds.rendition) saved.sha256Checksum = sha256Value(response.sha256Checksum);
   onProgress(blob.size, blob.size);
   return saved;
 }
 
 export async function downloadDriveBackup(auth, id, {send = globalThis.fetch} = {}) {
-  return downloadAppDataFile(auth, id, maxDriveBackupBytes, send, '备份超过 544 MiB 的下载上限。');
+  return downloadAppDataFile(auth, id, maxDriveBackupBytes, send, t('备份超过 544 MiB 的下载上限。'));
 }
 
 export async function downloadDriveImageObject(auth, id, {send = globalThis.fetch, maxBytes = maxDriveBackupBytes} = {}) {
-  return downloadAppDataFile(auth, id, maxBytes, send, '云端图片超过预期大小。');
+  return downloadAppDataFile(auth, id, maxBytes, send, t('云端图片超过预期大小。'));
 }
 
 export async function discardDriveImageRendition(auth, upload, {send = globalThis.fetch} = {}) {
   const id = uploadedRenditions.get(upload)?.id;
-  if (!id) throw new Error('只能清理本次上传中尚未提交的图片。');
+  if (!id) throw new Error(t('只能清理本次上传中尚未提交的图片。'));
   await driveRequest(auth, driveURL(`${filesPath}/${id}`), send, {method: 'DELETE'});
   uploadedRenditions.delete(upload);
 }
 
 export async function readDriveImageChecksum(auth, upload, {send = globalThis.fetch} = {}) {
   const receipt = uploadedRenditions.get(upload);
-  if (!receipt) throw new Error('无法验证本次上传的云端图片。');
+  if (!receipt) throw new Error(t('无法验证本次上传的云端图片。'));
   if (receipt.sha256Checksum) return receipt.sha256Checksum;
   const url = driveURL(`${filesPath}/${receipt.id}`, {fields: checksumFields});
   const data = await driveJSON(await driveRequest(auth, url, send));
-  if (data?.id !== receipt.id || Number(data.size) !== receipt.size) throw new Error('Google Drive 返回的图片校验信息无效。');
+  if (data?.id !== receipt.id || Number(data.size) !== receipt.size) throw new Error(t('Google Drive 返回的图片校验信息无效。'));
   return sha256Value(data.sha256Checksum);
 }
 
 async function downloadAppDataFile(auth, id, maxBytes, send, sizeMessage) {
-  if (typeof id !== 'string' || !fileIdPattern.test(id)) throw new Error('Google Drive 备份编号无效。');
+  if (typeof id !== 'string' || !fileIdPattern.test(id)) throw new Error(t('Google Drive 备份编号无效。'));
   const {response, signal} = await driveRequest(auth, driveURL(`${filesPath}/${id}`, {alt: 'media'}), send, {timeout: fileTimeout});
   const tooLarge = new Error(sizeMessage);
   if (Number(response.headers.get('Content-Length')) > maxBytes) {
     await response.body?.cancel().catch(() => {});
     throw tooLarge;
   }
-  if (!response.body) throw new Error('Google Drive 返回了空备份。');
+  if (!response.body) throw new Error(t('Google Drive 返回了空备份。'));
   let bytes = 0;
   const bounded = new TransformStream({transform(chunk, controller) {
     bytes += chunk.byteLength;
@@ -302,6 +303,6 @@ async function downloadAppDataFile(auth, id, maxBytes, send, sizeMessage) {
   let blob;
   try { blob = await new Response(response.body.pipeThrough(bounded), {headers: {'Content-Type': mediaType}}).blob(); }
   catch (error) { if (error === tooLarge) throw error; throw transferError(error, signal); }
-  if (!blob.size) throw new Error('Google Drive 返回了空备份。');
+  if (!blob.size) throw new Error(t('Google Drive 返回了空备份。'));
   return blob;
 }

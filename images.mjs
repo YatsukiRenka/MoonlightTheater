@@ -1,4 +1,5 @@
 import {initializeImageSettings, setModelOptions} from './image-settings.mjs';
+import {t} from './i18n.mjs';
 import {initializeImageControls} from './image-controls.mjs';
 import {mountImageDeck} from './image-deck.mjs';
 import {
@@ -55,13 +56,13 @@ function renderMetrics(container, metrics) {
   const formatted = value => value.toLocaleString('zh-HK');
   const tokens = metrics.tokens?.total;
   const cost = metrics.cost;
-  const subtitle = cost?.source === 'reported' ? '接口返回'
-    : cost?.upperBound ? '估算上限' : cost?.source === 'catalog' ? '接口目录估算' : '官方参考价估算';
-  const extra = metrics.extraCharges && cost?.source !== 'reported' ? ' · 附加费用另计' : '';
+  const subtitle = t(cost?.source === 'reported' ? '接口返回'
+    : cost?.upperBound ? '估算上限' : cost?.source === 'catalog' ? '接口目录估算' : '官方参考价估算');
+  const extra = metrics.extraCharges && cost?.source !== 'reported' ? ' · ' + t('附加费用另计') : '';
   const parts = [
-    ['耗时', (metrics.elapsed / 1000).toFixed(1) + ' 秒'],
-    ['Token 合计', tokens == null ? '接口未返回' : formatted(tokens)],
-    ['费用', cost ? money(cost.value, cost.currency) + ' · ' + subtitle + extra : '暂无可用估算'],
+    [t('耗时'), t('{n} 秒', {n: (metrics.elapsed / 1000).toFixed(1)})],
+    [t('Token 合计'), tokens == null ? t('接口未返回') : formatted(tokens)],
+    [t('费用'), cost ? money(cost.value, cost.currency) + ' · ' + subtitle + extra : t('暂无可用估算')],
   ];
   const list = document.createElement('dl');
   for (const [label, value] of parts) {
@@ -147,16 +148,16 @@ export function initializeImages(getPrompt, cloud) {
   }
 
   function showCloudStatus(message, error = false) {
-    cloudStatus.textContent = (uploadsPending ? '正在同步 ' + uploadsPending + ' 批图片到云图库。' : '') + message;
+    cloudStatus.textContent = (uploadsPending ? t('正在同步 {n} 批图片到云图库。', {n: uploadsPending}) : '') + message;
     cloudStatus.classList.toggle('image-error', error);
     cloudStatus.hidden = !cloudStatus.textContent;
   }
 
   function queueCloudUpload(record, staged, upload) {
     uploadsPending++;
-    showCloudStatus(staged?.overLimit ? '本机历史已超过设置上限，新生成的原图已保留。' : '');
+    showCloudStatus(staged?.overLimit ? t('本机历史已超过设置上限，新生成的原图已保留。') : '');
     uploadQueue = uploadQueue.then(async () => {
-      let message = '图片已保存到云图库。';
+      let message = t('图片已保存到云图库。');
       let warning = false;
       let uploaded = false;
       try {
@@ -165,7 +166,7 @@ export function initializeImages(getPrompt, cloud) {
         const replaced = staged?.saved && await replaceImageHistoryWithCloud(record, thin);
         if (!replaced) await mergeCloudImageHistory([thin]);
       } catch (error) {
-        message = uploaded ? message + '暂时无法更新本机历史。' : '云图库同步失败。' + error.message;
+        message = uploaded ? message + t('暂时无法更新本机历史。') : t('云图库同步失败。') + error.message;
         warning = true;
       } finally {
         if (staged?.saved) await releaseStagedCloudImageHistory(record.id);
@@ -175,20 +176,20 @@ export function initializeImages(getPrompt, cloud) {
         const limits = readHistoryLimits();
         const entry = local.find(item => item.id === record.id);
         if (entry) {
-          if (!uploaded && !entry.cloud) message += '本机已保留原图。';
+          if (!uploaded && !entry.cloud) message += t('本机已保留原图。');
           if (local.length > limits.imageCount || local.reduce((sum, item) => sum + item.size, 0) > imageHistoryByteLimit(limits)) {
-            message += '本机历史已超过设置上限，可在历史设置中整理原图或调高上限。';
+            message += t('本机历史已超过设置上限，可在历史设置中整理原图或调高上限。');
             warning = true;
           }
         } else if (uploaded) {
-          message += limits.imageCount ? '本机历史未写入。可在历史设置中整理原图或调高上限，再同步缩略图。' : '本机生图历史已停用。';
+          message += t(limits.imageCount ? '本机历史未写入。可在历史设置中整理原图或调高上限，再同步缩略图。' : '本机生图历史已停用。');
           warning = Boolean(limits.imageCount) || warning;
         } else {
-          message += '本机未保存这一批原图。'
-            + (currentResultId === record.id ? '可从当前生图结果下载。' : '');
+          message += t('本机未保存这一批原图。')
+            + (currentResultId === record.id ? t('可从当前生图结果下载。') : '');
         }
       } catch {
-        message += '暂时无法确认本机历史。';
+        message += t('暂时无法确认本机历史。');
         warning = true;
       }
       if (historyOpen) void showHistory();
@@ -205,22 +206,22 @@ export function initializeImages(getPrompt, cloud) {
     const models = resource?.ready ? resource.models : [];
     const preferred = preferences.models[id];
     const selected = models.includes(preferred) ? preferred : resource?.model || '';
-    setModelOptions(model, models, selected, '请先验证接口');
+    setModelOptions(model, models, selected, t('请先验证接口'));
     byId('imageAuth').hidden = !google || !resource.ready;
-    connect.textContent = resource?.connected ? '断开 Google 授权' : '使用 Google 登录';
+    connect.textContent = t(resource?.connected ? '断开 Google 授权' : '使用 Google 登录');
     resourceSelect.disabled = busy || !availability?.size;
     connect.disabled = busy;
     model.disabled = busy || !models.length;
     generate.disabled = busy || !ready || !model.value;
     updateModelControls();
 
-    if (!availability) connection.textContent = '浏览器未允许本站使用本地存储。';
-    else if (!resource) connection.textContent = '请在「设置」中添加 API 资源。';
-    else if (!resource.ready) connection.textContent = '请先在「设置」中验证此接口并选择模型。';
-    else if (google) connection.textContent = resource.connected
+    if (!availability) connection.textContent = t('浏览器未允许本站使用本地存储。');
+    else if (!resource) connection.textContent = t('请在「设置」中添加 API 资源。');
+    else if (!resource.ready) connection.textContent = t('请先在「设置」中验证此接口并选择模型。');
+    else if (google) connection.textContent = t(resource.connected
       ? '已授权 Google Cloud，使用此项目的 Vertex AI 配额。'
-      : '请登录 Google 并授权 Vertex AI 调用。';
-    else if (resource.provider === 'custom') connection.textContent = resource.format === 'gemini' ? 'Gemini 兼容协议' : 'OpenAI Images 兼容协议';
+      : '请登录 Google 并授权 Vertex AI 调用。');
+    else if (resource.provider === 'custom') connection.textContent = t(resource.format === 'gemini' ? 'Gemini 兼容协议' : 'OpenAI Images 兼容协议');
     else connection.textContent = '';
   }
 
@@ -244,12 +245,12 @@ export function initializeImages(getPrompt, cloud) {
     }
     availability = available && new Map(available.map(row => [row.id, row]));
     const rows = available ?? [];
-    const labels = rows.map(({id, name, provider}) => [id, name === apiProviderNames[provider] ? name : name + ' · ' + apiProviderNames[provider]]);
+    const labels = rows.map(({id, name, provider}) => [id, name === apiProviderNames[provider] ? t(name) : name + ' · ' + t(apiProviderNames[provider])]);
     if (resourceSelect.options.length !== labels.length + 1 || labels.some(([id, label], index) => {
       const option = resourceSelect.options[index + 1];
       return option.value !== id || option.text !== label;
     })) {
-      const placeholder = new Option('请在设置中添加 API 资源', '');
+      const placeholder = new Option(t('请在设置中添加 API 资源'), '');
       placeholder.disabled = Boolean(labels.length);
       resourceSelect.replaceChildren(placeholder, ...labels.map(([id, label]) => new Option(label, id)));
     }
@@ -261,17 +262,17 @@ export function initializeImages(getPrompt, cloud) {
 
   async function changeGoogle(id) {
     const resource = availability?.get(id);
-    if (busy) throw new Error('请等待当前生图或授权操作结束。');
+    if (busy) throw new Error(t('请等待当前生图或授权操作结束。'));
     if (resource?.provider !== 'gemini-oauth' || !resource.ready) return '';
     busy = true;
     refreshControls();
     try {
       if (resource.connected) {
         authorizations.delete(id);
-        return '已断开 Google 授权。';
+        return t('已断开 Google 授权。');
       }
       authorizations.set(id, await authorizeGoogle(resources.get(id).config));
-      return 'Google 授权成功。';
+      return t('Google 授权成功。');
     } finally {
       busy = false;
       refreshAvailability();
@@ -308,7 +309,7 @@ export function initializeImages(getPrompt, cloud) {
     if (record.text) {
       const details = document.createElement('details');
       const summary = document.createElement('summary');
-      summary.textContent = '模型附带文字';
+      summary.textContent = t('模型附带文字');
       const text = document.createElement('p');
       text.textContent = record.text;
       details.append(summary, text);
@@ -317,7 +318,7 @@ export function initializeImages(getPrompt, cloud) {
     if (record.sources?.length) {
       const sources = document.createElement('p');
       sources.className = 'image-sources';
-      sources.append('Google 搜索来源');
+      sources.append(t('Google 搜索来源'));
       for (const {url, title} of record.sources) {
         if (!url.startsWith('https://')) continue;
         const link = document.createElement('a');
@@ -383,25 +384,25 @@ export function initializeImages(getPrompt, cloud) {
   async function showHistory() {
     historyOpen = true;
     const read = ++historyRead;
-    historyStatus.textContent = '正在读取生图记录…';
+    historyStatus.textContent = t('正在读取生图记录…');
     let records;
     try {
       records = await readImageHistory();
     } catch {
-      if (read === historyRead) historyStatus.textContent = '无法读取此浏览器的生图记录。';
+      if (read === historyRead) historyStatus.textContent = t('无法读取此浏览器的生图记录。');
       return;
     }
     if (read !== historyRead) return;
     releaseHistory();
-    historyStatus.textContent = records.length ? '' : '此浏览器还没有生图记录。';
+    historyStatus.textContent = records.length ? '' : t('此浏览器还没有生图记录。');
     for (const record of records) {
       const card = document.createElement('article');
       card.className = 'panel image-history-record';
       const title = document.createElement('h2');
-      title.textContent = (apiProviderNames[record.provider] || record.provider) + ' · ' + record.model;
+      title.textContent = t(apiProviderNames[record.provider] || record.provider) + ' · ' + record.model;
       const date = document.createElement('time');
       date.dateTime = new Date(record.time).toISOString();
-      date.textContent = new Date(record.time).toLocaleString('zh-CN');
+      date.textContent = new Date(record.time).toLocaleString(document.documentElement.lang);
       const thumbnails = document.createElement('div');
       historyDecks.push(mountImageDeck(thumbnails, record, {compact: true, openPreview, cloud}));
       const metrics = document.createElement('div');
@@ -410,7 +411,7 @@ export function initializeImages(getPrompt, cloud) {
       renderMetrics(metrics, record.metrics);
       const details = document.createElement('details');
       const summary = document.createElement('summary');
-      summary.textContent = '查看生成时的提示词 · ' + (record.language === 'en' ? 'EN' : '中文');
+      summary.textContent = t('查看生成时的提示词 · {language}', {language: record.language === 'en' ? 'EN' : t('中文')});
       const prompt = document.createElement('pre');
       prompt.textContent = record.prompt;
       details.append(summary, prompt);
@@ -448,7 +449,7 @@ export function initializeImages(getPrompt, cloud) {
     if (busy || generate.disabled) return;
     const context = getPrompt();
     if (!context.prompt.trim()) {
-      showStatus('请先填写完整提示词。', true);
+      showStatus(t('请先填写完整提示词。'), true);
       return;
     }
     const selected = resources.get(resourceSelect.value);
@@ -460,14 +461,14 @@ export function initializeImages(getPrompt, cloud) {
     busy = true;
     refreshControls();
     form.classList.add('image-pending');
-    showStatus('正在通过 ' + name + ' 生成图片…');
+    showStatus(t('正在通过 {name} 生成图片…', {name}));
     try {
       const result = await generateImage({
         provider: selectedProvider, model: model.value, prompt: context.prompt, ...inputs,
       }, {[selectedProvider]: config}, authorization, {
         onPartial: showPartial,
         onProgress(index, total) {
-          if (total > 1) showStatus('正在通过 ' + name + ' 生图 · 请求 ' + index + ' / ' + total);
+          if (total > 1) showStatus(t('正在通过 {name} 生图 · 请求 {index} / {total}', {name, index, total}));
         },
       });
       const record = {
@@ -476,8 +477,8 @@ export function initializeImages(getPrompt, cloud) {
       };
       if (result.warningStatus === 401 && authorizations.get(id) === authorization) authorizations.delete(id);
       const rendering = renderImages(record);
-      const completed = '已生成 ' + record.images.length + ' 张图片。'
-        + (result.warning ? ' 后续请求未完成。' + result.warning : '');
+      const completed = t('已生成 {n} 张图片。', {n: record.images.length})
+        + (result.warning ? t(' 后续请求未完成。') + result.warning : '');
       const autoSync = cloud.enabled;
       const upload = autoSync && cloud.ready ? cloud.prepareUpload() : undefined;
       const saving = upload ? stageCloudImageHistory(record) : saveImageHistory(record);
@@ -489,12 +490,12 @@ export function initializeImages(getPrompt, cloud) {
         local = await saving;
         if (local.saved && historyOpen) void showHistory();
         if (!local.saved && !local.disabled && !upload) showStatus(completed
-          + ' 本机历史容量已满。可等待正在上传的批次处理完毕、在历史设置调高上限，或下载当前原图。', true);
+          + t(' 本机历史容量已满。可等待正在上传的批次处理完毕、在历史设置调高上限，或下载当前原图。'), true);
       } catch {
-        showStatus(completed + ' 此浏览器无法保存本次生图记录。可在历史设置检查容量，或下载当前原图。', true);
+        showStatus(completed + t(' 此浏览器无法保存本次生图记录。可在历史设置检查容量，或下载当前原图。'), true);
       }
       if (upload) queueCloudUpload(record, local, upload);
-      else if (autoSync) showCloudStatus('请在历史设置中解锁 Google Drive。', true);
+      else if (autoSync) showCloudStatus(t('请在历史设置中解锁 Google Drive。'), true);
       else if (!uploadsPending) showCloudStatus('');
     } catch (error) {
       showStatus(error.message, true);

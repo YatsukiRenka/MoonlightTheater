@@ -3,6 +3,7 @@ import {catalogPrice, combineImageUsage, modelPrice, summarizeImageUsage} from '
 import {imageCapabilities, legacyImageOptions, prepareImageOptions, validateReferenceImages} from './image-options.mjs';
 import {isResponseTimeout, readImageStream, readResponseChunk} from './image-stream.mjs';
 import {requestGoogleToken, validGoogleClientId} from './google-oauth.mjs';
+import {t} from './i18n.mjs';
 
 const resourceKey = 'moonlight-image-resources-v1';
 const resourceIds = ['openai', 'gemini', 'gemini-oauth', 'custom'];
@@ -98,13 +99,13 @@ function validateResource(id, values, previous, origin) {
   const enteredKey = field('key');
   const key = enteredKey || (id === 'custom' && values.clearKey === true ? '' : previous?.key || '');
   if (id !== 'gemini-oauth' && (id !== 'custom' || key) && !validKey(key)) {
-    throw new Error('请填写有效的 API Key。');
+    throw new Error(t('请填写有效的 API Key。'));
   }
   if (id === 'gemini-oauth') {
     const clientId = field('clientId');
     const project = field('project');
-    if (!validGoogleClientId(clientId)) throw new Error('请填写 Google Cloud 的 Web 应用 Client ID。');
-    if (!projectPattern.test(project)) throw new Error('请填写有效的 Google Cloud 项目 ID 或项目编号。');
+    if (!validGoogleClientId(clientId)) throw new Error(t('请填写 Google Cloud 的 Web 应用 Client ID。'));
+    if (!projectPattern.test(project)) throw new Error(t('请填写有效的 Google Cloud 项目 ID 或项目编号。'));
     return {clientId, project};
   }
   if (id === 'custom') {
@@ -113,19 +114,19 @@ function validateResource(id, values, previous, origin) {
     const modelsURL = field('modelsURL');
     if (url.length > 2048 || !validCustom(url, format, origin)) {
       throw new Error(format === 'gemini'
-        ? '请填写包含 /models/{model}:generateContent 的外部 Gemini 接口地址。'
-        : '请填写外部 HTTPS 接口或本机回环 HTTP 地址。');
+        ? t('请填写包含 /models/{model}:generateContent 的外部 Gemini 接口地址。')
+        : t('请填写外部 HTTPS 接口或本机回环 HTTP 地址。'));
     }
     if (key && !enteredKey && (format !== previous?.format || endpoint(url, origin).origin !== endpoint(previous?.url, origin)?.origin)) {
-      throw new Error('更换自定义接口域名或协议时，请填写该接口的 API Key，或清除已保存的密钥。');
+      throw new Error(t('更换自定义接口域名或协议时，请填写该接口的 API Key，或清除已保存的密钥。'));
     }
     const editsURL = format === 'openai' ? field('editsURL') : '';
     const draft = {url, format, key, modelsURL, editsURL};
     if (modelsURL.length > 2048 || !modelListURL(draft, origin)) {
-      throw new Error('请填写与生图接口同源的模型列表地址。');
+      throw new Error(t('请填写与生图接口同源的模型列表地址。'));
     }
     if (editsURL && (editsURL.length > 2048 || !editURL(draft, origin))) {
-      throw new Error('请填写与生图接口同源的参考图接口地址。');
+      throw new Error(t('请填写与生图接口同源的参考图接口地址。'));
     }
     return draft;
   }
@@ -133,7 +134,7 @@ function validateResource(id, values, previous, origin) {
 }
 
 export function resolveImageResourceConfig(provider, values, {previous, origin = location.origin, verification} = {}) {
-  if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
+  if (!resourceIds.includes(provider)) throw new Error(t('请选择一个有效的接口。'));
   const input = record(values);
   const draft = validateResource(provider, input, previous, origin);
   const verified = verifications.get(verification);
@@ -147,8 +148,8 @@ export function resolveImageResourceConfig(provider, values, {previous, origin =
     models = savedModels(provider, previous);
     prices = previous.prices || {};
   }
-  if (!models?.length) throw new Error('请先验证当前接口配置并获取模型。');
-  if (!models.includes(input.model)) throw new Error('请从返回的列表中选择一个模型。');
+  if (!models?.length) throw new Error(t('请先验证当前接口配置并获取模型。'));
+  if (!models.includes(input.model)) throw new Error(t('请从返回的列表中选择一个模型。'));
   return {...draft, models, model: input.model, prices};
 }
 
@@ -191,20 +192,20 @@ export function describeImageResources(saved, authorization, origin = location.o
 
 export function authorizeGoogle(resource) {
   if (!validGoogleClientId(resource?.clientId) || !projectPattern.test(resource?.project || '')) {
-    throw new Error('请先保存 Google OAuth 配置。');
+    throw new Error(t('请先保存 Google OAuth 配置。'));
   }
   const {clientId, project} = resource;
-  return requestGoogleToken(clientId, googleScope, 'Google 授权未完成，或未授予 Cloud 调用权限。')
+  return requestGoogleToken(clientId, googleScope, t('Google 授权未完成，或未授予 Cloud 调用权限。'))
     .then(auth => ({clientId, project, ...auth}));
 }
 
 const upstreamMessages = {
-  400: '接口拒绝了请求，请检查所选模型、高级设置与参考图片。',
-  401: '接口未通过身份验证，请检查 API Key 或重新完成 Google 授权。',
-  402: '接口拒绝调用，请检查账单或余额。',
-  403: '接口拒绝调用，请检查模型权限、API 启用状态和账单。',
-  404: '找不到接口或模型，请检查配置。',
-  429: '已达到接口速率限制或配额，请稍后再试。',
+  400: t('接口拒绝了请求，请检查所选模型、高级设置与参考图片。'),
+  401: t('接口未通过身份验证，请检查 API Key 或重新完成 Google 授权。'),
+  402: t('接口拒绝调用，请检查账单或余额。'),
+  403: t('接口拒绝调用，请检查模型权限、API 启用状态和账单。'),
+  404: t('找不到接口或模型，请检查配置。'),
+  429: t('已达到接口速率限制或配额，请稍后再试。'),
 };
 
 const catalogTimeout = 20_000;
@@ -222,13 +223,13 @@ async function outbound(url, options, send, timeout) {
     });
   } catch (error) {
     throw new Error(isResponseTimeout(error, signal)
-      ? '连接接口超时。'
-      : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。'
-        + (loopbackHost(new URL(url).hostname) ? '本机服务还需在浏览器网站设置中允许本站访问本机网络。' : ''), {cause: error});
+      ? t('连接接口超时。')
+      : t('无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。')
+        + (loopbackHost(new URL(url).hostname) ? t('本机服务还需在浏览器网站设置中允许本站访问本机网络。') : ''), {cause: error});
   }
   if (!response.ok) {
     await response.body?.cancel().catch(() => {});
-    const error = new Error(upstreamMessages[response.status] || '接口返回 HTTP ' + response.status + '。');
+    const error = new Error(upstreamMessages[response.status] || t(t('接口返回 HTTP {status}。'), {status: response.status}));
     error.status = response.status;
     throw error;
   }
@@ -236,7 +237,7 @@ async function outbound(url, options, send, timeout) {
 }
 
 async function boundedBlob({response, signal}, limit = maxResponse) {
-  if (!response.body) throw new Error('接口未返回数据。');
+  if (!response.body) throw new Error(t('接口未返回数据。'));
   const reader = response.body.getReader();
   let size = 0;
   const chunks = [];
@@ -247,7 +248,7 @@ async function boundedBlob({response, signal}, limit = maxResponse) {
       size += value.byteLength;
       if (size > limit) {
         await reader.cancel().catch(() => {});
-        throw new Error('返回的图片数据过大。');
+        throw new Error(t('返回的图片数据过大。'));
       }
       chunks.push(value);
     }
@@ -259,7 +260,7 @@ async function boundedBlob({response, signal}, limit = maxResponse) {
 
 async function readAPIJSON(request, limit) {
   const text = await (await boundedBlob(request, limit)).text();
-  try { return record(JSON.parse(text)); } catch { throw new Error('接口返回的内容不是有效 JSON。'); }
+  try { return record(JSON.parse(text)); } catch { throw new Error(t('接口返回的内容不是有效 JSON。')); }
 }
 
 function hasImageOutput(row, id, provider, format) {
@@ -294,7 +295,7 @@ function pageModels(response, provider, format) {
 function providerAuthentication(provider, resource, authorization) {
   if (provider === 'gemini-oauth') {
     const token = currentGoogleToken(authorization, resource);
-    if (!token) throw new Error('请先完成 Google 授权。');
+    if (!token) throw new Error(t('请先完成 Google 授权。'));
     return {Authorization: 'Bearer ' + token};
   }
   if (!resource.key) return {};
@@ -306,7 +307,7 @@ export async function verifyImageResourceConfig(provider, values, {
   previous, origin = location.origin, send = globalThis.fetch,
   authorization, authorize = authorizeGoogle,
 } = {}) {
-  if (!resourceIds.includes(provider)) throw new Error('请选择一个有效的接口。');
+  if (!resourceIds.includes(provider)) throw new Error(t('请选择一个有效的接口。'));
   const draft = validateResource(provider, record(values), previous, origin);
   const format = providerFormat(provider, draft);
   if (provider === 'gemini-oauth' && !currentGoogleToken(authorization, draft)) authorization = await authorize(draft);
@@ -330,11 +331,11 @@ export async function verifyImageResourceConfig(provider, values, {
     }
     const next = response.nextPageToken;
     if (!next) break;
-    if (typeof next !== 'string' || tokens.has(next) || tokens.size >= 20) throw new Error('无法读取完整模型列表。');
+    if (typeof next !== 'string' || tokens.has(next) || tokens.size >= 20) throw new Error(t('无法读取完整模型列表。'));
     tokens.add(next);
     catalog.searchParams.set('pageToken', next);
   }
-  if (!models.size) throw new Error('接口未返回可选的生图模型。');
+  if (!models.size) throw new Error(t('接口未返回可选的生图模型。'));
   if (provider === 'custom' && draft.key) {
     let status;
     try {
@@ -343,7 +344,7 @@ export async function verifyImageResourceConfig(provider, values, {
     } catch (error) {
       status = error.status;
     }
-    if (![401, 403].includes(status)) throw new Error('此模型列表无法校验网关密钥。请填写需要认证且支持 CORS 的模型列表地址。');
+    if (![401, 403].includes(status)) throw new Error(t('此模型列表无法校验网关密钥。请填写需要认证且支持 CORS 的模型列表地址。'));
   }
   const verification = Object.freeze({
     models: Object.freeze([...models].sort((a, b) => a.localeCompare(b, 'en', {numeric: true}))),
@@ -366,10 +367,10 @@ function inline(data, output) {
 
 async function linkedImage(value, origin, send, allowLoopback) {
   const url = endpoint(value, origin);
-  if (!url || (url.protocol === 'http:' && !allowLoopback)) throw new Error('接口返回了无效的外部图片地址。');
+  if (!url || (url.protocol === 'http:' && !allowLoopback)) throw new Error(t('接口返回了无效的外部图片地址。'));
   const data = await boundedBlob(await outbound(url.href, {}, send, downloadTimeout));
   const mime = rasterMime(String.fromCharCode(...new Uint8Array(await data.slice(0, 12).arrayBuffer())));
-  if (!mime) throw new Error('外部图片地址没有返回受支持的图片。');
+  if (!mime) throw new Error(t('外部图片地址没有返回受支持的图片。'));
   return {mime, blob: data.slice(0, data.size, mime)};
 }
 
@@ -440,7 +441,7 @@ function geminiDetails(response) {
 
 async function readStreamingImages(request, onPartial, receive) {
   await readImageStream(request, (type, event) => {
-    if (type === 'error') throw new Error('接口报告流式生图失败。');
+    if (type === 'error') throw new Error(t('接口报告流式生图失败。'));
     if (type === 'image_generation.partial_image' || type === 'image_edit.partial_image') {
       const img = inline(event.b64_json);
       if (img) onPartial(img);
@@ -457,12 +458,12 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
 } = {}) {
   const {providers} = describeImageResources(resources, authorization, origin);
   const entry = providers[provider];
-  if (!entry?.ready) throw new Error('请先在「设置」中配置此接口。');
+  if (!entry?.ready) throw new Error(t('请先在「设置」中配置此接口。'));
   const resource = resources[provider];
   const format = providerFormat(provider, resource);
   const model = requestedModel || entry.model;
-  if (!entry.models.includes(model)) throw new Error('请从已验证的模型列表中选择。');
-  if (!prompt.trim() || prompt.length > 16000) throw new Error('请输入 1 到 16000 字符的提示词。');
+  if (!entry.models.includes(model)) throw new Error(t('请从已验证的模型列表中选择。'));
+  if (!prompt.trim() || prompt.length > 16000) throw new Error(t('请输入 1 到 16000 字符的提示词。'));
   const caps = imageCapabilities(provider, format, model);
   validateReferenceImages(references, caps);
   const hasReferences = references.length > 0;
@@ -481,9 +482,9 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
       + '/locations/global/publishers/google/models/' + model + ':generateContent';
   } else {
     const customURL = endpoint(resource.url.replace('{model}', model), origin);
-    if (!customURL) throw new Error('自定义接口必须指向本站以外的地址。');
+    if (!customURL) throw new Error(t('自定义接口必须指向本站以外的地址。'));
     url = format === 'openai' && hasReferences ? editURL(resource, origin) : customURL.href;
-    if (!url) throw new Error('请先在设置中填写兼容的参考图编辑接口。');
+    if (!url) throw new Error(t('请先在设置中填写兼容的参考图编辑接口。'));
   }
   const headers = providerAuthentication(provider, resource, authorization);
   const started = performance.now();
@@ -498,7 +499,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
         const {type, file} = editLayer;
         if (!file || file.type !== 'image/png' || file.size === 0 || file.size >= 4 * 1024 * 1024
           || (type !== 'mask' && !(type === 'markup' && caps.modern))) {
-          throw new Error('遮罩或标注图需为当前模型支持的 PNG，大小小于 4 MB。');
+          throw new Error(t('遮罩或标注图需为当前模型支持的 PNG，大小小于 4 MB。'));
         }
         body.set(type, file, file.name || type + '.png');
       }
@@ -533,7 +534,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
           for (const source of details.sources) sources.set(source.url, source);
         }
       }
-      if (images.length === initialCount) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
+      if (images.length === initialCount) throw new Error(t('接口未返回可显示的图片，请检查模型或调整提示词。'));
     } catch (error) {
       if (!images.length) throw error;
       warning = error.message;
@@ -541,7 +542,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
       break;
     }
   }
-  if (!images.length) throw new Error('接口未返回可显示的图片，请检查模型或调整提示词。');
+  if (!images.length) throw new Error(t('接口未返回可显示的图片，请检查模型或调整提示词。'));
   const usage = combineImageUsage(usages);
   const extraCharges = Boolean(params.search || params.output_format === 'svg');
   return {model, images, warning, warningStatus, text: texts.join('\n\n').slice(0, 5000), sources: [...sources.values()],

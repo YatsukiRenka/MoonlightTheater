@@ -1,3 +1,5 @@
+import {lang, t} from './i18n.mjs';
+
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const minimumAngleGap = 21;
 const romanValues = [
@@ -252,7 +254,9 @@ function buildOuterRing(ring) {
 }
 
 export function textRingContent(seed, act) {
-  const unit = `MOONLIGHT THEATER · 月光剧场 · Nº ${seed} · ACT ${romanNumeral(act)} · `;
+  // The ring carries the theatre's name in the page's own script; English already has it in Latin.
+  const name = lang === 'en' ? '' : `${t('月光剧场')} · `;
+  const unit = `MOONLIGHT THEATER · ${name}Nº ${seed} · ACT ${romanNumeral(act)} · `;
   const unitLength = Array.from(unit).length;
   const repetitionCount = Math.max(1, Math.round(145 / unitLength));
   return unit.repeat(repetitionCount);

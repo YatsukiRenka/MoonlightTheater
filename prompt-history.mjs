@@ -1,4 +1,5 @@
 import {labels, optional, validate} from './engine.mjs';
+import {t} from './i18n.mjs';
 
 const slots = Object.keys(labels);
 const feedbackRatings = ['喜欢', '一般', '不喜欢'];
@@ -8,7 +9,7 @@ const plainRecord = value => value !== null && typeof value === 'object' && !Arr
 const pick = (value, keys) => Object.fromEntries(keys.filter(key => Object.hasOwn(value ?? {}, key)).map(key => [key, value[key]]));
 const shortText = value => typeof value === 'string' && value.length > 0 && value.length <= 128;
 const validId = value => shortText(value) && !/[\u0000-\u001f\u007f]/.test(value);
-const fail = () => { throw new Error('备份中的提示词历史格式无效。'); };
+const fail = () => { throw new Error(t('备份中的提示词历史格式无效。')); };
 
 function copyPreset(entry, weightField) {
   const preset = {id: entry.id, zh: entry.zh};

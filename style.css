@@ -82,6 +82,17 @@
 
 [hidden] { display: none !important; }
 
+/* Wide CJK tracking reads as gaps in Latin text. */
+:root:lang(en) :is(h1, h2, h3, h4, .slotlabel, .fields > label, .plate-title, header nav a, .brand-name, .rating > span, .choice-title, .stage-head h1) { letter-spacing: .02em; }
+
+/* Until prefs.mjs translates the page, keep the Chinese source out of sight (with a fallback). */
+:root.i18n-pending body {
+  visibility: hidden;
+  animation: i18n-reveal 0s 1.5s forwards;
+}
+
+@keyframes i18n-reveal { to { visibility: visible; } }
+
 button,
 input,
 select,
@@ -2751,12 +2762,17 @@ dialog.resource-editor {
   .stage .hero-title {
     position: absolute;
     display: block;
+    grid-area: auto;
     top: 0;
     left: 0;
   }
 
+  /* English has no vertical tradition; the kicker already names the theatre. */
+  :root:lang(en) .stage .hero-title { display: none; }
+
   .stage .hero-colophon {
     position: absolute;
+    grid-area: auto;
     inset: auto;
     display: flex;
     justify-content: center;

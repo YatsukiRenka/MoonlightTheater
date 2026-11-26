@@ -1,3 +1,4 @@
+import {t} from './i18n.mjs';
 const storageKey = 'moonlight-history-limits-v1';
 export const imageCapacityUnits = Object.freeze({MB: 1_000_000, GB: 1_000_000_000, MiB: 1024 * 1024});
 
@@ -59,13 +60,13 @@ function historyLimits(values, strict = false) {
     const value = values?.[key];
     const number = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
     if (!Number.isInteger(number) || number < min || number > max) {
-      if (strict) throw new Error(labels[key] + '需填写 ' + min + ' 到 ' + max + ' 之间的整数。');
+      if (strict) throw new Error(t('{label}需填写 {min} 到 {max} 之间的整数。', {label: t(labels[key]), min, max}));
       limits[key] = defaultHistoryLimits[key];
     } else limits[key] = number;
   }
   const capacity = parseImageCapacity(values);
   if (capacity) return {...limits, ...capacity};
-  if (strict) throw new Error('请用 MB、GB 或 MiB 填写有效的生图历史大小。容量需至少为 1 字节，且不能超过安全整数范围。');
+  if (strict) throw new Error(t('请用 MB、GB 或 MiB 填写有效的生图历史大小。容量需至少为 1 字节，且不能超过安全整数范围。'));
   return {...defaultHistoryLimits, ...limits};
 }
 
@@ -82,7 +83,7 @@ export function saveHistoryLimits(values, storage) {
   try {
     (storage ?? globalThis.localStorage).setItem(storageKey, JSON.stringify(limits));
   } catch {
-    throw new Error('无法在此浏览器中保存记录保留设置。');
+    throw new Error(t('无法在此浏览器中保存记录保留设置。'));
   }
   return limits;
 }

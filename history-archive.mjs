@@ -1,3 +1,4 @@
+import {t} from './i18n.mjs';
 const encoder = new TextEncoder();
 const archiveMagic = 'MLHIST01';
 const encryptedMagic = 'MLHENC01';
@@ -16,7 +17,7 @@ const mimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif',
 const mediaType = 'application/octet-stream';
 
 function invalidArchive() {
-  return new Error('历史备份格式无效或文件不完整。');
+  return new Error(t('历史备份格式无效或文件不完整。'));
 }
 
 function isObject(value) {
@@ -115,7 +116,7 @@ function historyMetadata(snapshot, mapImage) {
 
 function checkBlob(blob, min, max = Number.MAX_SAFE_INTEGER) {
   if (!(blob instanceof Blob) || blob.size < min) throw invalidArchive();
-  if (blob.size > max) throw new Error('历史备份超过大小限制。');
+  if (blob.size > max) throw new Error(t('历史备份超过大小限制。'));
 }
 
 function hasMagic(bytes, magic) {
@@ -126,12 +127,12 @@ export function createHistoryArchive(snapshot) {
   const payloads = [];
   const metadata = historyMetadata(snapshot, blob => {
     if (!(blob instanceof Blob) || !mimeTypes.has(blob.type) || !blob.size) throw invalidArchive();
-    if (payloads.length >= 10000) throw new Error('历史备份包含的图片过多。');
+    if (payloads.length >= 10000) throw new Error(t('历史备份包含的图片过多。'));
     payloads.push(blob);
     return {size: blob.size, type: blob.type};
   });
   const manifest = encoder.encode(JSON.stringify({version: 1, ...metadata}));
-  if (manifest.byteLength > metadataLimit) throw new Error('历史备份中的文本数据超过 16 MiB 限制。');
+  if (manifest.byteLength > metadataLimit) throw new Error(t('历史备份中的文本数据超过 16 MiB 限制。'));
   const header = new Uint8Array(archiveHeaderSize);
   header.set(encoder.encode(archiveMagic));
   new DataView(header.buffer).setUint32(magicSize, manifest.byteLength);
@@ -142,7 +143,7 @@ export function createHistoryArchive(snapshot) {
 export async function readHistoryArchive(blob) {
   checkBlob(blob, archiveHeaderSize);
   const header = new Uint8Array(await blob.slice(0, archiveHeaderSize).arrayBuffer());
-  if (hasMagic(header, encryptedMagic)) throw new Error('此历史备份需要先解密。');
+  if (hasMagic(header, encryptedMagic)) throw new Error(t('此历史备份需要先解密。'));
   if (!hasMagic(header, archiveMagic)) throw invalidArchive();
   const length = new DataView(header.buffer).getUint32(magicSize);
   const payloadStart = archiveHeaderSize + length;
@@ -154,7 +155,7 @@ export async function readHistoryArchive(blob) {
   } catch {
     throw invalidArchive();
   }
-  if (!isObject(manifest) || manifest.version !== 1) throw new Error('此历史备份的版本不受支持。');
+  if (!isObject(manifest) || manifest.version !== 1) throw new Error(t('此历史备份的版本不受支持。'));
   let offset = payloadStart;
   let count = 0;
   const snapshot = historyMetadata(manifest, descriptor => {
@@ -175,9 +176,9 @@ export async function archiveIsEncrypted(blob) {
 
 async function deriveKey(passphrase, salt) {
   if (typeof passphrase !== 'string' || !passphrase.length || passphrase.length > 1024) {
-    throw new Error('请输入有效的备份密码，最多 1024 个字符。');
+    throw new Error(t('请输入有效的备份密码，最多 1024 个字符。'));
   }
-  if (!globalThis.crypto?.subtle) throw new Error('此浏览器未提供备份加密功能，请通过安全连接打开应用。');
+  if (!globalThis.crypto?.subtle) throw new Error(t('此浏览器未提供备份加密功能，请通过安全连接打开应用。'));
   const password = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256'},
     password, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
@@ -209,7 +210,7 @@ async function cryptBody(blob, passphrase, header, decrypting) {
       parts.push(new Blob([output]));
     } catch (error) {
       if (!decrypting) throw error;
-      throw new Error('备份密码不正确，或加密文件已损坏。');
+      throw new Error(t('备份密码不正确，或加密文件已损坏。'));
     }
     readOffset += readLength;
     remaining -= length;
@@ -219,11 +220,11 @@ async function cryptBody(blob, passphrase, header, decrypting) {
 
 export async function encryptHistoryArchive(blob, passphrase) {
   if (blob instanceof Blob && blob.size > archiveLimit) {
-    throw new Error('历史超过单份 Drive 加密备份容量。可以导出本地备份，或用云图库分批同步生图。');
+    throw new Error(t('历史超过单份 Drive 加密备份容量。可以导出本地备份，或用云图库分批同步生图。'));
   }
   checkBlob(blob, archiveHeaderSize, archiveLimit);
   if (!hasMagic(new Uint8Array(await blob.slice(0, magicSize).arrayBuffer()), archiveMagic)) throw invalidArchive();
-  if (!globalThis.crypto?.subtle) throw new Error('此浏览器未提供备份加密功能，请通过安全连接打开应用。');
+  if (!globalThis.crypto?.subtle) throw new Error(t('此浏览器未提供备份加密功能，请通过安全连接打开应用。'));
   const header = new Uint8Array(encryptedHeaderSize);
   header.set(encoder.encode(encryptedMagic));
   crypto.getRandomValues(header.subarray(magicSize, encryptedHeaderSize - 4));

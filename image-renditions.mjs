@@ -1,4 +1,5 @@
 import {isSafeHistoryImage} from './image-file.mjs';
+import {t} from './i18n.mjs';
 
 const webp = 'image/webp';
 const png = 'image/png';
@@ -12,7 +13,7 @@ async function drawRendition(canvas, image, maxEdge, quality) {
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
   const context = canvas.getContext('2d', {alpha: true});
-  if (!context) throw new Error('此浏览器无法生成图片预览。');
+  if (!context) throw new Error(t('此浏览器无法生成图片预览。'));
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   // drawImage uses the default frame of an animated image, so GIF previews are still posters.
@@ -23,13 +24,13 @@ async function drawRendition(canvas, image, maxEdge, quality) {
   // Browsers can return PNG directly when WebP encoding is unavailable.
   if (blob?.size && (blob.type === webp || blob.type === png)) return blob;
   blob = await encode(canvas, png);
-  if (!blob?.size || blob.type !== png) throw new Error('此浏览器无法保存图片预览。');
+  if (!blob?.size || blob.type !== png) throw new Error(t('此浏览器无法保存图片预览。'));
   return blob;
 }
 
 export async function makeImageRenditions(original) {
   if (!(original instanceof Blob) || !original.size || !await isSafeHistoryImage(original)) {
-    throw new Error('历史图片格式无效或不安全。');
+    throw new Error(t('历史图片格式无效或不安全。'));
   }
 
   const image = new Image();
@@ -39,9 +40,9 @@ export async function makeImageRenditions(original) {
     image.decoding = 'async';
     image.src = url;
     try { await image.decode(); } catch (error) {
-      throw new Error('浏览器无法解码这张历史图片。', {cause: error});
+      throw new Error(t('浏览器无法解码这张历史图片。'), {cause: error});
     }
-    if (!image.naturalWidth || !image.naturalHeight) throw new Error('无法读取历史图片的尺寸。');
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error(t('无法读取历史图片的尺寸。'));
 
     canvas = document.createElement('canvas');
     const thumbnail = await drawRendition(canvas, image, 320, .76);

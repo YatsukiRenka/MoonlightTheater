@@ -1,4 +1,6 @@
-// Theme preference for every page: a pressed toggle means the light theme.
+// Page preferences for every page: theme (a pressed toggle means light) and language.
+import {lang, setLanguage, translateDocument} from './i18n.mjs';
+
 const themeKey = 'moonlight-theme';
 const root = document.documentElement;
 const toggle = document.getElementById('themeToggle');
@@ -39,6 +41,15 @@ function switchTheme(theme, origin) {
 }
 
 applyTheme(root.dataset.theme === 'light' ? 'light' : 'dark');
+
+translateDocument();
+for (const button of document.querySelectorAll('[data-ui-lang]')) {
+  button.setAttribute('aria-pressed', String(button.dataset.uiLang === lang));
+  button.addEventListener('click', () => setLanguage(button.dataset.uiLang));
+}
+// Legal pages carry all three languages; open the reader's section.
+if (lang !== 'zh' && !location.hash) document.getElementById(lang)?.scrollIntoView();
+root.classList.remove('i18n-pending');
 
 toggle?.addEventListener('click', () => {
   const next = root.dataset.theme === 'light' ? 'dark' : 'light';

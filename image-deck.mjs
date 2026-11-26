@@ -1,4 +1,5 @@
 import {icon} from './icons.mjs';
+import {t} from './i18n.mjs';
 
 const extensions = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg'};
 
@@ -16,7 +17,7 @@ export function mountImageDeck(container, record, {
   stage.className = 'image-deck-stage';
   stage.classList.toggle('has-stack', !preview && images.length > 1);
   stage.setAttribute('role', 'group');
-  stage.setAttribute('aria-label', '本批生成图片');
+  stage.setAttribute('aria-label', t('本批生成图片'));
   let current = initialIndex;
   let swipe;
   let suppressClick = false;
@@ -35,19 +36,19 @@ export function mountImageDeck(container, record, {
     const card = document.createElement(preview ? 'div' : 'button');
     card.className = 'image-deck-card';
     const image = document.createElement('img');
-    image.alt = preview ? '第 ' + (index + 1) + ' 张生成的角色图' : '';
+    image.alt = preview ? t('第 {n} 张生成的角色图', {n: index + 1}) : '';
     image.loading = compact ? 'lazy' : 'eager';
     image.draggable = false;
     image.referrerPolicy = 'no-referrer';
     image.onload = () => { if (current === index) setImageRatio(image); };
     image.onerror = () => {
       if (!preview) card.disabled = true;
-      card.textContent = '图片载入失败';
+      card.textContent = t('图片载入失败');
     };
     image.src = url;
     if (!preview) {
       card.type = 'button';
-      card.setAttribute('aria-label', '放大查看角色图 ' + (index + 1));
+      card.setAttribute('aria-label', t('放大查看角色图 {n}', {n: index + 1}));
       card.onclick = event => {
         if (suppressClick && event.detail !== 0) return;
         const ratio = image.naturalHeight ? image.naturalWidth / image.naturalHeight : 1;
@@ -61,7 +62,7 @@ export function mountImageDeck(container, record, {
   const caption = document.createElement('figcaption');
   if (!compact && !preview) {
     const metadata = document.createElement('span');
-    metadata.textContent = model + ' · ' + (language === 'en' ? 'EN' : '中文') + ' · ' + seed;
+    metadata.textContent = model + ' · ' + (language === 'en' ? 'EN' : t('中文')) + ' · ' + seed;
     caption.append(metadata);
   }
   const counter = document.createElement('span');
@@ -69,7 +70,7 @@ export function mountImageDeck(container, record, {
   counter.setAttribute('aria-live', 'polite');
   counter.hidden = images.length < 2;
   const link = document.createElement(remote ? 'button' : 'a');
-  link.textContent = '下载原图';
+  link.textContent = t('下载原图');
   const fileSeed = seed.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
   caption.append(counter, link);
   const progress = document.createElement('p');
@@ -84,7 +85,7 @@ export function mountImageDeck(container, record, {
       originalButton = document.createElement('button');
       originalButton.type = 'button';
       originalButton.className = link.className;
-      originalButton.textContent = '查看原图';
+      originalButton.textContent = t('查看原图');
       caption.insertBefore(originalButton, link);
       originalButton.onclick = () => void originalAction(false);
     }
@@ -118,18 +119,18 @@ export function mountImageDeck(container, record, {
   async function loadPreview() {
     const index = current;
     if (cards[index].tier >= 2) return;
-    progress.textContent = '正在加载预览图…';
+    progress.textContent = t('正在加载预览图…');
     try {
       displayTier(index, await fetchTier(index, 'preview'), 2);
-      if (current === index && cards[index].tier === 2) progress.textContent = '预览图';
+      if (current === index && cards[index].tier === 2) progress.textContent = t('预览图');
     } catch (error) {
-      if (current === index && cards[index].tier < 2) progress.textContent = '已显示本地缩略图。' + error.message;
+      if (current === index && cards[index].tier < 2) progress.textContent = t('已显示本地缩略图。') + error.message;
     }
   }
 
   async function originalAction(download) {
     const index = current;
-    progress.textContent = '正在读取原图…';
+    progress.textContent = t('正在读取原图…');
     link.disabled = true;
     if (originalButton) originalButton.disabled = true;
     try {
@@ -148,7 +149,7 @@ export function mountImageDeck(container, record, {
         originals.set(index, blob);
         displayTier(index, blob, 3);
       }
-      if (index === current) progress.textContent = download ? '已准备原图下载。' : '原图';
+      if (index === current) progress.textContent = t(download ? '已准备原图下载。' : '原图');
     } catch (error) {
       if (index === current) progress.textContent = error.message;
     } finally {
@@ -176,7 +177,7 @@ export function mountImageDeck(container, record, {
     setImageRatio(active.image);
     counter.textContent = (current + 1) + ' / ' + cards.length;
     if (remote) {
-      progress.textContent = active.tier === 3 ? '原图' : preview && active.tier === 2 ? '预览图' : '';
+      progress.textContent = active.tier === 3 ? t('原图') : preview && active.tier === 2 ? t('预览图') : '';
       if (preview) void loadPreview();
     } else {
       link.href = urls[current];
@@ -193,7 +194,7 @@ export function mountImageDeck(container, record, {
 
   const keyTarget = keyboardScope || deck;
   if (cards.length > 1) {
-    for (const [offset, name, direction] of [[-1, '上一张', 'left'], [1, '下一张', 'right']]) {
+    for (const [offset, name, direction] of [[-1, t('上一张'), 'left'], [1, t('下一张'), 'right']]) {
       const arrow = document.createElement('button');
       arrow.type = 'button';
       arrow.className = 'image-deck-nav ' + direction;

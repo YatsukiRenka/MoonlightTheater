@@ -1,3 +1,4 @@
+import {t} from './i18n.mjs';
 const million = 1_000_000;
 const currencyCode = value => typeof value === 'string' && /^[A-Z]{3}$/.test(value) ? value : null;
 function number(value) {
@@ -134,10 +135,10 @@ export function money(value, currency) {
 }
 
 export function priceLabel(rate) {
-  if (!rate) return '暂无可用单价';
-  const source = rate.source === 'catalog' ? '接口目录' : '官方参考价';
-  if (rate.perImage !== undefined) return source + ' · ' + money(rate.perImage, rate.currency) + ' / 张';
-  return source + ' · 输入 ' + money(rate.input, rate.currency)
-    + ' / 百万 Token · ' + (rate.imageOutput === undefined ? '输出 ' : '图片输出 ')
-    + money(rate.imageOutput ?? rate.output, rate.currency) + ' / 百万 Token';
+  if (!rate) return t('暂无可用单价');
+  const source = t(rate.source === 'catalog' ? '接口目录' : '官方参考价');
+  if (rate.perImage !== undefined) return t('{source} · {price} / 张', {source, price: money(rate.perImage, rate.currency)});
+  return t(rate.imageOutput === undefined ? '{source} · 输入 {input} / 百万 Token · 输出 {output} / 百万 Token' : '{source} · 输入 {input} / 百万 Token · 图片输出 {output} / 百万 Token', {
+    source, input: money(rate.input, rate.currency), output: money(rate.imageOutput ?? rate.output, rate.currency),
+  });
 }

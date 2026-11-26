@@ -1,4 +1,5 @@
 import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
+import {t} from './i18n.mjs';
 
 const databaseName = 'moonlight-image-history';
 const storeName = 'generations';
@@ -77,7 +78,7 @@ function recordId(record) {
 
 function historyRecord(record) {
   const {images = [], model, provider, prompt, seed, language, time, metrics, text, sources, cloud} = record;
-  if (!Array.isArray(images) || images.some(image => !(image instanceof Blob))) throw new Error('生图记录中的图片格式无效。');
+  if (!Array.isArray(images) || images.some(image => !(image instanceof Blob))) throw new Error(t('生图记录中的图片格式无效。'));
   const size = images.reduce((total, image) => total + image.size, 0);
   return {id: recordId({...record, images}), images, model, provider, prompt, seed, language, time, size, metrics, text, sources,
     ...(cloud && {cloud})};
@@ -210,7 +211,7 @@ async function writeRetainedImageHistory(incoming, limits, policy) {
         }
       };
       transaction.oncomplete = () => resolve(result);
-      transaction.onabort = () => reject(failure ?? transaction.error ?? new Error('无法保存生图记录。'));
+      transaction.onabort = () => reject(failure ?? transaction.error ?? new Error(t('无法保存生图记录。')));
     });
   } finally {
     db.close();
@@ -221,7 +222,7 @@ export async function saveImageHistory(record, limits = readHistoryLimits()) {
   if (!limits.imageCount) return {saved: false, disabled: true};
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id});
-  if (entry.size > imageHistoryByteLimit(limits)) throw new Error('图片超过生图记录的存储上限。');
+  if (entry.size > imageHistoryByteLimit(limits)) throw new Error(t('图片超过生图记录的存储上限。'));
   const result = await writeImageHistory([entry], limits);
   return {saved: result.added === 1, disabled: false};
 }
@@ -230,7 +231,7 @@ export async function stageCloudImageHistory(record, limits = readHistoryLimits(
   if (!limits.imageCount) return {saved: false, disabled: true, overLimit: false, removed: 0};
   const id = record.id === null || record.id === undefined || record.id === '' ? crypto.randomUUID() : record.id;
   const entry = historyRecord({...record, id, cloud: undefined});
-  if (!entry.images.length) throw new Error('生图记录中的图片格式无效。');
+  if (!entry.images.length) throw new Error(t('生图记录中的图片格式无效。'));
   if (!await holdStagedCloudImage(entry.id)) return {saved: false, disabled: false, overLimit: false, removed: 0};
   let saved = false;
   try {
@@ -326,7 +327,7 @@ export async function replaceImageHistoryWithCloud(originalRecord, thinRecord, l
         }
       };
       transaction.oncomplete = () => resolve(replaced);
-      transaction.onabort = () => reject(failure ?? transaction.error ?? new Error('无法更新生图记录的云端位置。'));
+      transaction.onabort = () => reject(failure ?? transaction.error ?? new Error(t('无法更新生图记录的云端位置。')));
     });
   } finally {
     db.close();

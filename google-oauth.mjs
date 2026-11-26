@@ -1,3 +1,4 @@
+import {t} from './i18n.mjs';
 const clientPattern = /^[A-Za-z0-9_-]{4,220}\.apps\.googleusercontent\.com$/;
 
 export function validGoogleClientId(clientId) {
@@ -13,7 +14,7 @@ export function loadGoogleOAuth() {
     script.async = true;
     const failed = () => {
       script.remove();
-      reject(new Error('无法加载 Google 登录，请检查网络后重试。'));
+      reject(new Error(t('无法加载 Google 登录，请检查网络后重试。')));
     };
     script.onload = () => {
       if (globalThis.google?.accounts?.oauth2) resolve(globalThis.google.accounts.oauth2);
@@ -45,8 +46,8 @@ export function requestGoogleToken(clientId, scope, permissionError) {
       },
       error_callback(error) {
         reject(new Error(error.type === 'popup_failed_to_open'
-          ? '浏览器拦截了 Google 登录窗口。请允许弹出窗口，再点击登录。'
-          : 'Google 登录窗口已关闭或授权失败。'));
+          ? t('浏览器拦截了 Google 登录窗口。请允许弹出窗口，再点击登录。')
+          : t('Google 登录窗口已关闭或授权失败。')));
       },
     });
     client.requestAccessToken({prompt: 'select_account'});

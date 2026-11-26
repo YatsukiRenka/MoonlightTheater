@@ -1,5 +1,6 @@
 import {clearLegacyImageResources, readImageResources, resolveImageResourceConfig, verifyImageResourceConfig} from './image-client.mjs';
 import {catalogPrice} from './image-usage.mjs';
+import {t} from './i18n.mjs';
 
 export const apiProviderNames = Object.freeze({
   openai: 'OpenAI', gemini: 'Gemini', 'gemini-oauth': 'Gemini · Google OAuth', custom: '自定义接口',
@@ -14,7 +15,7 @@ const resourceId = /^[A-Za-z0-9_-]{1,120}$/;
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function validatedProvider(provider) {
-  if (typeof provider !== 'string' || !Object.hasOwn(apiProviderNames, provider)) throw new Error('请选择一个有效的接口。');
+  if (typeof provider !== 'string' || !Object.hasOwn(apiProviderNames, provider)) throw new Error(t('请选择一个有效的接口。'));
 }
 
 function resourceName(name, provider) {
@@ -72,7 +73,7 @@ export function readAPIResources(storage = globalThis.localStorage) {
 function findTarget(rows, id, provider) {
   if (id === undefined || id === null || id === '') return undefined;
   const row = rows.find(saved => saved.id === id);
-  if (!row || row.provider !== provider) throw new Error('此接口已移除或类型已变更，请重新打开设置。');
+  if (!row || row.provider !== provider) throw new Error(t('此接口已移除或类型已变更，请重新打开设置。'));
   return row;
 }
 
@@ -94,7 +95,7 @@ export async function verifyAPIResource(provider, values, {
 function persistResources(storage, rows) {
   const previous = storage.getItem(storageKey);
   try { storage.setItem(storageKey, JSON.stringify(rows)); }
-  catch { throw new Error('浏览器无法保存本地配置。'); }
+  catch { throw new Error(t('浏览器无法保存本地配置。')); }
   // Retire the migrated copy after the new one is safely recorded.
   try { clearLegacyImageResources(storage); }
   catch (error) {
@@ -102,7 +103,7 @@ function persistResources(storage, rows) {
       if (previous === null) storage.removeItem(storageKey);
       else storage.setItem(storageKey, previous);
     } catch {}
-    throw new Error('浏览器无法移除旧版接口配置。', {cause: error});
+    throw new Error(t('浏览器无法移除旧版接口配置。'), {cause: error});
   }
 }
 
@@ -121,9 +122,9 @@ export async function saveAPIResource({id, provider, name, values, verification}
     const previous = findTarget(all, id, provider);
     const match = savedProofs.get(verification);
     if (verification && (!match || match.storage !== storage || match.origin !== origin
-      || match.provider !== provider || match.id !== previous?.id)) throw new Error('请先验证当前接口配置并获取模型。');
+      || match.provider !== provider || match.id !== previous?.id)) throw new Error(t('请先验证当前接口配置并获取模型。'));
     const label = (typeof name === 'string' ? name.trim() : '') || previous?.name || unusedResourceName(provider, all);
-    if (label.length > 80 || /[\x00-\x1f\x7f]/.test(label)) throw new Error('接口名称最多可填写 80 个字符。');
+    if (label.length > 80 || /[\x00-\x1f\x7f]/.test(label)) throw new Error(t('接口名称最多可填写 80 个字符。'));
     const config = resolveImageResourceConfig(provider, values, {previous: previous?.config, origin, verification: match?.verified});
     const row = {id: previous?.id ?? 'api-' + crypto.randomUUID(), provider, name: label, config};
     const updated = previous ? all.map(saved => saved.id === previous.id ? row : saved) : [...all, row];

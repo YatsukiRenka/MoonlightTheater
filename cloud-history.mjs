@@ -2,6 +2,7 @@ import {createCloudImageStore} from './cloud-image-store.mjs';
 import {makeImageRenditions} from './image-renditions.mjs';
 import {mergeCloudImageHistory, readImageHistory, replaceImageHistoryWithCloud} from './image-history.mjs';
 import {imageHistoryByteLimit, readHistoryLimits} from './history-limits.mjs';
+import {t} from './i18n.mjs';
 
 const modeKey = 'moonlight-history-cloud-gallery';
 const validInterval = value => Number.isInteger(value) && value >= 1 && value <= 1440;
@@ -15,17 +16,17 @@ export function createCloudHistory() {
   } catch {}
 
   function connected() {
-    if (!store) throw new Error('请先在历史设置中连接并解锁 Google Drive。');
+    if (!store) throw new Error(t('请先在历史设置中连接并解锁 Google Drive。'));
     return store;
   }
 
   async function transfer(record, session = connected()) {
-    if (store !== session) throw new Error('云图库连接已变更。');
+    if (store !== session) throw new Error(t('云图库连接已变更。'));
     const renditions = [];
     for (const image of record.images) renditions.push(await makeImageRenditions(image));
-    if (store !== session) throw new Error('云图库连接已变更。');
+    if (store !== session) throw new Error(t('云图库连接已变更。'));
     const cloud = await session.putBatch(record, renditions);
-    if (store !== session) throw new Error('云图库连接已变更。');
+    if (store !== session) throw new Error(t('云图库连接已变更。'));
     return {...record, images: renditions.map(image => image.thumbnail), cloud};
   }
 
@@ -34,7 +35,7 @@ export function createCloudHistory() {
     get enabled() { return settings.enabled; },
     get interval() { return settings.interval; },
     configure({enabled, interval}) {
-      if (!validInterval(interval)) throw new Error('同步间隔需填写 1 到 1440 分钟。');
+      if (!validInterval(interval)) throw new Error(t('同步间隔需填写 1 到 1440 分钟。'));
       const next = {enabled, interval};
       localStorage.setItem(modeKey, JSON.stringify(next));
       settings = next;
@@ -42,17 +43,17 @@ export function createCloudHistory() {
     async unlock(auth, passphrase, confirmation) {
       const candidate = createCloudImageStore(auth, passphrase);
       const result = await candidate.probePassword();
-      if (result === 'invalid') throw new Error('此口令无法解锁现有云图库。');
-      if (result === 'empty' && passphrase !== confirmation) throw new Error('首次使用云图库，请再输入一次相同的口令。');
+      if (result === 'invalid') throw new Error(t('此口令无法解锁现有云图库。'));
+      if (result === 'empty' && passphrase !== confirmation) throw new Error(t('首次使用云图库，请再输入一次相同的口令。'));
       store = candidate;
     },
     lock() { store = undefined; },
     prepareUpload() {
       const session = connected();
       return async record => {
-        if (!settings.enabled) throw new Error('自动同步已关闭。');
+        if (!settings.enabled) throw new Error(t('自动同步已关闭。'));
         const saved = await transfer(record, session);
-        if (!settings.enabled) throw new Error('自动同步已关闭。');
+        if (!settings.enabled) throw new Error(t('自动同步已关闭。'));
         return saved;
       };
     },
@@ -68,7 +69,7 @@ export function createCloudHistory() {
         try {
           if (await replaceImageHistoryWithCloud(record, await transfer(record))) replaced++;
         } catch (error) {
-          const failure = new Error('已将 ' + replaced + ' 批换为缩略图。本次遇到错误，余下本地原图继续保留。' + error.message, {cause: error});
+          const failure = new Error(t(t('已将 {n} 批换为缩略图。本次遇到错误，余下本地原图继续保留。'), {n: replaced}) + error.message, {cause: error});
           failure.status = error.status ?? error.cause?.status;
           throw failure;
         }
@@ -115,7 +116,7 @@ export function createCloudHistory() {
           failed++;
         }
       }
-      if (store !== session) throw new Error('云图库连接已变更，请重新合并。');
+      if (store !== session) throw new Error(t('云图库连接已变更，请重新合并。'));
       const result = await mergeCloudImageHistory(restored);
       return {...result, limited: limited || result.skipped > 0, unavailable: skipped + failed};
     },

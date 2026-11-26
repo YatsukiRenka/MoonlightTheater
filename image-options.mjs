@@ -1,14 +1,15 @@
+import {t} from './i18n.mjs';
 const fields = (key, label, values) => ({key, label, values});
 const range = (key, label, min, max, step = 1) => ({key, label, min, max, step});
 const choice = (value, label) => [value, label];
-const auto = choice('', '模型默认');
-const levels = {low: '低', medium: '中', high: '高', xhigh: '超高', max: '最高', minimal: '最少'};
+const auto = choice('', t('模型默认'));
+const levels = {low: t('低'), medium: t('中'), high: t('高'), xhigh: t('超高'), max: t('最高'), minimal: t('最少')};
 const levelOptions = ids => [auto, ...ids.map(id => choice(id, levels[id]))];
 const numbers = (min, max) => Array.from({length: max - min + 1}, (_, i) => choice(String(i + min), String(i + min)));
-const formats = [choice('', '默认'), choice('png', 'PNG'), choice('jpeg', 'JPEG'), choice('webp', 'WebP')];
-const backgrounds = [auto, choice('opaque', '不透明')];
-const standardSizes = [auto, choice('1024x1024', '方图 · 1024 × 1024'), choice('1024x1536', '竖图 · 1024 × 1536'), choice('1536x1024', '横图 · 1536 × 1024')];
-const largerSizes = [choice('2048x2048', '方图 · 2048 × 2048'), choice('2048x1152', '横图 · 2048 × 1152'), choice('1152x2048', '竖图 · 1152 × 2048'), choice('3840x2160', '横图 · 3840 × 2160'), choice('2160x3840', '竖图 · 2160 × 3840')];
+const formats = [choice('', t('默认')), choice('png', 'PNG'), choice('jpeg', 'JPEG'), choice('webp', 'WebP')];
+const backgrounds = [auto, choice('opaque', t('不透明'))];
+const standardSizes = [auto, choice('1024x1024', t('方图') + ' · 1024 × 1024'), choice('1024x1536', t('竖图') + ' · 1024 × 1536'), choice('1536x1024', t('横图') + ' · 1536 × 1024')];
+const largerSizes = [choice('2048x2048', t('方图') + ' · 2048 × 2048'), choice('2048x1152', t('横图') + ' · 2048 × 1152'), choice('1152x2048', t('竖图') + ' · 1152 × 2048'), choice('3840x2160', t('横图') + ' · 3840 × 2160'), choice('2160x3840', t('竖图') + ' · 2160 × 3840')];
 const baseRatios = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'];
 const legacySizes = {portrait: '1024x1536', square: '1024x1024', landscape: '1536x1024'};
 const legacyRatios = {portrait: '2:3', square: '1:1', landscape: '3:2'};
@@ -53,37 +54,37 @@ export function imageOptionFields(caps, settings = {}, hasReferences = false) {
     const gif = output === 'gif' && caps.v26;
     const raster = !svg && !gif;
     const compressed = output === 'jpeg' || output === 'webp';
-    const sizes = caps.flexible ? [...standardSizes, ...largerSizes, choice('custom', '自定义尺寸')] : standardSizes;
-    out.push(fields('size', '尺寸与方向', sizes));
+    const sizes = caps.flexible ? [...standardSizes, ...largerSizes, choice('custom', t('自定义尺寸'))] : standardSizes;
+    out.push(fields('size', t('尺寸与方向'), sizes));
     if (caps.flexible && settings.size === 'custom') {
-      out.push(range('width', '宽度（像素）', 16, 3840, 16), range('height', '高度（像素）', 16, 3840, 16));
+      out.push(range('width', t('宽度（像素）'), 16, 3840, 16), range('height', t('高度（像素）'), 16, 3840, 16));
     }
-    out.push(fields('quality', '画质', levelOptions(['low', 'medium', 'high', ...(caps.modern ? ['xhigh', 'max'] : [])])));
-    if (caps.v26) out.push(fields('complexity', '复杂度', levelOptions(['low', 'medium', 'high'])));
-    if (!svg) out.push(fields('n', '图片数量', numbers(1, 10)));
-    out.push(fields('output_format', '输出格式', [...formats, ...(caps.v26 ? [choice('gif', 'GIF 动图'), ...(!hasReferences ? [choice('svg', 'SVG 矢量')] : [])] : [])]));
-    if (!svg) out.push(fields('background', '背景', [...backgrounds, ...(raster && output !== 'jpeg' ? [choice('transparent', '透明')] : [])]));
-    out.push(fields('moderation', '内容审核', [auto, choice('low', '较宽松')]));
-    if (compressed) out.push(range('output_compression', '压缩质量（0–100）', 0, 100));
-    if (raster) out.push(fields('partial_images', '流式预览张数', [choice('', '关闭'), ...numbers(1, 3)]));
-    if (gif) out.push(range('frame_count', '动图帧数（默认 9）', 2, 16), range('frame_duration_ms', '每帧毫秒（默认 200）', 20, 2000, 10));
-    if (hasReferences && caps.fidelity) out.push(fields('input_fidelity', '参考图保真度', levelOptions(['low', 'high'])));
+    out.push(fields('quality', t('画质'), levelOptions(['low', 'medium', 'high', ...(caps.modern ? ['xhigh', 'max'] : [])])));
+    if (caps.v26) out.push(fields('complexity', t('复杂度'), levelOptions(['low', 'medium', 'high'])));
+    if (!svg) out.push(fields('n', t('图片数量'), numbers(1, 10)));
+    out.push(fields('output_format', t('输出格式'), [...formats, ...(caps.v26 ? [choice('gif', t('GIF 动图')), ...(!hasReferences ? [choice('svg', t('SVG 矢量'))] : [])] : [])]));
+    if (!svg) out.push(fields('background', t('背景'), [...backgrounds, ...(raster && output !== 'jpeg' ? [choice('transparent', t('透明'))] : [])]));
+    out.push(fields('moderation', t('内容审核'), [auto, choice('low', t('较宽松'))]));
+    if (compressed) out.push(range('output_compression', t('压缩质量（0–100）'), 0, 100));
+    if (raster) out.push(fields('partial_images', t('流式预览张数'), [choice('', t('关闭')), ...numbers(1, 3)]));
+    if (gif) out.push(range('frame_count', t('动图帧数（默认 9）'), 2, 16), range('frame_duration_ms', t('每帧毫秒（默认 200）'), 20, 2000, 10));
+    if (hasReferences && caps.fidelity) out.push(fields('input_fidelity', t('参考图保真度'), levelOptions(['low', 'high'])));
     return out;
   }
-  out.push(fields('aspectRatio', '画幅', [auto, ...caps.ratios.map(value => choice(value, value))]));
-  if (caps.imageSizes.length) out.push(fields('imageSize', '分辨率', [auto, ...caps.imageSizes.map(value => choice(value, value))]));
-  if (caps.thinking.length) out.push(fields('thinkingLevel', '思考档位', levelOptions(caps.thinking).map(([value, label]) => [value.toUpperCase(), label])));
-  out.push(fields('n', '生图请求次数', numbers(1, 4)));
-  if (caps.known) out.push(fields('modalities', '返回内容', [choice('', '图文'), choice('image', '仅图片')]));
+  out.push(fields('aspectRatio', t('画幅'), [auto, ...caps.ratios.map(value => choice(value, value))]));
+  if (caps.imageSizes.length) out.push(fields('imageSize', t('分辨率'), [auto, ...caps.imageSizes.map(value => choice(value, value))]));
+  if (caps.thinking.length) out.push(fields('thinkingLevel', t('思考档位'), levelOptions(caps.thinking).map(([value, label]) => [value.toUpperCase(), label])));
+  out.push(fields('n', t('生图请求次数'), numbers(1, 4)));
+  if (caps.known) out.push(fields('modalities', t('返回内容'), [choice('', t('图文')), choice('image', t('仅图片'))]));
   if (caps.search.length && (caps.vertex || caps.developer)) {
-    const searchNames = {web: '网页', images: '图片', both: '网页与图片'};
-    out.push(fields('search', 'Google 搜索辅助', [choice('', '关闭'), ...caps.search.map(value => choice(value, searchNames[value]))]));
+    const searchNames = {web: t('网页'), images: t('图片'), both: t('网页与图片')};
+    out.push(fields('search', t('Google 搜索辅助'), [choice('', t('关闭')), ...caps.search.map(value => choice(value, searchNames[value]))]));
   }
-  if (caps.known && caps.developer) out.push(fields('mimeType', '输出格式', [auto, choice('image/jpeg', 'JPEG')]));
+  if (caps.known && caps.developer) out.push(fields('mimeType', t('输出格式'), [auto, choice('image/jpeg', 'JPEG')]));
   if (caps.known && caps.vertex) {
-    out.push(fields('mimeType', '输出格式', [auto, choice('image/png', 'PNG'), choice('image/jpeg', 'JPEG')]));
-    if (settings.mimeType === 'image/jpeg') out.push(range('compressionQuality', 'JPEG 压缩质量（0–100）', 0, 100));
-    out.push(fields('personGeneration', '人像生成', [auto, choice('ALLOW_ALL', '允许人像'), choice('ALLOW_ADULT', '仅成人'), choice('ALLOW_NONE', '禁止人像')]));
+    out.push(fields('mimeType', t('输出格式'), [auto, choice('image/png', 'PNG'), choice('image/jpeg', 'JPEG')]));
+    if (settings.mimeType === 'image/jpeg') out.push(range('compressionQuality', t('JPEG 压缩质量（0–100）'), 0, 100));
+    out.push(fields('personGeneration', t('人像生成'), [auto, choice('ALLOW_ALL', t('允许人像')), choice('ALLOW_ADULT', t('仅成人')), choice('ALLOW_NONE', t('禁止人像'))]));
   }
   return out;
 }
@@ -98,7 +99,7 @@ export function prepareImageOptions(caps, settings, hasReferences) {
     } else {
       const number = Number(value);
       if (!Number.isInteger(number) || number < field.min || number > field.max || (number - field.min) % field.step) {
-        throw new Error(field.label + '需在 ' + field.min + ' 到 ' + field.max + ' 之间，步长为 ' + field.step + '。');
+        throw new Error(t('{label}需在 {min} 到 {max} 之间，步长为 {step}。', {label: field.label, min: field.min, max: field.max, step: field.step}));
       }
       normalized[field.key] = number;
     }
@@ -109,7 +110,7 @@ export function prepareImageOptions(caps, settings, hasReferences) {
     const pixels = width * height;
     if (!width || !height || Math.max(width, height) > 3 * Math.min(width, height)
       || (normalized.output_format !== 'gif' && (pixels < 655360 || pixels > 8294400))) {
-      throw new Error('自定义尺寸需要两边都是 16 的倍数，比例在 1:3 到 3:1 之间。静态图还需满足 655,360 至 8,294,400 像素。');
+      throw new Error(t('自定义尺寸需要两边都是 16 的倍数，比例在 1:3 到 3:1 之间。静态图还需满足 655,360 至 8,294,400 像素。'));
     }
     normalized.size = width + 'x' + height;
   }
@@ -120,14 +121,14 @@ export function prepareImageOptions(caps, settings, hasReferences) {
 }
 
 export function validateReferenceImages(files, caps) {
-  if (files.length > caps.maxReferences) throw new Error('当前模型最多可添加 ' + caps.maxReferences + ' 张参考图。');
+  if (files.length > caps.maxReferences) throw new Error(t('当前模型最多可添加 {n} 张参考图。', {n: caps.maxReferences}));
   let total = 0;
   for (const file of files) {
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size === 0) {
-      throw new Error('参考图需为有效的 PNG、JPEG 或 WebP 文件。');
+      throw new Error(t('参考图需为有效的 PNG、JPEG 或 WebP 文件。'));
     }
-    if (file.size > caps.maxReferenceBytes) throw new Error('参考图单张需小于 ' + Math.ceil(caps.maxReferenceBytes / 1048576) + ' MB。');
+    if (file.size > caps.maxReferenceBytes) throw new Error(t('参考图单张需小于 {n} MB。', {n: Math.ceil(caps.maxReferenceBytes / 1048576)}));
     total += file.size;
   }
-  if (total > caps.maxTotalBytes) throw new Error('参考图总大小需在 ' + Math.floor(caps.maxTotalBytes / 1048576) + ' MB 以内。');
+  if (total > caps.maxTotalBytes) throw new Error(t('参考图总大小需在 {n} MB 以内。', {n: Math.floor(caps.maxTotalBytes / 1048576)}));
 }

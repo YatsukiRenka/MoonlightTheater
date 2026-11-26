@@ -4,6 +4,7 @@ import {
 } from './drive-history.mjs';
 import {defaultHistoryLimits, historyLimitRanges} from './history-limits.mjs';
 import {sha256} from './vendor/noble-sha256.mjs';
+import {t} from './i18n.mjs';
 
 const mib = 1024 * 1024;
 const version = 1;
@@ -27,8 +28,8 @@ const headerSize = magic.length + saltSize + nonceSize + 4;
 const encodedSize = bytes => headerSize + bytes + Math.ceil(bytes / chunkSize) * tagSize;
 const hex = bytes => Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 const validId = value => typeof value === 'string' && objectId.test(value);
-const invalidManifest = () => new Error('云端生图记录格式无效。');
-const invalidImage = () => new Error('密码不正确，或云端图片未通过完整性校验。');
+const invalidManifest = () => new Error(t('云端生图记录格式无效。'));
+const invalidImage = () => new Error(t('密码不正确，或云端图片未通过完整性校验。'));
 
 // Web Crypto does not offer incremental digests. The vendored SHA-256 reads large files in bounded chunks.
 async function ciphertextChecksum(blob) {
@@ -149,8 +150,8 @@ async function transform(blob, header, key, context, decrypting, mime) {
 }
 
 export function createCloudImageStore(auth, password, {send = globalThis.fetch} = {}) {
-  if (typeof password !== 'string' || !password.length || password.length > 1024) throw new Error('请输入有效的云端备份密码。');
-  if (!globalThis.crypto?.subtle) throw new Error('此浏览器未提供云端图片加密功能，请通过安全连接打开应用。');
+  if (typeof password !== 'string' || !password.length || password.length > 1024) throw new Error(t('请输入有效的云端备份密码。'));
+  if (!globalThis.crypto?.subtle) throw new Error(t('此浏览器未提供云端图片加密功能，请通过安全连接打开应用。'));
   const options = {send};
   const keys = new Map();
   const manifests = new Map();
@@ -199,7 +200,7 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
     if (!Array.isArray(images) || !images.length || images.length > 100 || !images.every(item => tiers.every(tier => {
       const blob = item?.[tier];
       return blob instanceof Blob && validMedia(tier, blob.type, blob.size);
-    }))) throw new Error('云端图片分档无效或超过大小限制。');
+    }))) throw new Error(t('云端图片分档无效或超过大小限制。'));
     const salt = crypto.getRandomValues(new Uint8Array(saltSize));
     const created = [];
     const cloud = {version, batchId: metadata.id, renditions: []};
@@ -218,13 +219,13 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
           if (tier === 'original') {
             const storedChecksum = await readDriveImageChecksum(auth, receipt, options);
             if (!storedChecksum || storedChecksum !== await ciphertextChecksum(blob)) {
-              throw new Error('未能验证 Google Drive 上的原图，已保留本地原图。');
+              throw new Error(t('未能验证 Google Drive 上的原图，已保留本地原图。'));
             }
           }
         }
       }
       const json = new Blob([JSON.stringify({version, record: metadata, renditions: cloud.renditions})]);
-      if (json.size > manifestLimit) throw new Error('云端生图记录超过大小限制。');
+      if (json.size > manifestLimit) throw new Error(t('云端生图记录超过大小限制。'));
       const {blob} = await seal(json, salt, 'manifest');
       submitted = true;
       const {id} = await uploadDriveImageObject(auth, blob, 'manifest', {...options, generatedAt: metadata.time});
@@ -267,7 +268,7 @@ export function createCloudImageStore(auth, password, {send = globalThis.fetch} 
   }
 
   async function listBatches({limit = defaultHistoryLimits.imageCount} = {}) {
-    if (!Number.isInteger(limit) || limit < 0 || limit > manifestCacheLimit) throw new Error('云图库读取数量无效。');
+    if (!Number.isInteger(limit) || limit < 0 || limit > manifestCacheLimit) throw new Error(t('云图库读取数量无效。'));
     const listing = await listDriveImageManifests(auth, {...options, limit});
     const {files} = listing;
     const activeIds = new Set(files.map(file => file.id));

@@ -1,4 +1,5 @@
 import {apiProviderNames} from './api-resources.mjs';
+import {t} from './i18n.mjs';
 import {modelPrice, priceLabel} from './image-usage.mjs';
 
 export function setModelOptions(select, ids, value, placeholder) {
@@ -50,9 +51,9 @@ export function initializeImageSettings({verify, save, remove, google}) {
   let opener;
 
   origin.defaultValue = location.origin;
-  const providerPlaceholder = new Option('选择接口类型', '');
+  const providerPlaceholder = new Option(t('选择接口类型'), '');
   providerPlaceholder.disabled = true;
-  providerInput.append(providerPlaceholder, ...Object.entries(apiProviderNames).map(([id, label]) => new Option(label, id)));
+  providerInput.append(providerPlaceholder, ...Object.entries(apiProviderNames).map(([id, label]) => new Option(t(label), id)));
 
   function feedback(element, message, error = false) {
     element.textContent = message;
@@ -78,38 +79,38 @@ export function initializeImageSettings({verify, save, remove, google}) {
     const info = document.createElement('div');
     info.className = 'resource-row-info';
     const title = document.createElement('h2');
-    title.textContent = row.name;
+    title.textContent = row.name === apiProviderNames[row.provider] ? t(row.name) : row.name;
     const details = document.createElement('p');
     details.className = 'resource-row-details';
-    const label = apiProviderNames[row.provider] || row.provider;
-    details.textContent = row.model ? label + ' · 默认模型 ' + row.model : label;
+    const label = t(apiProviderNames[row.provider] || row.provider);
+    details.textContent = row.model ? t('{provider} · 默认模型 {model}', {provider: label, model: row.model}) : label;
     info.append(title, details);
     const status = document.createElement('span');
     status.className = 'resource-state';
     const oauth = row.provider === 'gemini-oauth';
-    status.textContent = row.ready ? oauth ? (row.connected ? '已授权' : '待授权') : '可用' : '待验证';
+    status.textContent = t(row.ready ? oauth ? (row.connected ? '已授权' : '待授权') : '可用' : '待验证');
     status.classList.toggle('resource-ready', row.ready && (!oauth || row.connected));
     const actions = document.createElement('div');
     actions.className = 'resource-row-actions';
-    actions.append(action('编辑', event => edit(row, event.currentTarget), '编辑资源 ' + row.name));
+    actions.append(action(t('编辑'), event => edit(row, event.currentTarget), t('编辑资源 {name}', {name: row.name})));
     if (oauth && row.ready) {
-      const text = row.connected ? '断开 Google 授权' : '连接 Google';
+      const text = t(row.connected ? '断开 Google 授权' : '连接 Google');
       actions.append(action(text, () => run(listFeedback, () => google(row.id)), text + ' · ' + row.name));
     }
-    actions.append(action('移除', () => {
-      if (!window.confirm('移除「' + row.name + '」的本地资源配置？')) return;
+    actions.append(action(t('移除'), () => {
+      if (!window.confirm(t('移除「{name}」的本地资源配置？', {name: row.name}))) return;
       void run(listFeedback, async () => {
         await remove(row.id);
-        return '已移除「' + row.name + '」。';
+        return t('已移除「{name}」。', {name: row.name});
       });
-    }, '移除资源 ' + row.name));
+    }, t('移除资源 {name}', {name: row.name})));
     item.append(info, status, actions);
     return item;
   }
 
   function renderList() {
     connection.hidden = Array.isArray(rows);
-    connection.textContent = connection.hidden ? '' : '浏览器未允许本站使用本地存储。';
+    connection.textContent = connection.hidden ? '' : t('浏览器未允许本站使用本地存储。');
     add.disabled = busy || !Array.isArray(rows);
     empty.hidden = !rows || rows.length > 0;
     list.replaceChildren(...(rows || []).map(resourceRow));
@@ -130,18 +131,18 @@ export function initializeImageSettings({verify, save, remove, google}) {
     editsLabel.hidden = !custom || format.value !== 'openai';
     form.elements.namedItem('editsURL').disabled = editsLabel.hidden;
     byId('customURLHelp').textContent = format.value === 'gemini'
-      ? '例如 https://gateway.example/v1beta/models/{model}:generateContent'
-      : '例如 https://gateway.example/v1/images/generations';
-    byId('apiResourceKeyLabel').textContent = custom ? '网关 API Key（选填）' : (apiProviderNames[provider] || '') + ' API Key';
-    keyInput.placeholder = row?.hasSecret ? '•••••••• · 留空保留' : '';
+      ? t('例如 {url}', {url: 'https://gateway.example/v1beta/models/{model}:generateContent'})
+      : t('例如 {url}', {url: 'https://gateway.example/v1/images/generations'});
+    byId('apiResourceKeyLabel').textContent = custom ? t('网关 API Key（选填）') : (apiProviderNames[provider] || '') + ' API Key';
+    keyInput.placeholder = row?.hasSecret ? '•••••••• · ' + t('留空保留') : '';
     keyInput.required = usesKey && !custom && !row?.hasSecret;
     clearKey.closest('label').hidden = clearKey.disabled = !custom || !row?.hasSecret;
     keyInput.disabled = !clearKey.disabled && clearKey.checked;
 
     const models = verification?.models ?? (!connectionChanged && row?.ready ? row.models : []) ?? [];
-    setModelOptions(model, models, selectedModel, models.length ? '请选择模型' : '验证后获取模型');
+    setModelOptions(model, models, selectedModel, t(models.length ? '请选择模型' : '验证后获取模型'));
     model.disabled = !models.length;
-    verifyButton.textContent = oauth ? '授权并获取模型' : '验证并获取模型';
+    verifyButton.textContent = t(oauth ? '授权并获取模型' : '验证并获取模型');
     verifyButton.disabled = !provider;
     saveButton.disabled = !model.value;
     price.hidden = !model.value;
@@ -180,7 +181,7 @@ export function initializeImageSettings({verify, save, remove, google}) {
     nameInput.value = row?.name || '';
     providerInput.value = row?.provider || '';
     for (const field of transportFields) form.elements.namedItem(field).value = row?.[field] || (field === 'format' ? 'openai' : '');
-    byId('apiResourceEditorTitle').textContent = row ? '编辑 API 资源' : '添加 API 资源';
+    byId('apiResourceEditorTitle').textContent = t(row ? '编辑 API 资源' : '添加 API 资源');
     feedback(formFeedback, '');
     renderEditor();
     dialog.showModal();
@@ -217,9 +218,9 @@ export function initializeImageSettings({verify, save, remove, google}) {
     if (!form.reportValidity() || busy) return;
     const input = values();
     void run(formFeedback, async () => {
-      feedback(formFeedback, '正在验证并获取模型…');
+      feedback(formFeedback, t('正在验证并获取模型…'));
       verification = await verify(providerInput.value, input, editingId);
-      return '已获取 ' + verification.models.length + ' 个模型。';
+      return t('已获取 {n} 个模型。', {n: verification.models.length});
     });
   };
   form.onsubmit = event => {
@@ -228,7 +229,7 @@ export function initializeImageSettings({verify, save, remove, google}) {
     const resource = {id: editingId, provider: providerInput.value, name: nameInput.value.trim(), values: values(), verification};
     void run(formFeedback, async () => {
       const saved = await save(resource);
-      feedback(listFeedback, '已保存「' + (saved?.name || resource.name || apiProviderNames[resource.provider]) + '」。');
+      feedback(listFeedback, t('已保存「{name}」。', {name: saved?.name || resource.name || t(apiProviderNames[resource.provider])}));
       dialog.close();
     });
   };
@@ -244,11 +245,11 @@ export function initializeImageSettings({verify, save, remove, google}) {
   byId('copyOAuthOrigin').onclick = async () => {
     try {
       await navigator.clipboard.writeText(origin.value);
-      feedback(formFeedback, '已复制 JavaScript 来源。');
+      feedback(formFeedback, t('已复制 JavaScript 来源。'));
     } catch {
       origin.focus();
       origin.select();
-      feedback(formFeedback, '已选中 JavaScript 来源，可手动复制。');
+      feedback(formFeedback, t('已选中 JavaScript 来源，可手动复制。'));
     }
   };
 
