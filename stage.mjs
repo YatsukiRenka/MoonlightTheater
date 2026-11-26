@@ -168,6 +168,8 @@ function watchPlateLayout(plate, figure) {
   if (!plateBreakpoint) {
     plateBreakpoint = window.matchMedia('(min-width: 60em)');
     plateBreakpoint.addEventListener('change', layoutPlate);
+    // A late web font changes the callouts' line breaks, so the leader lines are measured again.
+    document.fonts?.addEventListener('loadingdone', layoutPlate);
   }
 
   if (observedPlate === plate || typeof ResizeObserver === 'undefined') return;

@@ -22,8 +22,10 @@
   --title-3: #bba5d8;
   --moon-hover: #ffffff;
   --glow: #bba5d8;
-  --f-song: "MT Song", "MT Cormorant", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --f-song: "MT Song", "MT Text", "MT Cormorant", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
   --f-latin: "MT Cormorant", "Cormorant Garamond", Georgia, serif;
+  /* Reading text is set in the serif too; fields and menus keep the system sans for typing. */
+  --f-text: "MT Text", "MT Cormorant", "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
   --f-symbol: "Segoe UI Symbol", "Apple Symbols", serif;
   --f-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
   --f-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
@@ -62,6 +64,15 @@
   src: url("assets/fonts/noto-serif-sc-display.woff2") format("woff2");
   font-style: normal;
   font-weight: 500 900;
+  font-display: swap;
+}
+
+/* The text face: every Chinese character and kana the interface and the materials use. */
+@font-face {
+  font-family: "MT Text";
+  src: url("assets/fonts/noto-serif-sc-text.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 900;
   font-display: swap;
 }
 
@@ -182,6 +193,16 @@ h1, h2, h3, h4 {
 }
 
 p { text-wrap: pretty; }
+
+.plate,
+.plate-tools,
+.stage-lede,
+header nav,
+.console label {
+  font-family: var(--f-text);
+}
+
+.plate .slottext { font-weight: 500; }
 
 button,
 a,
@@ -3554,17 +3575,63 @@ dialog.resource-editor {
 
   .slot::before { transition: opacity .2s; }
 
-  .slot.recast .slottext,
-  .slot.recast .swatches {
-    animation: recast .7s cubic-bezier(.2, .7, .1, 1) both;
+  /* A new cast: changed roles go dark while the moon wanes, then, as it waxes, each leader line is
+     drawn out from the moon and the role develops along it, left and right in turn. */
+  .cast .slot:nth-child(1) { --row: 0; }
+
+  .cast .slot:nth-child(2) { --row: 1; }
+
+  .cast .slot:nth-child(3) { --row: 2; }
+
+  .cast .slot:nth-child(4) { --row: 3; }
+
+  .cast .slot:nth-child(5) { --row: 4; }
+
+  .cast .slot:nth-child(6) { --row: 5; }
+
+  .cast .slot:nth-child(7) { --row: 6; }
+
+  .cast .slot:nth-child(8) { --row: 7; }
+
+  .cast .slot:nth-child(9) { --row: 8; }
+
+  .cast[data-side="right"] { --side: 1; }
+
+  .slot.recast {
+    --cue: calc(1s + (var(--row, 0) * 2 + var(--side, 0)) * 90ms);
   }
 
-  @keyframes recast {
-    from {
-      opacity: 0;
-      filter: blur(4px);
-      translate: 0 .4em;
-    }
+  .slot.recast .slottext,
+  .slot.recast .swatches {
+    animation: develop-out .85s cubic-bezier(.2, .7, .1, 1) calc(var(--cue) + .3s) backwards;
+  }
+
+  .cast[data-side="left"] .slot.recast .slottext,
+  .cast[data-side="left"] .slot.recast .swatches { animation-name: develop-in; }
+
+  .plate .slot.recast::after { animation: leader-out .5s cubic-bezier(.3, .6, .2, 1) var(--cue) backwards; }
+
+  .plate .cast[data-side="left"] .slot.recast::after { animation-name: leader-in; }
+
+  /* Left roles sit left of the moon, so their light arrives from the right. */
+  @keyframes develop-in {
+    from { clip-path: inset(-.5em -.5em -.5em 100%); opacity: .3; filter: blur(3px); }
+    to { clip-path: inset(-.5em); opacity: 1; filter: blur(0); }
+  }
+
+  @keyframes develop-out {
+    from { clip-path: inset(-.5em 100% -.5em -.5em); opacity: .3; filter: blur(3px); }
+    to { clip-path: inset(-.5em); opacity: 1; filter: blur(0); }
+  }
+
+  @keyframes leader-in {
+    from { clip-path: inset(0 0 0 100%); }
+    to { clip-path: inset(0); }
+  }
+
+  @keyframes leader-out {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0); }
   }
 
   .record > .sigil {
