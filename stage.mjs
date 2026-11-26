@@ -459,6 +459,7 @@ export function renderStage({seed, act, exploration, colors, selection} = {}) {
   if (structureChanged) stage = buildStage(svg);
 
   updateHeroAct(normalizedSeed, act);
+  paintMoon({seed: normalizedSeed, colors, selection});
   stage.textPath.textContent = textRingContent(normalizedSeed, act);
   updateExploration(stage.frame, exploration);
   stage.gels.forEach((gel, index) => gel.setAttribute('fill', colors?.[index] || fallbackGels[index]));
@@ -471,6 +472,83 @@ export function renderStage({seed, act, exploration, colors, selection} = {}) {
   previousSeed = normalizedSeed;
   previousSelection = {...(selection || {})};
   layoutPlate();
+}
+
+const moonStyles = {clean_cel: 'cel', soft_pastel: 'soft', graphic_cel: 'graphic'};
+
+function hexChannels(color) {
+  const match = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
+  if (!match) return null;
+  const value = parseInt(match[1], 16);
+  return [value >> 16 & 255, value >> 8 & 255, value & 255];
+}
+
+function relativeLuminance(color) {
+  const channels = hexChannels(color);
+  if (!channels) return 0.5;
+  const [red, green, blue] = channels.map(channel => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function hslHex(hue, saturation, lightness) {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const k = n => (n + hue / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const channel = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))));
+  return '#' + [channel(0), channel(8), channel(4)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+// The moon is painted from the cast itself: the palette supplies the colours, the seed and palette together
+// place the light, and the drawing style decides how the light is rendered.
+export function moonArt({seed, palette, colors, style} = {}) {
+  const random = seedRandom(`${seedText(seed)}|${palette ?? ''}`);
+  const given = (colors || []).filter(color => hexChannels(color));
+  let tones;
+  if (given.length >= 3) {
+    tones = given.slice(0, 3);
+  } else {
+    // Custom palettes have no swatches: derive a triad from the seed instead.
+    const hue = random() * 360;
+    tones = [hslHex(hue, 55, 86), hslHex((hue + 38) % 360, 42, 64), hslHex((hue + 210) % 360, 38, 28)];
+  }
+  const [light, mid, deep] = [...tones].sort((first, second) => relativeLuminance(second) - relativeLuminance(first));
+  const percent = (low, high) => `${(low + random() * (high - low)).toFixed(1)}%`;
+  const angle = Math.round(random() * 360);
+  // The gradient runs light → deep along the angle (CSS: 0deg points up), so the lit side is behind it.
+  const radians = angle * Math.PI / 180;
+  const toward = {x: Math.sin(radians), y: -Math.cos(radians)};
+  const lit = 20 + random() * 10;
+  const edge = 9 + random() * 8;
+  const at = value => `${value.toFixed(1)}%`;
+  // Four colour pools for the slowly turning marble inside the moon.
+  const pools = Array.from({length: 4}, () => [percent(14, 86), percent(14, 86)]);
+  return {
+    variant: moonStyles[style] || 'soft',
+    vars: {
+      '--m-light': light,
+      '--m-mid': mid,
+      '--m-deep': deep,
+      '--m-angle': `${angle}deg`,
+      '--m-x': at(50 - toward.x * lit),
+      '--m-y': at(50 - toward.y * lit),
+      // The cel terminator: a circle shifted toward the light; everything outside it is shadow.
+      '--m-tx': at(50 - toward.x * edge),
+      '--m-ty': at(50 - toward.y * edge),
+      ...Object.fromEntries(pools.flatMap(([x, y], index) => [[`--p${index}x`, x], [`--p${index}y`, y]]))
+    }
+  };
+}
+
+function paintMoon({seed, colors, selection}) {
+  const moon = document.getElementById('dialMoon');
+  if (!moon) return;
+  const art = moonArt({seed, palette: selection?.palette, colors, style: selection?.style});
+  moon.dataset.variant = art.variant;
+  for (const [name, value] of Object.entries(art.vars)) moon.style.setProperty(name, value);
 }
 
 export function setExploration(value) {

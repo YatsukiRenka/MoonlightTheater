@@ -73,7 +73,7 @@ function commit(seed,result){
 }
 function make(kind){const seed=kind==='replay'?$('seed').value.trim():newSeed();if(!seed)throw Error('请先输入随机种子');
  const profile=libraryProfile();
- const selected=kind==='fresh'?{style:fixed().style,presentation:cur()?.selection.presentation??profile.settings.defaultPresentation}:fixed();
+ const selected=fixed();
  const manual=manualFor(selected),f=availableSelection(profile,selected,manual);
  const history=kind==='replay'?[]:model.history.map(entry=>entry.selection);
  const result=generate(profile,seed,{fixed:f,manual,exploration:pref.exploration,history});
@@ -126,7 +126,7 @@ function draw(){
  const rows=expanded?rowKeys:rowKeys.slice(0,5),slots=$('slots'),half=Math.ceil(rows.length/2);const slot=k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+'<span class="slottext"></span></button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'};slots.innerHTML='<div class="cast" data-side="left">'+rows.slice(0,half).map(slot).join('')+'</div><div class="cast" data-side="right">'+rows.slice(half).map(slot).join('')+'</div>';
  slots.querySelectorAll('[data-edit]').forEach(button=>{const k=button.dataset.edit;button.setAttribute('title',labelFor(k,s));button.querySelector('.slottext').textContent=short(k,s)});
  $('expand').innerHTML=expanded?'收起其余设定 '+icon('down'):'展开全部设定（'+rowKeys.length+'） '+icon('down');
- $('output').value=cur().edits?.[pref.lang]??cur().prompt[pref.lang];count();document.querySelectorAll('[data-lang]').forEach(b=>{b.classList.toggle('selected',b.dataset.lang===pref.lang);b.setAttribute('aria-pressed',b.dataset.lang===pref.lang)});
+ $('output').value=cur().edits?.[pref.lang]??cur().prompt[pref.lang];count();
  $('ratings').innerHTML=['喜欢','一般','不喜欢'].map((r,i)=>{
   const pressed=cur().feedback?.rating===r;
   return '<button class="'+(pressed?'selected':'')+'" data-rate="'+r+'" aria-pressed="'+pressed+'">'+icon(['heart','dot','x'][i])+r+'</button>';
@@ -232,14 +232,13 @@ function page() {
 function showError(message){if($('dialog').open)$('dstatus').textContent=message;else notify(message)}
 function attempt(fn){try{fn()}catch(e){showError(e.message)}}
 document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.createRange().createContextualFragment(icon(el.dataset.icon))));
-for(const [id,type] of [['generate','new'],['fresh','fresh'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
+for(const [id,type] of [['generate','new'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
 $('branch').onchange=()=>{const v=$('branch').value;if(model.locks.includes('branch')&&v!==sel().branch){notify('请先解锁风格分支');configControls();return}pref.branch=v;persist()};
 $('style').onchange=()=>{const old=pref.style;try{setSlot('style',$('style').value)}catch(e){pref.style=old;configControls();notify(e.message)}};
 $('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('explore').style.setProperty('--control-value',$('explore').value);$('exploreValue').textContent=$('explore').value+'%';setExploration(pref.exploration);persist()};
 $('unlock').onclick=()=>{model.locks=[];pref.branch='';const saved=persist();draw();if(saved)notify('已解除全部锁定')};
 $('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit,b);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}});restoreButtonFocus(b)};
 $('expand').onclick=()=>{expanded=!expanded;draw()};
-document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{pref.lang=b.dataset.lang;persist();draw()});
 $('output').oninput=()=>{cur().edits[pref.lang]=$('output').value;count();saveCurrent()};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('output').value);notify('已复制当前提示词')}catch{$('output').select();notify(document.execCommand('copy')?'已复制当前提示词':'已选中提示词，可手动复制')}};
 $('ratings').onclick=e=>{let b=e.target.closest('[data-rate]');if(!b)return;const rating=b.dataset.rate;showDialog('记录评价 · '+rating,'<label class="settinglabel">评价对象<select id="rateTarget" autofocus>'+opt('design','角色设定')+opt('image','实际成图')+'</select></label><label class="settinglabel">备注（选填）<input id="rateNote" maxlength="500" placeholder="哪些细节合你的口味？"></label><button class="copy" id="saveRate">保存评价</button>',b);$('rateTarget').value=cur().feedback?.target||'design';$('rateNote').value=cur().feedback?.note||'';$('saveRate').onclick=()=>{cur().feedback={rating,target:$('rateTarget').value,note:$('rateNote').value,time:Date.now(),selection:{...sel()}};const saved=saveCurrent();closeDialog();draw();restoreButtonFocus(b);if(saved)notify('评价已保存')}};
@@ -396,7 +395,8 @@ function setImageVisibility(visible, remember=true) {
  $('toggleImageStudio').setAttribute('aria-expanded',visible);
  if(remember)try{localStorage.setItem(visibilityKey,String(!visible))}catch{}
 }
-try{setImageVisibility(localStorage.getItem(visibilityKey)!=='true',false)}catch{}
+// The image studio stays hidden until the visitor asks for it.
+try{setImageVisibility(localStorage.getItem(visibilityKey)==='false',false)}catch{}
 $('toggleImageStudio').onclick=()=>{
  const visible=$('imageStudio').hidden;
  setImageVisibility(visible);

@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="text-scale" content="scale">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0b0a10">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; font-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; font-src 'self'">
   <meta name="referrer" content="no-referrer">
   <title>服务条款 / Terms of Service / 利用規約 · 月光剧场</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <script src="boot.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,7 +23,7 @@
         <a href="index.html#history">历史记录</a>
         <a href="index.html#settings">设置</a>
       </nav>
-      <span class="local"><b></b> 本地工作区</span>
+      <div class="prefs"><button type="button" class="pref-theme" id="themeToggle" aria-pressed="false" aria-label="浅色主题" title="浅色主题"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="pref-sun" cx="12" cy="12" r="4.2"/><path class="pref-rays" d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/><path class="pref-moon" d="M15.8 3.6a8.6 8.6 0 1 0 4.6 12.7A7 7 0 0 1 15.8 3.6z"/></svg></button><div class="pref-lang" role="group" aria-label="页面语言"><button type="button" data-ui-lang="zh" lang="zh-CN" aria-pressed="true">中</button><button type="button" data-ui-lang="en" lang="en" aria-pressed="false">EN</button><button type="button" data-ui-lang="ja" lang="ja" aria-pressed="false">日</button></div></div>
     </div>
   </header>
   <main class="legal-page">
@@ -92,5 +93,6 @@
       <span lang="en">Moonlight Theater</span>
     </footer>
   </main>
+  <script type="module" src="prefs.mjs"></script>
 </body>
 </html>

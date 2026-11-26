@@ -1,9 +1,9 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="text-scale" content="scale"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#0b0a10"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="preload" href="profile.json" as="fetch" crossorigin><link rel="preload" href="assets/portrait.avif" as="image" type="image/avif" fetchpriority="high"><link rel="preload" href="assets/fonts/noto-serif-sc-display.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/cormorant-italic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span><span class="brand-name">月光剧场</span></a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>设计库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="text-scale" content="scale"><meta name="color-scheme" content="dark light"><meta name="theme-color" content="#0b0a10"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="preload" href="profile.json" as="fetch" crossorigin><script src="boot.js"></script><link rel="preload" href="assets/fonts/noto-serif-sc-display.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/cormorant-italic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body>
+<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span><span class="brand-name">月光剧场</span></a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>设计库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><div class="prefs"><button type="button" class="pref-theme" id="themeToggle" aria-pressed="false" aria-label="浅色主题" title="浅色主题"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="pref-sun" cx="12" cy="12" r="4.2"/><path class="pref-rays" d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/><path class="pref-moon" d="M15.8 3.6a8.6 8.6 0 1 0 4.6 12.7A7 7 0 0 1 15.8 3.6z"/></svg></button><div class="pref-lang" role="group" aria-label="页面语言"><button type="button" data-ui-lang="zh" lang="zh-CN" aria-pressed="true">中</button><button type="button" data-ui-lang="en" lang="en" aria-pressed="false">EN</button><button type="button" data-ui-lang="ja" lang="ja" aria-pressed="false">日</button></div></div></div></header>
 <main><section id="studio">
   <section class="stage" aria-labelledby="stageTitle">
     <p class="hero-title" aria-hidden="true">月光剧场</p>
-    <div class="hero-colophon" aria-hidden="true"><span class="seal">今夜<br>开演</span><span class="hero-act" id="heroAct">Nº</span></div>
+    <div class="hero-colophon" aria-hidden="true"><span class="hero-act" id="heroAct">Nº</span></div>
     <header class="stage-head">
       <p class="hero-kicker" lang="en" aria-hidden="true">Moonlight Theater</p>
       <h1 id="stageTitle">角色提示词<wbr>生成器</h1>
@@ -11,17 +11,16 @@
     </header>
     <div class="plate" id="plate">
       <h2 class="plate-title"><span class="aside" lang="en" aria-hidden="true">Dramatis Personæ</span>角色设计</h2>
-      <figure class="hero-dial" aria-hidden="true"><div class="dial-moon"></div><svg id="stageDial" viewBox="0 0 640 640" focusable="false"></svg></figure>
+      <figure class="hero-dial" aria-hidden="true"><div class="dial-moon" id="dialMoon"><i class="moon-swirl"></i><i class="moon-shade"></i></div><svg id="stageDial" viewBox="0 0 640 640" focusable="false"></svg></figure>
       <div id="slots"></div>
     </div>
     <div class="plate-tools"><button id="expand" class="more"></button><button class="subtle" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div>
     <div class="console" role="group" aria-label="生成设置">
       <div class="fields"><label>风格分支<select id="branch"></select></label><label>绘制画风<select id="style"></select></label><label>探索度 <b class="number" id="exploreValue">18%</b><input type="range" min="0" max="100" id="explore"></label><label><span id="seedLabel">随机种子</span> <span class="seedinput"><input id="seed" aria-labelledby="seedLabel" placeholder="输入种子" maxlength="128"><button type="button" id="replay" title="按种子重现" aria-label="按种子重现"><i data-icon="repeat"></i></button></span></label></div>
       <div class="console-actions">
-        <button class="ghost" id="fresh"><i data-icon="spark"></i>全新角色</button>
-        <button class="primary" id="generate"><i data-icon="dice"></i>随机生成</button>
+        <button class="primary" id="generate"><i data-icon="dice"></i><span>随机生成</span></button>
       </div>
-      <div class="console-links"><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button><button class="subtle" id="toggleImageStudio" type="button" aria-expanded="true" aria-controls="imageStudio"><i data-icon="eye"></i><span>隐藏生图</span></button></div>
+      <div class="console-links"><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button><button class="subtle" id="toggleImageStudio" type="button" aria-expanded="false" aria-controls="imageStudio"><i data-icon="eye"></i><span>显示生图</span></button></div>
     </div>
     <i class="twinkle" aria-hidden="true" style="--x:51%;--y:12%;--d:0s;--s:.74"></i>
     <i class="twinkle" aria-hidden="true" style="--x:59%;--y:27%;--d:-3s;--s:.65"></i>
@@ -31,11 +30,10 @@
     <i class="twinkle" aria-hidden="true" style="--x:98%;--y:33%;--d:-2.3s;--s:.58"></i>
     <i class="twinkle" aria-hidden="true" style="--x:64%;--y:6%;--d:-3.7s;--s:.42"></i>
   </section>
-  <div class="workgrid" id="workgrid">
-    <section class="panel prompt"><div class="section-heading"><span class="act" aria-hidden="true">III</span><h2>完整提示词</h2><span class="aside" lang="en" aria-hidden="true">The Script</span><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section>
-    <section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading">
+  <div class="workgrid image-hidden" id="workgrid">
+    <section class="panel prompt"><div class="section-heading"><h2>完整提示词</h2><span class="aside" lang="en" aria-hidden="true">The Script</span></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section>
+    <section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading" hidden>
   <div class="section-heading">
-    <span class="act" aria-hidden="true">IV</span>
     <h2 id="imageHeading">图片生成</h2>
     <span class="aside" lang="en" aria-hidden="true">The Stage</span>
     <a class="subtle right image-settings-link" href="#settings">配置接口</a>
@@ -86,7 +84,7 @@
 </section>
   </div>
 </section>
-<section id="library" hidden><div class="pagehead"><div><small lang="en" aria-hidden="true">The Wardrobe</small><h1>设计库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入设计库</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出设计库</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="act" aria-hidden="true">✦</span><h2>素材与抽取权重</h2><span class="aside" lang="en" aria-hidden="true">Inventory</span></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
+<section id="library" hidden><div class="pagehead"><div><small lang="en" aria-hidden="true">The Wardrobe</small><h1>设计库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入设计库</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出设计库</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><h2>素材与抽取权重</h2><span class="aside" lang="en" aria-hidden="true">Inventory</span></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
 <section id="history" hidden>
   <div class="pagehead history-heading">
     <div><small lang="en" aria-hidden="true">The Archive</small><h1>历史记录</h1></div>
@@ -272,4 +270,4 @@
   <div class="dialoghead"><h2 id="imagePreviewTitle">角色图预览</h2><button type="button" id="closeImagePreview" aria-label="关闭预览"><i data-icon="x"></i></button></div>
   <div id="imagePreviewAsset"></div>
 </dialog>
-<div role="status" id="toast"></div><script type="module" src="app.mjs"></script></body></html>
+<div role="status" id="toast"></div><script type="module" src="prefs.mjs"></script><script type="module" src="app.mjs"></script></body></html>

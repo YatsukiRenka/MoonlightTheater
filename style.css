@@ -13,6 +13,13 @@
   --lilac: #bba5d8;
   --ver: #e8634f;
   --ok: #9cc3a8;
+  --star: #ece7f3;
+  --sky-1: #2a1f3d;
+  --sky-2: #1b1426;
+  --shade: #000;
+  --title-1: #fbf9ff;
+  --title-2: #ece7f3;
+  --title-3: #bba5d8;
   --f-song: "MT Song", "MT Cormorant", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
   --f-latin: "MT Cormorant", "Cormorant Garamond", Georgia, serif;
   --f-symbol: "Segoe UI Symbol", "Apple Symbols", serif;
@@ -20,6 +27,30 @@
   --f-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   accent-color: var(--lilac);
   scrollbar-color: var(--field-line) var(--ink);
+}
+
+/* Light theme: pale lilac paper, deep violet ink. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: #efe8f7;
+  --ink-2: #f8f4fc;
+  --ink-3: #fffdff;
+  --moon: #2a1d3d;
+  --moon-2: #4b3d61;
+  --mute: #6b5e80;
+  --line: rgb(42 29 61 / .12);
+  --line-2: rgb(42 29 61 / .24);
+  --field-line: #857799;
+  --lilac: #6b4c9a;
+  --ver: #b83e2a;
+  --ok: #2a6e4a;
+  --star: #7b5aa8;
+  --sky-1: #ddc9f3;
+  --sky-2: #f4e4ee;
+  --shade: #3a2456;
+  --title-1: #3a2756;
+  --title-2: #523a79;
+  --title-3: #9068c4;
 }
 
 @font-face {
@@ -280,8 +311,8 @@ body::before {
   z-index: -1;
   content: "" / "";
   background:
-    radial-gradient(60rem 40rem at 82% -10%, #2a1f3d, transparent 70%),
-    radial-gradient(50rem 50rem at -10% 110%, #1b1426, transparent 70%);
+    radial-gradient(60rem 40rem at 82% -10%, var(--sky-1), transparent 70%),
+    radial-gradient(50rem 50rem at -10% 110%, var(--sky-2), transparent 70%);
 }
 
 body::after {
@@ -292,20 +323,20 @@ body::after {
   --stars-3: 0 0 / 389px 389px;
   --stars-4: 0 0 / 557px 557px;
   background:
-    radial-gradient(circle at 17px 29px, rgb(236 231 243 / .31) .5px, transparent 0.8px) var(--stars-1),
-    radial-gradient(circle at 109px 52px, rgb(236 231 243 / .19) .6px, transparent 0.9px) var(--stars-1),
-    radial-gradient(circle at 63px 142px, rgb(236 231 243 / .23) .8px, transparent 1.1px) var(--stars-1),
-    radial-gradient(circle at 192px 17px, rgb(236 231 243 / .28) .6px, transparent 0.9px) var(--stars-2),
-    radial-gradient(circle at 83px 121px, rgb(236 231 243 / .29) .8px, transparent 1.1px) var(--stars-2),
-    radial-gradient(circle at 23px 166px, rgb(236 231 243 / .2) .5px, transparent 0.8px) var(--stars-2),
-    radial-gradient(circle at 211px 37px, rgb(236 231 243 / .37) .8px, transparent 1.1px) var(--stars-3),
-    radial-gradient(circle at 38px 236px, rgb(236 231 243 / .24) .6px, transparent 0.9px) var(--stars-3),
-    radial-gradient(circle at 296px 171px, rgb(236 231 243 / .19) .5px, transparent 0.8px) var(--stars-3),
-    radial-gradient(circle at 138px 328px, rgb(236 231 243 / .25) .6px, transparent 0.9px) var(--stars-3),
-    radial-gradient(circle at 484px 81px, rgb(236 231 243 / .26) .6px, transparent 0.9px) var(--stars-4),
-    radial-gradient(circle at 89px 297px, rgb(236 231 243 / .36) .8px, transparent 1.1px) var(--stars-4),
-    radial-gradient(circle at 353px 224px, rgb(236 231 243 / .31) .5px, transparent 0.8px) var(--stars-4),
-    radial-gradient(circle at 230px 473px, rgb(236 231 243 / .2) .8px, transparent 1.1px) var(--stars-4);
+    radial-gradient(circle at 17px 29px, color-mix(in srgb, var(--star) 31%, transparent) .5px, transparent 0.8px) var(--stars-1),
+    radial-gradient(circle at 109px 52px, color-mix(in srgb, var(--star) 19%, transparent) .6px, transparent 0.9px) var(--stars-1),
+    radial-gradient(circle at 63px 142px, color-mix(in srgb, var(--star) 23%, transparent) .8px, transparent 1.1px) var(--stars-1),
+    radial-gradient(circle at 192px 17px, color-mix(in srgb, var(--star) 28%, transparent) .6px, transparent 0.9px) var(--stars-2),
+    radial-gradient(circle at 83px 121px, color-mix(in srgb, var(--star) 29%, transparent) .8px, transparent 1.1px) var(--stars-2),
+    radial-gradient(circle at 23px 166px, color-mix(in srgb, var(--star) 20%, transparent) .5px, transparent 0.8px) var(--stars-2),
+    radial-gradient(circle at 211px 37px, color-mix(in srgb, var(--star) 37%, transparent) .8px, transparent 1.1px) var(--stars-3),
+    radial-gradient(circle at 38px 236px, color-mix(in srgb, var(--star) 24%, transparent) .6px, transparent 0.9px) var(--stars-3),
+    radial-gradient(circle at 296px 171px, color-mix(in srgb, var(--star) 19%, transparent) .5px, transparent 0.8px) var(--stars-3),
+    radial-gradient(circle at 138px 328px, color-mix(in srgb, var(--star) 25%, transparent) .6px, transparent 0.9px) var(--stars-3),
+    radial-gradient(circle at 484px 81px, color-mix(in srgb, var(--star) 26%, transparent) .6px, transparent 0.9px) var(--stars-4),
+    radial-gradient(circle at 89px 297px, color-mix(in srgb, var(--star) 36%, transparent) .8px, transparent 1.1px) var(--stars-4),
+    radial-gradient(circle at 353px 224px, color-mix(in srgb, var(--star) 31%, transparent) .5px, transparent 0.8px) var(--stars-4),
+    radial-gradient(circle at 230px 473px, color-mix(in srgb, var(--star) 20%, transparent) .8px, transparent 1.1px) var(--stars-4);
 }
 
 main::before {
@@ -426,22 +457,70 @@ header nav a :is(svg, i),
   height: 1rem;
 }
 
-.local {
+/* Theme and language preferences */
+.prefs {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   gap: .5rem;
-  color: var(--mute);
-  font-size: .75rem;
-  white-space: nowrap;
 }
 
-.local b {
-  display: inline-block;
-  width: .375rem;
-  height: .375rem;
+.pref-theme {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--line-2);
   border-radius: 50%;
-  background: var(--ok);
+  color: var(--moon-2);
+  overflow: hidden;
+}
+
+.pref-theme:hover { color: var(--moon); border-color: var(--moon-2); }
+
+.pref-theme svg { width: 1.125rem; height: 1.125rem; overflow: visible; }
+
+.pref-theme :is(.pref-sun, .pref-rays) { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+
+.pref-theme .pref-moon { fill: currentColor; stroke: none; }
+
+.pref-theme :is(.pref-sun, .pref-rays, .pref-moon) {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity .45s ease, scale .6s cubic-bezier(.2, .7, .1, 1), rotate .6s cubic-bezier(.2, .7, .1, 1);
+}
+
+/* Dark theme shows the moon; light theme shows the sun. */
+.pref-theme :is(.pref-sun, .pref-rays) { opacity: 0; scale: .4; rotate: -90deg; }
+
+.pref-theme[aria-pressed="true"] :is(.pref-sun, .pref-rays) { opacity: 1; scale: 1; rotate: 0deg; }
+
+.pref-theme[aria-pressed="true"] .pref-moon { opacity: 0; scale: .4; rotate: 90deg; }
+
+.pref-lang {
+  display: flex;
+  align-items: center;
+  padding: .1875rem;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+}
+
+.pref-lang button {
+  min-width: 2rem;
+  min-height: 1.75rem;
+  padding: 0 .5rem;
+  border-radius: 999px;
+  color: var(--mute);
+  font-size: .75rem;
+  letter-spacing: .04em;
+}
+
+.pref-lang button:hover { color: var(--moon); }
+
+.pref-lang button[aria-pressed="true"] {
+  background: var(--moon);
+  color: var(--ink);
 }
 
 /* Stage */
@@ -470,7 +549,7 @@ header nav a :is(svg, i),
   z-index: 1;
   align-self: start;
   margin: 0;
-  background: linear-gradient(180deg, #fbf9ff, #ece7f3 45%, #bba5d8);
+  background: linear-gradient(180deg, var(--title-1), var(--title-2) 45%, var(--title-3));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -487,27 +566,6 @@ header nav a :is(svg, i),
   grid-area: plate;
   inset-block-start: 2rem;
   inset-inline-end: max(.25rem, calc(50% - min(42vw, 11rem) + .75rem));
-}
-
-.seal {
-  display: block;
-  flex: 0 0 3.25rem;
-  width: 3.25rem;
-  height: 3.25rem;
-  padding-block: calc((3.25rem - 2.3rem - 4px) / 2);
-  border: 2px solid var(--ver);
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 4px var(--ver);
-  color: var(--ver);
-  text-align: center;
-  rotate: -6deg;
-  -webkit-mask-image: url("assets/grain.svg");
-  mask-image: url("assets/grain.svg");
-  -webkit-mask-size: 5rem;
-  mask-size: 5rem;
-  -webkit-mask-mode: alpha;
-  mask-mode: alpha;
-  font: 900 1rem / 1.15 var(--f-song);
 }
 
 .hero-act {
@@ -630,25 +688,94 @@ header nav a :is(svg, i),
   margin: 0;
 }
 
+@property --m-light { syntax: "<color>"; inherits: true; initial-value: #f3ecfa; }
+@property --m-mid { syntax: "<color>"; inherits: true; initial-value: #a58cc8; }
+@property --m-deep { syntax: "<color>"; inherits: true; initial-value: #3b2b55; }
+@property --m-angle { syntax: "<angle>"; inherits: true; initial-value: 135deg; }
+@property --m-x { syntax: "<percentage>"; inherits: true; initial-value: 36%; }
+@property --m-y { syntax: "<percentage>"; inherits: true; initial-value: 32%; }
+@property --m-tx { syntax: "<percentage>"; inherits: true; initial-value: 44%; }
+@property --m-ty { syntax: "<percentage>"; inherits: true; initial-value: 42%; }
+@property --p0x { syntax: "<percentage>"; inherits: true; initial-value: 30%; }
+@property --p0y { syntax: "<percentage>"; inherits: true; initial-value: 30%; }
+@property --p1x { syntax: "<percentage>"; inherits: true; initial-value: 70%; }
+@property --p1y { syntax: "<percentage>"; inherits: true; initial-value: 40%; }
+@property --p2x { syntax: "<percentage>"; inherits: true; initial-value: 40%; }
+@property --p2y { syntax: "<percentage>"; inherits: true; initial-value: 72%; }
+@property --p3x { syntax: "<percentage>"; inherits: true; initial-value: 66%; }
+@property --p3y { syntax: "<percentage>"; inherits: true; initial-value: 70%; }
+
 .dial-moon {
+  --m-ease: 1.8s cubic-bezier(.2, .7, .1, 1);
   position: absolute;
   inset: 19%;
   overflow: hidden;
   border-radius: 50%;
-  background: url("assets/portrait.webp") center 30% / cover no-repeat;
-  background-image: image-set(
-    url("assets/portrait.avif") type("image/avif"),
-    url("assets/portrait.webp") type("image/webp")
-  );
-  box-shadow: 0 0 0 1px #ece7f355, 0 0 4rem #bba5d833, 0 0 12rem #bba5d81f;
+  isolation: isolate;
+  background: var(--m-deep);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--moon) 28%, transparent),
+    0 0 3rem color-mix(in srgb, var(--m-light) 26%, transparent),
+    0 0 9rem color-mix(in srgb, var(--m-mid) 22%, transparent);
+  transition: --m-light var(--m-ease), --m-mid var(--m-ease), --m-deep var(--m-ease), --m-angle var(--m-ease),
+    --m-x var(--m-ease), --m-y var(--m-ease), --m-tx var(--m-ease), --m-ty var(--m-ease),
+    --p0x var(--m-ease), --p0y var(--m-ease), --p1x var(--m-ease), --p1y var(--m-ease),
+    --p2x var(--m-ease), --p2y var(--m-ease), --p3x var(--m-ease), --p3y var(--m-ease);
+}
+
+.dial-moon > i {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* A marble of the cast's colours, turning slowly inside the moon. */
+.moon-swirl {
+  inset: -30%;
+  background:
+    radial-gradient(closest-side at var(--p0x) var(--p0y), var(--m-light), transparent),
+    radial-gradient(closest-side at var(--p1x) var(--p1y), var(--m-mid), transparent),
+    radial-gradient(closest-side at var(--p2x) var(--p2y), color-mix(in oklab, var(--m-light) 70%, var(--m-mid)), transparent),
+    radial-gradient(closest-side at var(--p3x) var(--p3y), color-mix(in oklab, var(--m-deep) 60%, var(--m-mid)), transparent),
+    linear-gradient(var(--m-angle), var(--m-light), var(--m-mid) 55%, var(--m-deep));
+  filter: blur(1.25rem) saturate(1.08);
+}
+
+/* Lighting: a lit highlight, a soft limb, and the drawing style's own shadow. */
+.moon-shade {
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at var(--m-x) var(--m-y), color-mix(in srgb, white 55%, transparent), color-mix(in srgb, white 12%, transparent) 22%, transparent 48%),
+    radial-gradient(circle at var(--m-x) var(--m-y), transparent 42%, color-mix(in oklab, var(--m-deep) 70%, transparent) 100%);
+}
+
+/* Clean cel: one crisp terminator, like a cel-shaded moon phase. */
+.dial-moon[data-variant="cel"] .moon-shade {
+  background:
+    radial-gradient(circle at var(--m-x) var(--m-y), color-mix(in srgb, white 70%, transparent) 0 5%, transparent 5.6%),
+    radial-gradient(circle at var(--m-tx) var(--m-ty), transparent 0 56%, color-mix(in oklab, var(--m-deep) 78%, transparent) 56.6%),
+    radial-gradient(circle at var(--m-x) var(--m-y), transparent 50%, color-mix(in oklab, var(--m-deep) 35%, transparent) 100%);
+}
+
+/* Graphic cel: manga screentone dots gather on the shadow side. */
+.dial-moon[data-variant="graphic"] .moon-swirl { filter: blur(.375rem) saturate(1.2) contrast(1.1); }
+
+.dial-moon[data-variant="graphic"] .moon-shade {
+  background:
+    radial-gradient(circle, color-mix(in oklab, var(--m-deep) 85%, black) 0 32%, transparent 36%) 0 0 / .5rem .5rem,
+    radial-gradient(circle at var(--m-x) var(--m-y), color-mix(in srgb, white 60%, transparent) 0 9%, transparent 9.6%);
+  -webkit-mask-image: linear-gradient(var(--m-angle), transparent 34%, #000 82%);
+  mask-image: linear-gradient(var(--m-angle), transparent 34%, #000 82%);
 }
 
 .dial-moon::after {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle at 50% 40%, transparent 56%, #0b0a10b3 100%);
+  background: url("assets/grain.svg") 0 0 / 7rem;
   content: "" / "";
+  mix-blend-mode: overlay;
+  opacity: .4;
 }
 
 svg#stageDial {
@@ -764,15 +891,6 @@ dialog::before {
   line-height: 1.2;
 }
 
-.section-heading .act {
-  flex: 0 0 auto;
-  color: var(--lilac);
-  font: italic 1.5rem / 1.2 var(--f-latin);
-  font-variant-numeric: oldstyle-nums;
-}
-
-#library .act { font-family: var(--f-symbol); }
-
 .section-heading .aside {
   color: var(--mute);
   font: italic 1.0625rem / 1.2 var(--f-latin);
@@ -791,10 +909,11 @@ dialog::before {
 .workgrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  width: min(100%, var(--column, 100%));
   min-width: 0;
   align-items: start;
   gap: 1.5rem;
-  margin-top: 2.5rem;
+  margin: 2.5rem auto 0;
 }
 
 .pagehead h1 {
@@ -1586,7 +1705,7 @@ textarea#output {
   padding: 0;
   border: 1px solid #ece7f366;
   border-radius: 50%;
-  background: #121019e6;
+  background: color-mix(in srgb, var(--ink-2) 90%, transparent);
   color: var(--moon);
 }
 
@@ -1628,7 +1747,7 @@ textarea#output {
   touch-action: pan-y pinch-zoom;
 }
 
-.image-results .image-deck-stage { filter: drop-shadow(0 1.25rem 1.5rem #000a); }
+.image-results .image-deck-stage { filter: drop-shadow(0 1.25rem 1.5rem color-mix(in srgb, var(--shade) 66%, transparent)); }
 
 .image-deck-card {
   position: absolute;
@@ -1690,7 +1809,7 @@ textarea#output {
   padding: 0;
   border: 1px solid #ece7f366;
   border-radius: 50%;
-  background: #0b0a10b3;
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
   color: var(--moon);
   opacity: 0;
 }
@@ -2304,7 +2423,7 @@ dialog {
   background: linear-gradient(180deg, #ffffff07, transparent 8rem), var(--ink-2);
   color: var(--moon);
   overflow: auto;
-  box-shadow: 0 2rem 5rem #000c;
+  box-shadow: 0 2rem 5rem color-mix(in srgb, var(--shade) 80%, transparent);
   opacity: 0;
 }
 
@@ -2313,7 +2432,7 @@ dialog:modal { overscroll-behavior: contain; }
 dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
-  background: radial-gradient(circle at 50% 30%, #1b1426cc, #0b0a10f0);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--sky-2) 80%, transparent), color-mix(in srgb, var(--ink) 94%, transparent));
   opacity: 0;
 }
 
@@ -2406,7 +2525,7 @@ dialog.resource-editor {
   border-radius: 999px;
   background: var(--moon);
   color: var(--ink);
-  box-shadow: 0 1rem 2.5rem #000a;
+  box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--shade) 66%, transparent);
   font-size: .875rem;
   font-weight: 500;
   line-height: 1.4;
@@ -2584,69 +2703,74 @@ dialog.resource-editor {
     writing-mode: vertical-rl;
   }
 
-  header nav a::before {
-    display: block;
-    align-self: center;
-    color: var(--mute);
-    content: "I" / "";
-    font: normal 600 .75rem var(--f-latin);
-    font-variant-numeric: oldstyle-nums;
-    letter-spacing: .06em;
-    text-align: center;
-    writing-mode: horizontal-tb;
-  }
-
-  header nav a:nth-child(2)::before { content: "II" / ""; }
-
-  header nav a:nth-child(3)::before { content: "III" / ""; }
-
-  header nav a:nth-child(4)::before { content: "IV" / ""; }
-
-  header nav a:is(.active, [aria-current="page"])::before { color: var(--lilac); }
-
   header nav a:is(.active, [aria-current="page"]) {
     background: linear-gradient(var(--lilac), var(--lilac)) right center / 2px 70% no-repeat;
   }
 
   header nav a :is(svg, i) { color: var(--mute); }
 
-  .local {
-    align-self: center;
-    gap: .625rem;
+  .prefs {
+    flex-direction: column;
+    gap: .75rem;
     margin-top: auto;
-    writing-mode: vertical-rl;
   }
 
-  .local b { flex: 0 0 .375rem; }
+  .pref-lang {
+    flex-direction: column;
+    padding: .1875rem;
+  }
+
+  .pref-lang button { min-width: 1.875rem; padding: .375rem 0; }
 
   main { padding-block-start: 2rem; }
+
+  #studio { --column: 72rem; }
 
   .stage {
     --stage-title-size: clamp(4.5rem, 2rem + 4vw, 6.5rem);
     grid-template:
-      "title head" auto
-      "title plate" 1fr
-      "title tools" auto
-      "title console" auto / [title] 7rem [content] minmax(0, 1fr);
-    column-gap: clamp(1rem, 2vw, 2rem);
+      "head" auto
+      "plate" 1fr
+      "tools" auto
+      "console" auto / minmax(0, min(100%, var(--column)));
+    justify-content: center;
     min-height: min(100dvh, 62rem);
   }
 
+  /* Between 60em and 80em there is no room beside the column: the rail already carries the name. */
   .hero-title,
-  .hero-colophon { place-self: start center; }
+  .hero-colophon { display: none; }
+}
 
-  .hero-colophon {
-    position: relative;
-    display: flex;
-    grid-area: title;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    inset: auto;
-    margin-block-start: calc(var(--stage-title-size) * 4.24 + .875rem);
+@media (min-width: 80em) {
+  #studio {
+    --title-room: calc(clamp(4.5rem, 2rem + 4vw, 6.5rem) + 2.5rem);
+    --column: min(100% - 2 * var(--title-room), 72rem);
   }
 
-  .hero-act { display: block; }
+  .stage .hero-title {
+    position: absolute;
+    display: block;
+    top: 0;
+    left: 0;
+  }
+
+  .stage .hero-colophon {
+    position: absolute;
+    inset: auto;
+    display: flex;
+    justify-content: center;
+    width: var(--stage-title-size);
+    top: calc(var(--stage-title-size) * 4.24 + 1.5rem);
+    left: 0;
+  }
+
+  .stage .hero-act {
+    display: block;
+    padding: 0;
+    border: 0;
+    writing-mode: vertical-rl;
+  }
 
   .stage-head {
     flex-flow: row wrap;
@@ -2896,10 +3020,7 @@ dialog.resource-editor {
     padding-inline: 0;
   }
 
-  header nav a :is(svg, i),
-  .local {
-    display: none;
-  }
+  header nav a :is(svg, i) { display: none; }
 
   main { padding-block-start: 1rem; }
 
@@ -3071,6 +3192,10 @@ dialog.resource-editor {
 }
 
 @media (max-width: 15.9999em) {
+  .prefs { flex-wrap: wrap; }
+
+  .pref-lang button { min-width: 1.75rem; padding-inline: .375rem; }
+
   main,
   .navwrap { padding-inline: .75rem; }
 
@@ -3088,7 +3213,6 @@ dialog.resource-editor {
 
   .panel { padding: .75rem; }
 
-  .section-heading .act { display: none; }
 
   .copy,
   .secondary,
@@ -3284,8 +3408,6 @@ dialog.resource-editor {
 
   #stageDial .dial-ring { animation: opening-ring 1.4s ease-out .15s both; }
 
-  .seal { animation: opening-stamp .45s cubic-bezier(.3, 1.6, .5, 1) 1.05s both; }
-
   .hero-kicker { animation: opening-rise .7s ease-out .05s both; }
 
   .stage-head h1 { animation: opening-rise .7s ease-out .12s both; }
@@ -3312,12 +3434,6 @@ dialog.resource-editor {
     from { opacity: 0; scale: .94; }
 
     to { opacity: 1; scale: 1; }
-  }
-
-  @keyframes opening-stamp {
-    from { opacity: 0; scale: 1.6; rotate: -18deg; }
-
-    to { opacity: 1; scale: 1; rotate: -6deg; }
   }
 
   @keyframes opening-rise {
@@ -3465,20 +3581,35 @@ dialog.resource-editor {
 
   ::view-transition-old(rail) { display: none; }
 
+  .moon-swirl { animation: moon-swirl 90s linear infinite; }
+
+  @keyframes moon-swirl { to { rotate: 360deg; } }
+
   @keyframes scene-out { to { opacity: 0; } }
 
   @keyframes scene-in { from { opacity: 0; } }
+
+  /* Theme switch: the new theme opens as a circle from the toggle, rail included. */
+  :root.theme-switching body > header { view-transition-name: none; }
+
+  :root.theme-switching::view-transition { background: none; }
+
+  :root.theme-switching::view-transition-old(root) { animation: none; }
+
+  :root.theme-switching::view-transition-new(root) {
+    animation: theme-reveal .85s cubic-bezier(.65, 0, .35, 1) both;
+  }
+
+  @keyframes theme-reveal {
+    from { clip-path: circle(0 at var(--reveal-x) var(--reveal-y)); }
+    to { clip-path: circle(var(--reveal-r) at var(--reveal-x) var(--reveal-y)); }
+  }
 
   /* Keep the opening entries in place so removing .casting cannot replay them. */
   .stage.casting .dial-moon {
     animation: opening-moonrise 1.6s ease-out, moonrise 1.6s ease-in-out;
   }
 
-  .stage.casting .seal {
-    animation:
-      opening-stamp .45s cubic-bezier(.3, 1.6, .5, 1) 1.05s both,
-      stamp-again .4s cubic-bezier(.3, 1.6, .5, 1) .25s both;
-  }
 
   @keyframes moonrise {
     from { filter: var(--moonrise-start-filter, none); }
@@ -3488,11 +3619,6 @@ dialog.resource-editor {
     to { filter: none; }
   }
 
-  @keyframes stamp-again {
-    from { opacity: .2; scale: 1.35; rotate: -6deg; }
-
-    to { opacity: 1; scale: 1; rotate: -6deg; }
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3539,12 +3665,6 @@ dialog.resource-editor {
   }
 
   .brandmark::after { background: Canvas; }
-
-  .seal {
-    forced-color-adjust: auto;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
 
   .dial-moon { box-shadow: 0 0 0 1px CanvasText; }
 
