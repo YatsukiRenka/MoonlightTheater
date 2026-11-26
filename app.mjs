@@ -9,6 +9,7 @@ import {readHistoryLimits} from './history-limits.mjs';
 import {makePromptBackup, matchesRating, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
 import {renderStage, setExploration, sigil} from './stage.mjs';
 import {t, lang, materialText, promptLanguage} from './i18n.mjs';
+import {enhanceSelect, refresh as refreshSelect} from './fancy-select.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const opt=(k,t)=>'<option value="'+esc(k)+'">'+esc(t)+'</option>';
@@ -119,6 +120,7 @@ function configControls(){
  $('style').innerHTML=choicesFor('style',sel(),profile).map(x=>opt(x.id,named(styleNames,x.id)?t(named(styleNames,x.id)):materialText(x))).join('');
  $('style').value=pref.style;
  if($('style').selectedIndex<0)$('style').value=profile.settings.defaultStyle;
+ refreshSelect($('branch'));refreshSelect($('style'));
  $('explore').value=Math.round(pref.exploration*100);$('explore').style.setProperty('--control-value',$('explore').value);$('exploreValue').textContent=$('explore').value+'%';
 }
 function stage(){
@@ -237,6 +239,7 @@ function showError(message){if($('dialog').open)$('dstatus').textContent=message
 function attempt(fn){try{fn()}catch(e){showError(e.message)}}
 document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.createRange().createContextualFragment(icon(el.dataset.icon))));
 for(const [id,type] of [['generate','new'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
+enhanceSelect($('branch'));enhanceSelect($('style'));
 $('branch').onchange=()=>{const v=$('branch').value;if(model.locks.includes('branch')&&v!==sel().branch){notify(t('请先解锁{label}',{label:label('branch')}));configControls();return}pref.branch=v;persist()};
 $('style').onchange=()=>{const old=pref.style;try{setSlot('style',$('style').value)}catch(e){pref.style=old;configControls();notify(e.message)}};
 $('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('explore').style.setProperty('--control-value',$('explore').value);$('exploreValue').textContent=$('explore').value+'%';setExploration(pref.exploration);persist()};

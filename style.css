@@ -20,6 +20,8 @@
   --title-1: #fbf9ff;
   --title-2: #ece7f3;
   --title-3: #bba5d8;
+  --moon-hover: #ffffff;
+  --glow: #bba5d8;
   --f-song: "MT Song", "MT Cormorant", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
   --f-latin: "MT Cormorant", "Cormorant Garamond", Georgia, serif;
   --f-symbol: "Segoe UI Symbol", "Apple Symbols", serif;
@@ -51,6 +53,8 @@
   --title-1: #3a2756;
   --title-2: #523a79;
   --title-3: #9068c4;
+  --moon-hover: #45305f;
+  --glow: #8c69c2;
 }
 
 @font-face {
@@ -236,13 +240,13 @@ button,
 
 .copy:hover,
 .primary:hover {
-  background: #fff;
-  border-color: #fff;
+  background: var(--moon-hover);
+  border-color: var(--moon-hover);
 }
 
 .ghost:hover {
   border-color: var(--moon);
-  background: #ffffff08;
+  background: color-mix(in srgb, var(--moon) 5%, transparent);
 }
 
 .secondary {
@@ -763,7 +767,7 @@ header nav a :is(svg, i),
 /* Clean cel: one crisp terminator, like a cel-shaded moon phase. */
 .dial-moon[data-variant="cel"] .moon-shade {
   background:
-    radial-gradient(circle at var(--m-x) var(--m-y), color-mix(in srgb, white 70%, transparent) 0 5%, transparent 5.6%),
+    radial-gradient(circle at var(--m-x) var(--m-y), color-mix(in srgb, white 62%, transparent) 0 2.4%, color-mix(in srgb, white 18%, transparent) 5%, transparent 9%),
     radial-gradient(circle at var(--m-tx) var(--m-ty), transparent 0 56%, color-mix(in oklab, var(--m-deep) 78%, transparent) 56.6%),
     radial-gradient(circle at var(--m-x) var(--m-y), transparent 50%, color-mix(in oklab, var(--m-deep) 35%, transparent) 100%);
 }
@@ -848,7 +852,7 @@ svg#stageDial {
   padding: clamp(1.125rem, 2vw, 1.75rem);
   border: 1px solid var(--line);
   border-radius: 2px;
-  background: linear-gradient(180deg, #ffffff06, transparent 9rem), var(--ink-2);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--moon) 2.5%, transparent), transparent 9rem), var(--ink-2);
 }
 
 .panel::before,
@@ -3877,4 +3881,494 @@ dialog.resource-editor {
     border-color: GrayText;
     color: GrayText;
   }
+}
+
+/* ===== Craft layer: drawn controls, stage lighting and ambient motion ===== */
+
+/* Drawn select menus (fancy-select.mjs) */
+.fs-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fs-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  width: 100%;
+  min-height: 2.5rem;
+  margin-top: .4375rem;
+  padding: 0 .75rem;
+  border: 1px solid var(--field-line);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--moon) 4%, transparent), transparent 70%),
+    var(--ink-3);
+  color: var(--moon);
+  font-family: var(--f-sans);
+  font-size: .875rem;
+  font-weight: 450;
+  letter-spacing: .02em;
+  text-align: start;
+  transition: border-color .25s, box-shadow .35s, background-color .25s;
+}
+
+.fs-trigger:hover { border-color: var(--moon-2); }
+
+.fs-trigger.is-open,
+.fs-trigger:focus-visible {
+  border-color: var(--lilac);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lilac) 16%, transparent);
+  outline: none;
+}
+
+.fs-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-trigger svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  fill: none;
+  stroke: var(--mute);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: rotate .35s cubic-bezier(.2, .7, .1, 1), stroke .25s;
+}
+
+.fs-trigger.is-open svg { rotate: 180deg; stroke: var(--lilac); }
+
+.fs-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  max-height: 20rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: .375rem;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--glow) 10%, transparent), transparent 60%),
+    color-mix(in srgb, var(--ink-2) 94%, transparent);
+  box-shadow:
+    0 1.5rem 3.5rem color-mix(in srgb, var(--shade) 55%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--moon) 4%, transparent) inset;
+  backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--moon);
+  scrollbar-width: thin;
+}
+
+.fs-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.375rem;
+  padding: .375rem .625rem;
+  border-radius: 2px;
+  color: var(--moon-2);
+  font-size: .875rem;
+  cursor: pointer;
+  transition: background-color .2s, color .2s;
+}
+
+.fs-option svg {
+  width: .9375rem;
+  height: .9375rem;
+  flex: none;
+  fill: none;
+  stroke: var(--lilac);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+.fs-option:hover,
+.fs-option:focus-visible {
+  background: color-mix(in srgb, var(--lilac) 13%, transparent);
+  color: var(--moon);
+  outline: none;
+}
+
+.fs-option[aria-selected="true"] { color: var(--lilac); }
+
+.fs-option[aria-selected="true"] svg { opacity: 1; }
+
+.fs-option[aria-disabled="true"] { opacity: .45; cursor: default; }
+
+/* Switches instead of bare checkboxes */
+input[type="checkbox"] {
+  position: relative;
+  flex: none;
+  width: 2.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border: 1px solid var(--field-line);
+  border-radius: 999px;
+  background: var(--ink-3);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color .25s, border-color .25s;
+}
+
+input[type="checkbox"]::before {
+  position: absolute;
+  top: 50%;
+  left: .1875rem;
+  width: .8125rem;
+  height: .8125rem;
+  border-radius: 50%;
+  background: var(--moon-2);
+  content: "";
+  translate: 0 -50%;
+  transition: translate .35s cubic-bezier(.3, 1.4, .5, 1), background-color .25s;
+}
+
+input[type="checkbox"]:checked {
+  border-color: var(--lilac);
+  background: var(--lilac);
+}
+
+input[type="checkbox"]:checked::before {
+  background: var(--ink);
+  translate: 1rem -50%;
+}
+
+input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
+
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-offset: 3px; }
+
+/* Fields glow softly when focused */
+:is(.settinglabel input, .material input, .seedinput, textarea#output):focus-within,
+:is(.settinglabel input, .material input):focus-visible {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lilac) 14%, transparent);
+}
+
+/* Buttons respond with a lift and a press */
+:is(.copy, .secondary, .ghost, .primary):not(:disabled) {
+  transition: background-color .25s, border-color .25s, color .25s, box-shadow .35s, translate .35s cubic-bezier(.2, .7, .1, 1), scale .15s;
+}
+
+:is(.copy, .secondary):not(:disabled):hover {
+  box-shadow: 0 .75rem 1.75rem color-mix(in srgb, var(--glow) 18%, transparent);
+  translate: 0 -1px;
+}
+
+:is(.copy, .secondary, .primary):not(:disabled):active { scale: .97; }
+
+/* The cast button: a ring of moonlight runs around it, and it leans toward the hand. */
+@property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.console-actions .primary {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  translate: var(--pull-x, 0px) var(--pull-y, 0px);
+  box-shadow: 0 0 2.5rem color-mix(in srgb, var(--glow) 28%, transparent);
+}
+
+.console-actions .primary::before {
+  position: absolute;
+  z-index: -1;
+  inset: -5px;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--ring-angle), transparent 0 55%, var(--glow) 75%, var(--moon) 80%, transparent 92%);
+  content: "";
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: .85;
+}
+
+.console-actions .primary::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, white 55%, transparent) 50%, transparent 65%) -150% 0 / 220% 100% no-repeat;
+  content: "";
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* Stage lighting: a follow spot that tracks the pointer (ambient.mjs). */
+.stage::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: radial-gradient(26rem 26rem at var(--spot-x, 50%) var(--spot-y, 40%), color-mix(in srgb, var(--glow) 12%, transparent), transparent 70%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .8s ease;
+}
+
+.stage.has-spot::before { opacity: 1; }
+
+/* The moon's light leans toward the spot; its marble drifts the other way. */
+.moon-shade {
+  translate: calc(var(--lean-x, 0) * 7%) calc(var(--lean-y, 0) * 7%);
+  transition: translate 1.4s cubic-bezier(.2, .7, .1, 1);
+}
+
+/* A halo breathes behind the moon. */
+.hero-dial::before {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--m-light, var(--glow)) 30%, transparent) 30%, transparent 70%);
+  content: "";
+  filter: blur(1.5rem);
+  pointer-events: none;
+}
+
+/* Leader-line sparks start hidden; motion below sends them toward the moon. */
+.plate .slot::before { content: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .console-actions .primary::before { animation: ring-run 5s linear infinite; }
+
+  .console-actions .primary:hover::after,
+  .console-actions .primary.is-near::after { animation: sheen 1.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+
+  .console-actions .primary {
+    transition: background-color .25s, border-color .25s, box-shadow .35s, translate .5s cubic-bezier(.2, .7, .1, 1), scale .15s;
+  }
+
+  @keyframes ring-run { to { --ring-angle: 360deg; } }
+
+  @keyframes sheen {
+    0% { background-position: -150% 0; }
+    60%, 100% { background-position: 150% 0; }
+  }
+
+  .hero-dial::before { animation: halo-breathe 7s ease-in-out infinite alternate; }
+
+  @keyframes halo-breathe {
+    from { opacity: .55; scale: .94; }
+    to { opacity: 1; scale: 1.04; }
+  }
+
+  .moon-swirl { translate: calc(var(--lean-x, 0) * -3%) calc(var(--lean-y, 0) * -3%); transition: translate 1.8s cubic-bezier(.2, .7, .1, 1); }
+
+  /* The astrolabe never quite stops turning. */
+  #stageDial .dial-ring { animation: opening-ring 1.4s ease-out .15s both, dial-spin 300s linear infinite; }
+
+  @keyframes dial-spin { to { rotate: 360deg; } }
+
+  #stageDial .dial-star {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: star-glint var(--glint, 4.5s) ease-in-out infinite alternate;
+  }
+
+  #stageDial .dial-star.draw-in { animation: dial-star-in .5s ease var(--star-delay, 0ms) both, star-glint var(--glint, 4.5s) ease-in-out infinite alternate; }
+
+  #stageDial .dial-star:nth-child(3n + 1) { --glint: 3.2s; }
+
+  #stageDial .dial-star:nth-child(3n + 2) { --glint: 5.6s; }
+
+  @keyframes star-glint {
+    from { scale: .7; }
+    to { scale: 1.25; }
+  }
+
+  /* A spark of light runs down each leader line now and then. */
+  @media (min-width: 60em) {
+    .plate .slot::before {
+      position: absolute;
+      top: 50%;
+      width: 2.75rem;
+      height: 1px;
+      margin-top: -.5px;
+      background: linear-gradient(90deg, transparent, var(--lilac), transparent);
+      content: "";
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .cast[data-side="left"] .slot::before {
+      left: calc(100% + .5rem);
+      transform-origin: left center;
+      animation: spark-left 7s cubic-bezier(.4, 0, .2, 1) infinite;
+    }
+
+    .cast[data-side="right"] .slot::before {
+      right: calc(100% + .5rem);
+      transform-origin: right center;
+      animation: spark-right 7s cubic-bezier(.4, 0, .2, 1) infinite;
+    }
+
+    .cast .slot:nth-child(2)::before { animation-delay: 2.3s; }
+
+    .cast .slot:nth-child(3)::before { animation-delay: 4.1s; }
+
+    .cast .slot:nth-child(4)::before { animation-delay: 1.2s; }
+
+    .cast .slot:nth-child(5)::before { animation-delay: 5.4s; }
+
+    .cast .slot:nth-child(6)::before { animation-delay: 3.3s; }
+
+    .cast .slot:nth-child(7)::before { animation-delay: .6s; }
+
+    .cast .slot:nth-child(8)::before { animation-delay: 4.8s; }
+
+    .cast .slot:nth-child(9)::before { animation-delay: 2.9s; }
+
+    .cast[data-side="right"] .slot::before { animation-delay: calc(var(--spark-delay, 0s) + 1.7s); }
+
+    @keyframes spark-left {
+      0% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(0); }
+      4% { opacity: 1; }
+      22% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(var(--reach, 0px)); }
+      100% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(var(--reach, 0px)); }
+    }
+
+    @keyframes spark-right {
+      0% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(0); }
+      4% { opacity: 1; }
+      22% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(calc(-1 * var(--reach, 0px))); }
+      100% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateX(calc(-1 * var(--reach, 0px))); }
+    }
+  }
+
+  /* The sky drifts slowly. */
+  body::after {
+    inset: -8%;
+    animation: sky-drift 140s ease-in-out infinite alternate;
+  }
+
+  @keyframes sky-drift { to { translate: -4% -3%; } }
+
+  /* Lower panels rise into view as they scroll in. */
+  @supports (animation-timeline: view()) {
+    .workgrid > .panel,
+    #records .record,
+    #materials .material {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+
+    @keyframes rise-in {
+      from { opacity: 0; translate: 0 2rem; }
+    }
+  }
+
+  /* Drawn menus open like a curtain lifting. */
+  .fs-menu:popover-open {
+    opacity: 1;
+    translate: 0 0;
+    transition: opacity .22s ease-out, translate .3s cubic-bezier(.2, .7, .1, 1), display .3s allow-discrete, overlay .3s allow-discrete;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -.5rem;
+    }
+  }
+
+  .fs-menu[data-side="up"]:popover-open {
+    @starting-style { translate: 0 .5rem; }
+  }
+
+  .fs-menu:popover-open .fs-option {
+    transition: opacity .3s ease-out calc(var(--i, 0) * 25ms), translate .35s cubic-bezier(.2, .7, .1, 1) calc(var(--i, 0) * 25ms), background-color .2s, color .2s;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -.25rem;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  input[type="checkbox"] { appearance: auto; width: auto; height: auto; }
+
+  input[type="checkbox"]::before { content: none; }
+
+  .fs-trigger { border: 1px solid ButtonText; }
+
+  .fs-menu { border: 1px solid CanvasText; }
+
+  .fs-option[aria-selected="true"] { outline: 2px solid Highlight; }
+
+  .console-actions .primary::before,
+  .console-actions .primary::after,
+  .stage::before,
+  .hero-dial::before { display: none; }
+}
+
+/* The script: a manuscript page under the stage, not a boxed form. */
+.workgrid > .prompt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head actions"
+    "meta meta"
+    "text text"
+    "rating rating";
+  align-items: center;
+  column-gap: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.workgrid > .prompt::before { content: none; }
+
+.prompt .section-heading {
+  grid-area: head;
+  margin: 0;
+  padding-block-end: 0;
+  border: 0;
+}
+
+.prompt .promptactions {
+  grid-area: actions;
+  margin: 0;
+}
+
+.prompt .promptactions .copy {
+  flex: none;
+  min-height: 2.5rem;
+  padding-inline: 1.25rem 1.375rem;
+}
+
+.prompt .promptmeta {
+  grid-area: meta;
+  margin-block: 1.25rem .625rem;
+  padding-block-start: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.prompt textarea#output {
+  grid-area: text;
+  height: 20rem;
+  border-color: var(--line-2);
+  font-size: 1rem;
+  box-shadow: 0 1.5rem 3rem color-mix(in srgb, var(--shade) 22%, transparent);
+}
+
+.prompt .rating {
+  grid-area: rating;
+  margin-block-start: 1.25rem;
+}
+
+@media (max-width: 44.9999em) {
+  .workgrid > .prompt { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "meta" "text" "actions" "rating"; }
+
+  .prompt .promptactions { margin-block-start: .875rem; }
+
+  .prompt .promptactions .copy { flex: auto; width: 100%; }
 }
