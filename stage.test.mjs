@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {constellation, dialAngle, romanNumeral, seedRandom, sigil, textRingContent} from './stage.mjs';
+import {constellation, dialAngle, leaderLine, romanNumeral, seedRandom, sigil, textRingContent} from './stage.mjs';
 
 function angularSeparation(stars, cx, cy) {
   const angles = stars.map(star => {
@@ -124,6 +124,34 @@ test('dial angle stays within integer degrees', () => {
     assert.ok(Number.isInteger(angle));
     assert.ok(angle >= 0 && angle <= 359);
   }
+});
+
+test('leader lines aim at the moon centre and stop exactly on the ring', () => {
+  const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, actual + ' != ' + expected);
+  // Level with the centre on the left: a horizontal line that ends at the near side of the ring.
+  const level = leaderLine({sx: 100, sy: 300, cx: 400, cy: 300, r: 120});
+  close(level.length, 400 - 120 - 100);
+  close(level.angle, 0);
+
+  // Level on the right: same length, pointing left.
+  const mirrored = leaderLine({sx: 700, sy: 300, cx: 400, cy: 300, r: 120});
+  close(mirrored.length, level.length);
+  close(Math.abs(mirrored.angle), 180);
+
+  // Far above the ring: the line tilts downward and its end lands on the ring.
+  const above = leaderLine({sx: 100, sy: 0, cx: 400, cy: 300, r: 120});
+  assert.ok(above.angle > 0 && above.angle < 90);
+  const rad = above.angle * Math.PI / 180;
+  const endX = 100 + Math.cos(rad) * above.length;
+  const endY = 0 + Math.sin(rad) * above.length;
+  close(Math.hypot(endX - 400, endY - 300), 120);
+
+  // A start point on or inside the ring draws nothing.
+  assert.deepEqual(leaderLine({sx: 280, sy: 300, cx: 400, cy: 300, r: 120}), {length: 0, angle: 0});
+  assert.deepEqual(leaderLine({sx: 400, sy: 300, cx: 400, cy: 300, r: 120}), {length: 0, angle: 0});
+
+  // Degenerate radius: the line runs to the centre and is never negative.
+  assert.ok(leaderLine({sx: 0, sy: 0, cx: 3, cy: 4, r: -5}).length === 5);
 });
 
 test('seed PRNG is repeatable and returns values in the half-open unit interval', () => {

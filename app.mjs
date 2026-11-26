@@ -123,7 +123,7 @@ function stage(){
 }
 function draw(){
  const s=sel();configControls();$('seed').value=cur().seed;
- const rows=expanded?rowKeys:rowKeys.slice(0,5),slots=$('slots');slots.innerHTML=rows.map(k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+'<span class="slottext"></span></button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'}).join('');
+ const rows=expanded?rowKeys:rowKeys.slice(0,5),slots=$('slots'),half=Math.ceil(rows.length/2);const slot=k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+'<span class="slottext"></span></button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'};slots.innerHTML='<div class="cast" data-side="left">'+rows.slice(0,half).map(slot).join('')+'</div><div class="cast" data-side="right">'+rows.slice(half).map(slot).join('')+'</div>';
  slots.querySelectorAll('[data-edit]').forEach(button=>{const k=button.dataset.edit;button.setAttribute('title',labelFor(k,s));button.querySelector('.slottext').textContent=short(k,s)});
  $('expand').innerHTML=expanded?'收起其余设定 '+icon('down'):'展开全部设定（'+rowKeys.length+'） '+icon('down');
  $('output').value=cur().edits?.[pref.lang]??cur().prompt[pref.lang];count();document.querySelectorAll('[data-lang]').forEach(b=>{b.classList.toggle('selected',b.dataset.lang===pref.lang);b.setAttribute('aria-pressed',b.dataset.lang===pref.lang)});
@@ -392,7 +392,7 @@ const visibilityKey='moonlight-image-studio-hidden';
 function setImageVisibility(visible, remember=true) {
  $('imageStudio').hidden=!visible;
  $('workgrid').classList.toggle('image-hidden',!visible);
- $('toggleImageStudio').textContent=visible?'隐藏生图':'显示生图';
+ $('toggleImageStudio').querySelector('span').textContent=visible?'隐藏生图':'显示生图';
  $('toggleImageStudio').setAttribute('aria-expanded',visible);
  if(remember)try{localStorage.setItem(visibilityKey,String(!visible))}catch{}
 }

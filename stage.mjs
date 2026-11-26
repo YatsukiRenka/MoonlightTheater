@@ -10,6 +10,9 @@ let previousSeed;
 let previousSelection;
 let stage;
 let castingHero;
+let plateObserver;
+let observedPlate;
+let plateBreakpoint;
 
 function seedText(seed) {
   return String(seed ?? '');
@@ -147,6 +150,69 @@ export function romanNumeral(value) {
 
 export function dialAngle(seed) {
   return Math.floor(seedRandom(seed)() * 360);
+}
+
+// A leader line runs from a callout toward the moon's centre and stops on the frame ring.
+export function leaderLine({sx, sy, cx, cy, r}) {
+  const dx = cx - sx;
+  const dy = cy - sy;
+  const distance = Math.hypot(dx, dy);
+  const radius = Math.max(0, r);
+  if (!(distance > radius)) return {length: 0, angle: 0};
+  return {length: distance - radius, angle: Math.atan2(dy, dx) * 180 / Math.PI};
+}
+
+function watchPlateLayout(plate, figure) {
+  if (!plateBreakpoint) {
+    plateBreakpoint = window.matchMedia('(min-width: 60em)');
+    plateBreakpoint.addEventListener('change', layoutPlate);
+  }
+
+  if (observedPlate === plate || typeof ResizeObserver === 'undefined') return;
+  plateObserver ??= new ResizeObserver(layoutPlate);
+  if (observedPlate) plateObserver.disconnect();
+  plateObserver.observe(plate);
+  // The viewport-sized dial can resize after the surrounding shell reaches its maximum width.
+  if (figure) plateObserver.observe(figure);
+  observedPlate = plate;
+}
+
+export function layoutPlate() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const plate = document.getElementById('plate');
+  if (!plate) return;
+  const figure = plate.querySelector('.hero-dial');
+  watchPlateLayout(plate, figure);
+
+  const slots = Array.from(plate.querySelectorAll('.slot'));
+  if (!plateBreakpoint.matches) {
+    for (const slot of slots) { slot.style.removeProperty('--reach'); slot.style.removeProperty('--tilt'); }
+    return;
+  }
+
+  if (!figure) return;
+
+  const slotRects = slots.map(slot => slot.getBoundingClientRect());
+  const figureRect = figure.getBoundingClientRect();
+  // The square figure matches the SVG's layout size without the dial's scroll rotation.
+  const radius = figureRect.width * 210 / 640;
+  const cx = figureRect.left + figureRect.width / 2;
+  const cy = figureRect.top + figureRect.height / 2;
+  // The line starts .5rem beyond the callout's inner edge (see .slot::after).
+  const gap = parseFloat(getComputedStyle(document.documentElement).fontSize) / 2;
+  const lines = slotRects.map((rect, index) => {
+    const side = slots[index].closest('[data-side]')?.dataset.side === 'right' ? 'right' : 'left';
+    const sx = side === 'left' ? rect.right + gap : rect.left - gap;
+    const {length, angle} = leaderLine({sx, sy: rect.top + rect.height / 2, cx, cy, r: radius});
+    // Left lines grow rightward from their start; right lines grow leftward, so turn them half a circle.
+    return {reach: Math.max(0, length - 2), tilt: side === 'left' ? angle : angle - Math.sign(angle || 1) * 180};
+  });
+
+  slots.forEach((slot, index) => {
+    slot.style.setProperty('--reach', `${lines[index].reach.toFixed(1)}px`);
+    slot.style.setProperty('--tilt', `${lines[index].tilt.toFixed(2)}deg`);
+  });
+
 }
 
 function svgElement(tagName, attributes = {}) {
@@ -354,7 +420,7 @@ function updateHeroAct(seed, act) {
 }
 
 function restartMoonrise() {
-  const hero = document.querySelector('.hero');
+  const hero = document.querySelector('.stage');
   const moon = hero?.querySelector('.dial-moon');
   if (!moon) return;
 
@@ -404,6 +470,7 @@ export function renderStage({seed, act, exploration, colors, selection} = {}) {
 
   previousSeed = normalizedSeed;
   previousSelection = {...(selection || {})};
+  layoutPlate();
 }
 
 export function setExploration(value) {

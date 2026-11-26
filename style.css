@@ -327,7 +327,7 @@ main {
   padding: 1.75rem clamp(1.25rem, 4vw, 4.5rem) 0;
 }
 
-header {
+body > header {
   position: sticky;
   z-index: 5;
   inset-block-start: 0;
@@ -444,18 +444,25 @@ header nav a :is(svg, i),
   background: var(--ok);
 }
 
-/* Hero */
-.hero {
+/* Stage */
+.stage {
   position: relative;
   display: grid;
-  grid-template-columns: 7.5rem 2.5rem minmax(0, 1fr) minmax(min(22rem, 42%), min(36rem, 46%));
-  align-items: center;
-  column-gap: clamp(1rem, 3vw, 3rem);
-  min-height: clamp(32rem, 74vh, 46rem);
-  margin-block-end: 1.5rem;
-  padding-block: 2.5rem 3rem;
-  overflow-x: clip;
+  grid-template:
+    "title head"
+    "plate plate"
+    "tools tools"
+    "console console" / auto minmax(0, 1fr);
+  gap: 1rem;
   isolation: isolate;
+  /* The dial turns while scrolling; its rotated square box must not widen the page. */
+  overflow-x: clip;
+}
+
+.stage > :is(.stage-head, .plate, .plate-tools, .console) {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
 }
 
 .hero-title {
@@ -468,20 +475,18 @@ header nav a :is(svg, i),
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: .06em;
+  white-space: nowrap;
   writing-mode: vertical-rl;
   grid-area: title;
-  font: 900 clamp(4.5rem, 3rem + 4vw, 7.5rem) / 1 var(--f-song);
+  font: 900 var(--stage-title-size, 3.25rem) / 1 var(--f-song);
 }
 
 .hero-colophon {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-self: start;
-  align-items: flex-start;
-  gap: 1.25rem;
-  padding-block-start: .5rem;
+  position: absolute;
+  z-index: 2;
+  grid-area: plate;
+  inset-block-start: 2rem;
+  inset-inline-end: max(.25rem, calc(50% - min(42vw, 11rem) + .75rem));
 }
 
 .seal {
@@ -506,6 +511,7 @@ header nav a :is(svg, i),
 }
 
 .hero-act {
+  display: none;
   max-inline-size: 20rem;
   overflow: hidden;
   color: var(--mute);
@@ -519,61 +525,109 @@ header nav a :is(svg, i),
   writing-mode: vertical-rl;
 }
 
-.hero-copy {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  grid-area: copy;
+.stage-head {
+  display: flex;
+  grid-area: head;
+  flex-direction: column;
+  justify-content: center;
+  gap: .625rem;
 }
 
 .hero-kicker {
-  overflow-wrap: normal;
-  margin: 0 0 1.25rem;
+  margin: 0;
   color: var(--lilac);
-  word-break: normal;
-  font: italic 400 clamp(2.75rem, 2rem + 2.6vw, 4.75rem) / .95 var(--f-latin);
+  font: italic 400 2.25rem / 1 var(--f-latin);
   font-variant-numeric: oldstyle-nums;
 }
 
-.hero-copy h1 {
-  margin: 0 0 .75rem;
+.stage-head h1 {
+  margin: 0;
   letter-spacing: .18em;
   word-break: keep-all;
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.125rem);
+  font-size: 1.375rem;
   font-weight: 600;
+  line-height: 1.35;
 }
 
-.hero-copy h1::before {
-  display: block;
-  width: 4rem;
-  height: 1px;
-  margin-block-end: 1.25rem;
-  background: var(--line-2);
-  content: "" / "";
-}
-
-.hero-copy > p:not(.hero-kicker) {
-  max-width: 30em;
-  margin: 0 0 2rem;
+.stage-lede {
+  margin: 0;
   color: var(--moon-2);
-  font-size: .9375rem;
-  line-height: 1.9;
+  font-size: .875rem;
 }
 
-.hero .actions {
+.plate {
+  display: grid;
+  grid-area: plate;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.plate-title {
   display: flex;
-  align-items: center;
-  gap: .75rem;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: .875rem;
+  margin: 0;
+  font-size: .9375rem;
+  font-weight: 600;
+  letter-spacing: .2em;
+}
+
+.plate-title .aside {
+  color: var(--mute);
+  font: italic 1.0625rem / 1.2 var(--f-latin);
+}
+
+.plate-tools,
+.console-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .375rem 1.25rem;
+}
+
+.plate-tools {
+  grid-area: tools;
+  justify-content: center;
+}
+
+.console {
+  display: grid;
+  grid-area: console;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: 1rem 2rem;
+  padding-block: 1.25rem;
+  border-block-start: 1px solid var(--line);
+}
+
+.console-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: end;
+  gap: .625rem;
+}
+
+.console-actions > button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: .75rem;
+}
+
+.console-actions .primary { min-height: 3.25rem; }
+
+.console-links {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
 }
 
 .hero-dial {
   position: relative;
   z-index: 1;
-  width: 100%;
+  justify-self: center;
+  width: min(100%, 84vw, 22rem);
   aspect-ratio: 1;
   margin: 0;
-  grid-area: dial;
 }
 
 .dial-moon {
@@ -649,24 +703,6 @@ svg#stageDial {
   pointer-events: none;
 }
 
-.hero::after {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: -.5rem;
-  display: grid;
-  place-items: center;
-  height: 1rem;
-  color: var(--lilac);
-  background:
-    linear-gradient(var(--line), var(--line)) left center / calc(50% - .75rem) 1px no-repeat,
-    linear-gradient(var(--line), var(--line)) right center / calc(50% - .75rem) 1px no-repeat;
-  content: "✦" / "";
-  font-family: var(--f-symbol);
-  font-size: .875rem;
-}
-
-.hero .actions > button { white-space: nowrap; }
-
 /* Panels and headings */
 .panel {
   position: relative;
@@ -700,8 +736,6 @@ dialog::before {
   z-index: 1;
   position: relative;
 }
-
-.settings { margin: 0 0 1.5rem; }
 
 .section-heading {
   display: flex;
@@ -754,21 +788,13 @@ dialog::before {
 
 .section-heading > .right { margin-inline-start: auto; }
 
-.settings-actions {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  margin-inline-start: auto;
-}
-
-.settings-actions .subtle { white-space: nowrap; }
-
-.workgrid,
-.work-input {
+.workgrid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   align-items: start;
   gap: 1.5rem;
+  margin-top: 2.5rem;
 }
 
 .pagehead h1 {
@@ -822,9 +848,8 @@ dialog::before {
 /* Form controls */
 .fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  margin-top: 1.25rem;
 }
 
 .fields > label,
@@ -1162,6 +1187,9 @@ input:disabled {
   white-space: nowrap;
 }
 
+/* Desktop splits the cast into two columns; elsewhere the wrappers are transparent. */
+.cast { display: contents; }
+
 .slottools {
   display: flex;
   align-items: center;
@@ -1194,9 +1222,7 @@ input:disabled {
 
 .more {
   gap: .875rem;
-  width: 100%;
   min-height: 2.5rem;
-  padding: 1rem 0 0;
   border-radius: 0;
   color: var(--lilac);
   font-size: .8125rem;
@@ -1205,11 +1231,10 @@ input:disabled {
 
 .more::before,
 .more::after {
-  flex: 1 1 0;
-  height: 1px;
-  background: var(--line);
-  content: "";
+  color: var(--mute);
+  content: "✦" / "";
   font-family: var(--f-symbol);
+  font-size: .75rem;
 }
 
 .more:hover { color: var(--moon); }
@@ -1817,22 +1842,35 @@ dialog.image-preview:has(.image-deck-nav) {
   color: var(--ink);
 }
 
-.material {
+#materials {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: .875rem;
-  min-width: 0;
-  padding: .75rem 0;
-  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: .75rem;
 }
 
-.material > div { overflow-wrap: anywhere; }
+.material {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(2.5rem, 1fr) auto;
+  align-items: start;
+  gap: .75rem;
+  min-width: 0;
+  padding: .875rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.material > div {
+  overflow-wrap: anywhere;
+  font-family: var(--f-sans);
+  font-weight: 600;
+}
 
 .material small {
   display: block;
   margin-top: .25rem;
   color: var(--mute);
+  font-weight: 400;
   font-size: .75rem;
   line-height: 1.55;
 }
@@ -1840,42 +1878,51 @@ dialog.image-preview:has(.image-deck-nav) {
 .material label {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: .5rem;
   white-space: nowrap;
 }
 
+#records {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 1.25rem;
+}
+
 .record {
+  --ticket-padding: 1.25rem;
   position: relative;
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr) 6.5rem;
-  align-items: center;
-  gap: 1.25rem;
+  grid-template:
+    "sigil" 6rem
+    "details" 1fr
+    "perforation" .875rem
+    "restore" auto / minmax(0, 1fr);
+  row-gap: .625rem;
   min-width: 0;
-  padding: 1rem 1.25rem;
+  min-height: 18.5rem;
+  padding: var(--ticket-padding);
   border: 1px solid var(--line);
-  border-radius: 3px;
-  margin-bottom: .75rem;
-  background:
-    radial-gradient(circle at calc(100% - 7.75rem) 0, var(--ink) .45rem, transparent .5rem),
-    radial-gradient(circle at calc(100% - 7.75rem) 100%, var(--ink) .45rem, transparent .5rem),
-    var(--ink-2);
+  border-radius: 2px;
+  background: var(--ink-2);
 }
 
 .record::after {
-  position: absolute;
-  top: .6rem;
-  right: 7.75rem;
-  bottom: .6rem;
-  border-inline-start: 1px dashed var(--line-2);
+  grid-area: perforation;
+  margin-inline: calc(0px - var(--ticket-padding) - 1px);
+  background:
+    radial-gradient(circle at left center, var(--ink) .375rem, var(--line) .375rem .4375rem, transparent .4375rem),
+    radial-gradient(circle at right center, var(--ink) .375rem, var(--line) .375rem .4375rem, transparent .4375rem),
+    repeating-linear-gradient(90deg, var(--line-2) 0 .25rem, transparent .25rem .5rem) center / 100% 1px no-repeat;
   content: "";
   pointer-events: none;
 }
 
 .record > .sigil {
-  grid-column: 1;
-  grid-row: 1;
-  width: 3.5rem;
-  height: 3.5rem;
+  grid-area: sigil;
+  width: 6rem;
+  height: 6rem;
+  justify-self: center;
 }
 
 .sigil .sigil-frame {
@@ -1895,9 +1942,9 @@ dialog.image-preview:has(.image-deck-nav) {
 .sigil .sigil-star { fill: var(--moon); }
 
 .record > div {
-  grid-column: 2;
-  grid-row: 1;
+  grid-area: details;
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .record strong {
@@ -1920,8 +1967,9 @@ dialog.image-preview:has(.image-deck-nav) {
 }
 
 .record > .secondary {
-  grid-column: 3;
-  grid-row: 1;
+  grid-area: restore;
+  width: 100%;
+  justify-content: center;
 }
 
 .history-file-actions { margin: 0 0 .75rem; }
@@ -2476,7 +2524,7 @@ dialog.resource-editor {
 @media (min-width: 60em) {
   body { padding-inline-start: 5.5rem; }
 
-  header {
+  body > header {
     position: fixed;
     inset-block: 0;
     inset-inline-start: 0;
@@ -2573,54 +2621,219 @@ dialog.resource-editor {
 
   main { padding-block-start: 2rem; }
 
-  .fields > label:nth-child(n + 2):nth-child(-n + 4) {
-    padding-inline-start: 1rem;
+  .stage {
+    --stage-title-size: clamp(4.5rem, 2rem + 4vw, 6.5rem);
+    grid-template:
+      "title head" auto
+      "title plate" 1fr
+      "title tools" auto
+      "title console" auto / [title] 7rem [content] minmax(0, 1fr);
+    column-gap: clamp(1rem, 2vw, 2rem);
+    min-height: min(100dvh, 62rem);
+  }
+
+  .hero-title,
+  .hero-colophon { place-self: start center; }
+
+  .hero-colophon {
+    position: relative;
+    display: flex;
+    grid-area: title;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    inset: auto;
+    margin-block-start: calc(var(--stage-title-size) * 4.24 + .875rem);
+  }
+
+  .hero-act { display: block; }
+
+  .stage-head {
+    flex-flow: row wrap;
+    align-items: baseline;
+    gap: .375rem clamp(1rem, 2vw, 2rem);
+    text-align: center;
+  }
+
+  .plate {
+    --dial-size: clamp(20rem, 34vw, 34rem);
+    grid-template-columns: minmax(0, 1fr) var(--dial-size) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: clamp(2.5rem, 4vw, 4.5rem);
+  }
+
+  .plate-title {
+    grid-area: 1 / 1 / 2 / -1;
+    padding-block-end: .5rem;
+  }
+
+  .hero-dial {
+    grid-area: 2 / 2;
+    align-self: center;
+    width: 100%;
+  }
+
+  #slots { display: contents; }
+
+  /* Each side is its own column of callouts, spread evenly along the moon. */
+  .cast {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: .75rem;
+    grid-row: 2;
+    align-self: stretch;
+    min-height: var(--dial-size);
+    min-width: 0;
+  }
+
+  .cast[data-side="left"] { grid-column: 1; }
+
+  .cast[data-side="right"] { grid-column: 3; }
+
+  .plate .slot {
+    --leader-line: var(--line-2);
+    --leader-dot: var(--moon-2);
+    position: relative;
+    z-index: 2;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: .25rem .375rem;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  /* Label and tools share the first line; the tools sit right beside the label. */
+  .cast[data-side="left"] .slot {
+    --leader-start: left;
+    --leader-tip: calc(100% - 2.5px);
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    text-align: end;
+  }
+
+  .cast[data-side="right"] .slot {
+    --leader-start: right;
+    --leader-tip: 2.5px;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    text-align: start;
+  }
+
+  .cast[data-side="left"] .slotlabel { grid-area: 1 / 3; }
+
+  .cast[data-side="left"] .slottools { grid-area: 1 / 2; }
+
+  .cast[data-side="right"] .slotlabel { grid-area: 1 / 1; }
+
+  .cast[data-side="right"] .slottools { grid-area: 1 / 2; }
+
+  .plate .slot:is(:hover, :focus-within) {
+    --leader-line: var(--lilac);
+    --leader-dot: var(--lilac);
+    background: none;
+  }
+
+  .plate .slot:has(.mini.on) { --leader-dot: var(--ver); }
+
+  .plate .slot::before,
+  .plate .sloticon,
+  .plate .slotval::before { display: none; }
+
+  .plate .slot::after {
+    position: absolute;
+    top: 50%;
+    box-sizing: content-box;
+    inline-size: var(--reach, 0px);
+    block-size: 5px;
+    translate: 0 -50%;
+    background:
+      radial-gradient(circle at var(--leader-tip) center, var(--leader-dot) 2.5px, transparent 2.5px),
+      linear-gradient(var(--leader-line), var(--leader-line)) var(--leader-start) center / calc(100% - 2.5px) 1px no-repeat;
+    content: "";
+    pointer-events: none;
+    transition: background-color .2s;
+  }
+
+  /* The end cap's center extends 2px beyond the measured reach. */
+  .cast[data-side="left"] .slot::after {
+    inset-inline-start: calc(100% + .5rem);
+    padding-inline-end: 4.5px;
+    transform-origin: left center;
+    rotate: var(--tilt, 0deg);
+  }
+
+  .cast[data-side="right"] .slot::after {
+    inset-inline-end: calc(100% + .5rem);
+    padding-inline-start: 4.5px;
+    transform-origin: right center;
+    rotate: var(--tilt, 0deg);
+  }
+
+  .plate .slotlabel {
+    min-width: 0;
+    color: var(--mute);
+    font-size: .8125rem;
+    letter-spacing: .15em;
+    line-height: 1.75rem;
+    white-space: nowrap;
+  }
+
+  .plate .slot:has(.mini.on) .slotlabel { color: var(--ver); }
+
+  .plate .slottools { gap: 0; }
+
+  .plate .mini { width: 1.75rem; height: 1.75rem; min-height: 0; }
+
+  .plate .slotval {
+    display: -webkit-box;
+    grid-area: 2 / 1 / 3 / -1;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    color: var(--moon);
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    text-align: inherit;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .plate .slot:is(:hover, :focus-within) .slotval { color: var(--lilac); }
+
+  .plate .slottext {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .plate .swatches { margin-inline-end: .375rem; }
+
+  .console { grid-template-columns: minmax(0, 1fr) auto; }
+
+  .fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.25fr);
+    gap: clamp(.625rem, 1vw, 1rem);
+  }
+
+  .fields > label + label {
+    padding-inline-start: clamp(.5rem, 1vw, 1rem);
     border-inline-start: 1px solid var(--line);
   }
 
-  .workgrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); }
+  .console-actions { flex-direction: row; }
+
+  .console-actions > button { flex: 0 0 auto; }
+
+  .console-actions .ghost { padding-inline: 1rem; }
+
+  .console-actions .primary { padding-inline: 2rem; }
+
+  .workgrid { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
 
   .workgrid.image-hidden { grid-template-columns: minmax(0, 1fr); }
-
-  .image-hidden .work-input { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-  .hero { grid-template-areas: "title colophon copy dial"; }
-
-  .hero-colophon { grid-area: colophon; }
-}
-
-@media (min-width: 60em) and (max-width: 79.9999em) {
-  .hero {
-    grid-template-columns: 5.75rem minmax(17rem, 1fr) minmax(17rem, 24rem);
-    grid-template-rows: max-content 1fr;
-    grid-template-areas:
-      "title copy dial"
-      "colophon copy dial";
-    row-gap: .75rem;
-  }
-
-  .hero-title { font-size: clamp(4rem, 2.5rem + 3vw, 5.5rem); }
-
-  .hero-colophon {
-    justify-self: center;
-    padding-block-start: 0;
-  }
-
-  .hero-act {
-    position: absolute;
-    visibility: hidden;
-  }
-
-  .hero-kicker { font-size: clamp(3rem, 2.25rem + 2vw, 4rem); }
-}
-
-@media (min-width: 60em) and (max-width: 69.9999em) {
-  .slot {
-    grid-template-columns: 1.5rem minmax(3.5em, auto) minmax(0, 1fr) auto;
-    gap: .375rem;
-  }
-
-  .slotval { gap: .375rem; }
 }
 
 @media (min-width: 22em) and (max-width: 59.9999em) {
@@ -2628,6 +2841,9 @@ dialog.resource-editor {
 }
 
 @media (max-width: 59.9999em) {
+  /* The sparkles are placed for the wide composition; on small screens they would sit on the copy. */
+  .twinkle { display: none; }
+
   header nav {
     flex-wrap: wrap;
     row-gap: .25rem;
@@ -2643,18 +2859,6 @@ dialog.resource-editor {
 
 @media (min-width: 45em) and (max-width: 59.9999em) {
   main { padding-block-start: 1.5rem; }
-
-  .hero {
-    grid-template-columns: auto minmax(0, 1fr) 18rem;
-    grid-template-areas:
-      "title copy dial"
-      "colophon copy dial";
-    min-height: clamp(30rem, 68vh, 42rem);
-    column-gap: clamp(1rem, 2.5vw, 2rem);
-    padding: 2rem 1.25rem 2.5rem;
-  }
-
-  .hero-colophon { grid-area: colophon; }
 }
 
 @media (max-width: 44.9999em) {
@@ -2699,72 +2903,7 @@ dialog.resource-editor {
 
   main { padding-block-start: 1rem; }
 
-  .hero {
-    grid-template-columns: 3.25rem minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      "dial dial"
-      "title copy";
-    gap: 1.5rem 1rem;
-    min-height: 0;
-    padding: .75rem 0 2.5rem;
-  }
-
-  .hero-title { font-size: 3.25rem; }
-
-  .hero-copy {
-    align-self: start;
-    padding-block-start: .25rem;
-  }
-
-  .hero-kicker {
-    margin-block-end: .875rem;
-    font-size: 2.25rem;
-  }
-
-  .hero-copy h1 {
-    margin-block-end: .5rem;
-    font-size: 1.375rem;
-    letter-spacing: .12em;
-  }
-
-  .hero-copy h1::before { margin-block-end: .875rem; }
-
-  .hero-copy > p:not(.hero-kicker) {
-    margin-block-end: 1rem;
-    font-size: .875rem;
-  }
-
-  .hero-dial {
-    width: min(100%, 84vw, 21rem);
-    justify-self: center;
-  }
-
-  .hero-colophon {
-    position: absolute;
-    z-index: 2;
-    inset-block-start: .75rem;
-    inset-inline-end: calc(50% - min(42vw, 10.5rem) + .75rem);
-    display: block;
-    padding: 0;
-  }
-
-  .hero-act {
-    position: absolute;
-    visibility: hidden;
-  }
-
-  .hero .actions {
-    flex-wrap: nowrap;
-    gap: .625rem;
-  }
-
-  .hero .actions > button {
-    flex: 1 1 0;
-    min-width: 0;
-    padding-inline: .4rem;
-    letter-spacing: .12em;
-  }
+  .stage-head h1 { letter-spacing: .12em; }
 
   .site-footer {
     grid-template-columns: 1fr auto;
@@ -2778,42 +2917,11 @@ dialog.resource-editor {
     justify-self: start;
   }
 
-  .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
   .resources-grid { grid-template-columns: minmax(0, 1fr); }
 
   .resource-row { grid-template-columns: minmax(0, 1fr) auto; }
 
   .resource-row-actions { grid-column: 1 / -1; }
-
-  .record {
-    grid-template-columns: 3rem minmax(0, 1fr);
-    row-gap: .5rem;
-    background:
-      radial-gradient(circle at 0 calc(100% - 4rem), var(--ink) .45rem, transparent .5rem),
-      radial-gradient(circle at 100% calc(100% - 4rem), var(--ink) .45rem, transparent .5rem),
-      var(--ink-2);
-  }
-
-  .record::after {
-    top: auto;
-    right: .6rem;
-    bottom: 4rem;
-    left: .6rem;
-    border-top: 1px dashed var(--line-2);
-    border-inline-start: 0;
-  }
-
-  .record > .sigil {
-    width: 3rem;
-    height: 3rem;
-  }
-
-  .record > .secondary {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    margin-top: .5rem;
-  }
 
   .pagehead {
     flex-direction: column;
@@ -2839,18 +2947,17 @@ dialog.resource-editor {
   .secondary,
   .primary,
   .ghost,
-  .hero .actions > button,
   .image-deck .cloud-image-action {
     padding-inline: 1rem;
     letter-spacing: .04em;
   }
 
-  .hero .actions {
-    flex-direction: column;
+  .console-actions {
+    flex-direction: column-reverse;
     align-items: stretch;
   }
 
-  .hero .actions > button { flex: auto; }
+  .console-actions > button { flex: auto; }
 
   .image-submit button[type="submit"] svg { display: none; }
 
@@ -2862,16 +2969,6 @@ dialog.resource-editor {
   }
 
   .section-heading .aside { display: none; }
-
-  .settings .section-heading h2 {
-    flex: 1;
-    min-inline-size: min-content;
-  }
-
-  .settings-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
 
   .fields { gap: .75rem; }
 
@@ -2911,20 +3008,21 @@ dialog.resource-editor {
 @media (max-width: 21.9999em) {
   html { scroll-padding-top: 0; }
 
-  header { position: static; }
+  body > header { position: static; }
 
-  .hero {
+  .stage {
     grid-template:
-      "dial"
       "title"
-      "copy" / minmax(0, 1fr);
+      "head"
+      "plate"
+      "tools"
+      "console" / minmax(0, 1fr);
   }
 
   .hero-title {
     writing-mode: horizontal-tb;
     font-size: min(3.5rem, 12vw);
     letter-spacing: .12em;
-    white-space: nowrap;
   }
 
   .hero-kicker { overflow-wrap: anywhere; }
@@ -2933,7 +3031,6 @@ dialog.resource-editor {
   .primary,
   .ghost,
   .secondary,
-  .hero .actions > :is(.primary, .ghost),
   .image-submit button[type="submit"] {
     white-space: normal;
     text-wrap: balance;
@@ -2987,16 +3084,15 @@ dialog.resource-editor {
     justify-content: flex-start;
   }
 
-  .hero-copy h1 { word-break: normal; }
+  .stage-head h1 { word-break: normal; }
 
-  .panel,
-  .record { padding: .75rem; }
+  .panel { padding: .75rem; }
 
   .section-heading .act { display: none; }
 
   .copy,
   .secondary,
-  .hero .actions > button,
+  .console-actions > button,
   .legal-nav a { padding-inline: .625rem; }
 
   .fields,
@@ -3006,8 +3102,6 @@ dialog.resource-editor {
   .image-submit,
   .history-limit-fields,
   .history-switch,
-  .material,
-  .record,
   .resource-callback,
   .resource-row {
     grid-template-columns: minmax(0, 1fr);
@@ -3071,7 +3165,6 @@ dialog.resource-editor {
   .sloticon,
   .more::before,
   .more::after,
-  .record::after,
   .record > .sigil {
     display: none;
   }
@@ -3095,17 +3188,16 @@ dialog.resource-editor {
     white-space: normal;
   }
 
-  .material label {
-    flex-direction: column;
-    align-items: flex-start;
-    white-space: normal;
+  .material input { inline-size: min(100%, 4.5rem); }
+
+  .record {
+    --ticket-padding: .75rem;
+    grid-template:
+      "details" 1fr
+      "perforation" .875rem
+      "restore" auto / minmax(0, 1fr);
+    min-height: 0;
   }
-
-  .material input { inline-size: min(100%, 6rem); }
-
-  .record { background: var(--ink-2); }
-
-  .record > div { grid-column: 1; }
 
   dialog,
   dialog.image-preview { padding: .875rem; }
@@ -3177,9 +3269,9 @@ dialog.resource-editor {
   /* Keep the opening running while the studio is hidden by in-page navigation. */
   #studio[hidden] { display: contents !important; }
 
-  #studio[hidden] > :not(.hero) { display: none; }
+  #studio[hidden] > :not(.stage) { display: none; }
 
-  #studio[hidden] > .hero {
+  #studio[hidden] > .stage {
     position: fixed;
     inset: 0;
     overflow: clip;
@@ -3196,11 +3288,11 @@ dialog.resource-editor {
 
   .hero-kicker { animation: opening-rise .7s ease-out .05s both; }
 
-  .hero-copy h1 { animation: opening-rise .7s ease-out .12s both; }
+  .stage-head h1 { animation: opening-rise .7s ease-out .12s both; }
 
-  .hero-copy > p:not(.hero-kicker) { animation: opening-rise .7s ease-out .19s both; }
+  .stage-lede { animation: opening-rise .7s ease-out .19s both; }
 
-  .hero .actions { animation: opening-rise .7s ease-out .26s both; }
+  .console-actions { animation: opening-rise .7s ease-out .26s both; }
 
   .hero-act { animation: opening-act .3s ease-out 1.3s both; }
 
@@ -3350,7 +3442,7 @@ dialog.resource-editor {
 
   .image-deck-nav { transition: opacity 160ms ease; }
 
-  header { view-transition-name: rail; }
+  body > header { view-transition-name: rail; }
 
   ::view-transition {
     background: var(--ink);
@@ -3378,11 +3470,11 @@ dialog.resource-editor {
   @keyframes scene-in { from { opacity: 0; } }
 
   /* Keep the opening entries in place so removing .casting cannot replay them. */
-  .hero.casting .dial-moon {
+  .stage.casting .dial-moon {
     animation: opening-moonrise 1.6s ease-out, moonrise 1.6s ease-in-out;
   }
 
-  .hero.casting .seal {
+  .stage.casting .seal {
     animation:
       opening-stamp .45s cubic-bezier(.3, 1.6, .5, 1) 1.05s both,
       stamp-again .4s cubic-bezier(.3, 1.6, .5, 1) .25s both;
@@ -3436,8 +3528,6 @@ dialog.resource-editor {
     -webkit-text-fill-color: CanvasText;
   }
 
-  .hero-copy h1::before,
-  .hero::after,
   .site-footer::before {
     color: CanvasText;
     background-color: Canvas;
@@ -3469,7 +3559,7 @@ dialog.resource-editor {
     color: LinkText;
   }
 
-  header,
+  body > header,
   .legal-nav a {
     border-color: CanvasText;
   }
@@ -3488,6 +3578,20 @@ dialog.resource-editor {
   :root { --focus-ring: Highlight; }
 
   .seedinput:focus-within { outline-color: Highlight; }
+
+  .record::after {
+    align-self: center;
+    margin-inline: 0;
+    border-block-start: 1px dashed CanvasText;
+  }
+
+  .plate .slot::after {
+    --leader-line: CanvasText;
+    --leader-dot: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .plate .slot:has(.mini.on)::after { --leader-dot: Highlight; }
 
   .panel,
   .record,
