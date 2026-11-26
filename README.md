@@ -121,3 +121,5 @@ OAuth 客户端（包括 Drive 备份）的「已获授权的 JavaScript 来源�
 Copyright © 2026 Yatsuki Renka
 
 本项目采用 [GNU Affero General Public License v3.0 only](LICENSE)（AGPL-3.0-only）。如需另行商议闭源授权，可通过 [GitHub](https://github.com/YatsukiRenka) 联系作者。
+
+页面字体为 Noto Serif SC 与 Cormorant Garamond 的子集，按 SIL Open Font License 1.1 授权，许可文本与子集说明见 `assets/fonts/`。

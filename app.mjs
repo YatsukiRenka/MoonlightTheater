@@ -7,6 +7,7 @@ import {initializeHistoryBackup} from './history-backup.mjs';
 import {createCloudHistory} from './cloud-history.mjs';
 import {readHistoryLimits} from './history-limits.mjs';
 import {makePromptBackup, matchesRating, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
+import {renderStage, setExploration, sigil} from './stage.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const opt=(k,t)=>'<option value="'+esc(k)+'">'+esc(t)+'</option>';
@@ -21,7 +22,7 @@ model.library ??= model.active;
 model.active = model.current?.profileId ?? model.library;
 validate(model.profiles[model.library]);
 const pref=model.prefs;
-let expanded=false,libKey='branch',messageTimer,dialogOpener;
+let expanded=false,libKey='branch',messageTimer,dialogOpener,shownPageKey;
 const rowKeys=['palette','hair','expression','outfit','pose','silhouette','face','hairColor','eyeColor','headAccessory','nonhuman','legwear','footwear','prop','branch','style','presentation'];
 const rowIcons={palette:'palette',hair:'hair',expression:'face',outfit:'outfit',pose:'pose',silhouette:'pose',face:'face',hairColor:'palette',eyeColor:'eye',style:'layers'};
 const newSeed=()=>crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase().padStart(8,'0');
@@ -114,14 +115,23 @@ function configControls(){
  $('style').innerHTML=choicesFor('style',sel(),profile).map(x=>opt(x.id,named(styleNames,x.id)||x.zh)).join('');
  $('style').value=pref.style;
  if($('style').selectedIndex<0)$('style').value=profile.settings.defaultStyle;
- $('explore').value=Math.round(pref.exploration*100);$('exploreValue').textContent=$('explore').value+'%';
+ $('explore').value=Math.round(pref.exploration*100);$('explore').style.setProperty('--control-value',$('explore').value);$('exploreValue').textContent=$('explore').value+'%';
+}
+function stage(){
+ const selection=sel();
+ renderStage({seed:cur().seed,act:model.history.length,exploration:pref.exploration,colors:named(colors,selection.palette)||[],selection});
 }
 function draw(){
  const s=sel();configControls();$('seed').value=cur().seed;
- const rows=expanded?rowKeys:rowKeys.slice(0,5);$('slots').innerHTML=rows.map(k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" title="'+esc(labelFor(k,s))+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+esc(short(k,s))+'</button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'}).join('');
+ const rows=expanded?rowKeys:rowKeys.slice(0,5),slots=$('slots');slots.innerHTML=rows.map(k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+'<span class="slottext"></span></button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'}).join('');
+ slots.querySelectorAll('[data-edit]').forEach(button=>{const k=button.dataset.edit;button.setAttribute('title',labelFor(k,s));button.querySelector('.slottext').textContent=short(k,s)});
  $('expand').innerHTML=expanded?'收起其余设定 '+icon('down'):'展开全部设定（'+rowKeys.length+'） '+icon('down');
  $('output').value=cur().edits?.[pref.lang]??cur().prompt[pref.lang];count();document.querySelectorAll('[data-lang]').forEach(b=>{b.classList.toggle('selected',b.dataset.lang===pref.lang);b.setAttribute('aria-pressed',b.dataset.lang===pref.lang)});
- $('ratings').innerHTML=['喜欢','一般','不喜欢'].map((r,i)=>'<button class="'+(cur().feedback?.rating===r?'selected':'')+'" data-rate="'+r+'">'+icon(['heart','dot','x'][i])+r+'</button>').join('')
+ $('ratings').innerHTML=['喜欢','一般','不喜欢'].map((r,i)=>{
+  const pressed=cur().feedback?.rating===r;
+  return '<button class="'+(pressed?'selected':'')+'" data-rate="'+r+'" aria-pressed="'+pressed+'">'+icon(['heart','dot','x'][i])+r+'</button>';
+ }).join('');
+ stage();
 }
 function count(){$('counter').textContent=$('output').value.length+' 字符'}
 function restoreButtonFocus(button) {
@@ -143,8 +153,12 @@ function choose(key,opener) {
   + '<label class="settinglabel">手动输入<input id="manualChoiceText" required maxlength="'+manualTextLimit+'" value="'+esc(selected?.zh)+'"></label>'
   + '<label class="settinglabel">英文（选填）<input id="manualChoiceEnglish" maxlength="'+manualTextLimit+'" placeholder="留空使用输入的文字" value="'+esc(selected?.manual&&selected.en!==selected.zh?selected.en:'')+'"></label>'
   + '<button type="submit" class="copy">使用手动输入</button><p class="note" id="manualChoiceError" role="status" hidden></p></form>';
- const options = list.map((entry, index) => '<button type="button" data-choice="'+index+'" class="'+(entry.id===current?'selected':'')+'"'+(entry.id===current?' autofocus':'')+'>'
-  +esc(entry.zh)+(entry.id===current?'　✓':'')+(entry.manual?'<span class="choice-manual">手动条目</span>':'')+'</button>').join('');
+ const options = list.map((entry, index) => {
+  const selected = entry.id === current;
+  const marks = (selected ? '<span>✓</span>' : '') + (entry.manual ? '<span class="choice-manual">手动条目</span>' : '');
+  return '<button type="button" data-choice="'+index+'" class="'+(selected?'selected':'')+'"'+(selected?' autofocus':'')+'>'
+   +esc(entry.zh)+(marks?'<span class="choice-marks">'+marks+'</span>':'')+'</button>';
+ }).join('');
  showDialog('设置'+labels[key], manualForm+'<h3 class="choice-title">从素材中选择</h3><div class="choices">'+options+'</div>',opener);
  $('manualChoice').onsubmit = event => {
   event.preventDefault();
@@ -176,15 +190,30 @@ function libraryPalette(profile){
 }
 function libraries(){const profile=libraryProfile();const keys=Object.keys(labels);$('libtabs').innerHTML=keys.map(k=>'<button class="'+(libKey===k?'selected':'')+'" data-lib="'+k+'" aria-pressed="'+(libKey===k)+'">'+labels[k]+'</button>').join('');
  $('materials').innerHTML=materialChoices(profile,libKey,libraryPalette(profile),model.manualMaterials).map((e,i)=>'<div class="material"><div>'+esc(e.zh)+'<small>'+esc(e.manual?'手动条目'+(e.en!==e.zh?' · '+e.en:''):e.en||e.preferredTags?.join(' · '))+'</small></div>'+('weight' in e?'<label>权重 <input aria-label="'+esc(e.zh)+'权重" type="number" min="0" step="any" data-weight="'+i+'" value="'+e.weight+'"></label>':'')+'</div>').join('')}
-function records(){const rating=$('ratingFilter').value,filtered=model.history.filter(e=>matchesRating(e,rating)).toReversed();$('records').innerHTML=filtered.map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('');
+function records(){const rating=$('ratingFilter').value,filtered=model.history.filter(e=>matchesRating(e,rating)).toReversed();
+ $('records').replaceChildren(...filtered.map(e=>{
+  const cfg=model.profiles[e.profileId],s=e.selection,article=document.createElement('article');
+  article.className='record';
+  article.append(document.createRange().createContextualFragment(
+   sigil(e.seed)+'<div><strong>'+swatches(s.palette)+'</strong><p></p><small></small></div><button class="secondary">恢复</button>'
+  ));
+  article.querySelector('strong').append(short('palette',s,cfg)+' · '+labelFor('branch',s,cfg));
+  article.querySelector('p').textContent=labelFor('hair',s,cfg)+' / '+labelFor('outfit',s,cfg);
+  article.querySelector('small').textContent=new Date(e.time).toLocaleString('zh-CN')+'　Seed '+(e.seed??'')+(e.feedback?'　'+(e.feedback.rating??''):'');
+  article.querySelector('button').setAttribute('data-restore',e.id??'');
+  return article;
+ }));
  const status=$('ratingFilterStatus'),message=model.history.length?(filtered.length?`显示 ${filtered.length} 条提示词记录。`:'没有符合筛选条件的提示词记录。'):'';
  if(status.textContent!==message)status.textContent=message;
 }
 function page() {
  const anchor=location.hash.slice(1);
  const key=anchor==='historyBackup'?'settings':['library','history','settings'].includes(anchor)?anchor:'studio';
+ const pageChanged=shownPageKey!==undefined&&shownPageKey!==key;
+ shownPageKey=key;
  document.title={studio:'月光剧场 · 角色提示词生成器',library:'设计库 · 月光剧场',history:'历史记录 · 月光剧场',settings:'设置 · 月光剧场'}[key];
  for (const id of ['studio','library','history','settings']) $(id).hidden=id!==key;
+ if(pageChanged&&anchor!=='imageStudio'&&anchor!=='historyBackup')window.scrollTo({top:0});
  document.querySelectorAll('[data-page]').forEach(link=>{
   const active=link.dataset.page===key;
   link.classList.toggle('active',active);
@@ -206,7 +235,7 @@ document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.cre
 for(const [id,type] of [['generate','new'],['fresh','fresh'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
 $('branch').onchange=()=>{const v=$('branch').value;if(model.locks.includes('branch')&&v!==sel().branch){notify('请先解锁风格分支');configControls();return}pref.branch=v;persist()};
 $('style').onchange=()=>{const old=pref.style;try{setSlot('style',$('style').value)}catch(e){pref.style=old;configControls();notify(e.message)}};
-$('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('exploreValue').textContent=$('explore').value+'%';persist()};
+$('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('explore').style.setProperty('--control-value',$('explore').value);$('exploreValue').textContent=$('explore').value+'%';setExploration(pref.exploration);persist()};
 $('unlock').onclick=()=>{model.locks=[];pref.branch='';const saved=persist();draw();if(saved)notify('已解除全部锁定')};
 $('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit,b);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}});restoreButtonFocus(b)};
 $('expand').onclick=()=>{expanded=!expanded;draw()};
@@ -341,6 +370,7 @@ function persistPromptPatch(patch) {
  try{localStorage.setItem(storage,JSON.stringify({...model,...patch}));storageFailed=false;}
  catch(error){throw new Error('当前浏览器没有足够空间写入提示词历史。',{cause:error});}
  Object.assign(model,patch);
+ stage();
 }
 initializeHistoryBackup({
  cloud:cloudHistory,
@@ -372,5 +402,9 @@ $('toggleImageStudio').onclick=()=>{
  setImageVisibility(visible);
  if(!visible&&location.hash==='#imageStudio')history.replaceState(history.state,'','#studio');
 };
-window.addEventListener('hashchange',page);
+window.addEventListener('hashchange',()=>{
+ const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+ if(typeof document.startViewTransition==='function'&&reducedMotion===false)document.startViewTransition(page);
+ else page();
+});
 page();

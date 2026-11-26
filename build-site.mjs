@@ -7,17 +7,19 @@ if (driveClientId && (driveClientId !== driveClientId.trim() || !validGoogleClie
 }
 
 const assets = [
-  'index.html', 'favicon.svg', 'style.css', 'app.mjs', 'engine.mjs', 'icons.mjs', 'images.mjs',
+  'index.html', 'favicon.svg', 'style.css', 'app.mjs', 'stage.mjs', 'engine.mjs', 'icons.mjs', 'images.mjs',
   'privacy.html', 'terms.html',
   'image-settings.mjs', 'image-client.mjs', 'api-resources.mjs', 'image-history.mjs', 'image-usage.mjs', 'manual-materials.mjs',
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'history-limits.mjs', 'history-archive.mjs', 'history-backup.mjs', 'prompt-history.mjs', 'google-oauth.mjs', 'drive-history.mjs', 'image-file.mjs',
   'cloud-history.mjs', 'cloud-image-store.mjs', 'image-renditions.mjs', 'vendor/noble-sha256.mjs',
-  'profile.json', 'assets/banner.avif', 'assets/banner.webp',
+  'profile.json', 'assets/portrait.avif', 'assets/portrait.webp', 'assets/grain.svg',
+  'assets/fonts/noto-serif-sc-display.woff2', 'assets/fonts/cormorant.woff2', 'assets/fonts/cormorant-italic.woff2',
+  'assets/fonts/OFL-NotoSerifSC.txt', 'assets/fonts/OFL-CormorantGaramond.txt', 'assets/fonts/README.md',
 ];
 const output = new URL('./dist/', import.meta.url);
 await rm(output, {recursive: true, force: true});
-await mkdir(new URL('assets/', output), {recursive: true});
+await mkdir(new URL('assets/fonts/', output), {recursive: true});
 await Promise.all(assets.map(path => cp(new URL(path, import.meta.url), new URL(path, output))));
 const page = new URL('index.html', output);
 let html = await readFile(page, 'utf8');

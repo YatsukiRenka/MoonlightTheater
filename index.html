@@ -1,15 +1,33 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="text-scale" content="scale"><meta name="theme-color" content="#faf8fb"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="preload" href="profile.json" as="fetch" crossorigin><link rel="preload" href="assets/banner.avif" as="image" type="image/avif" fetchpriority="high"><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span>月光剧场</a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>设计库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="text-scale" content="scale"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#0b0a10"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https: http://127.0.0.1:* http://localhost:* http://[::1]:*; img-src 'self' blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'; object-src 'none'"><title>月光剧场 · 角色提示词生成器</title><meta name="description" content="搭配原创角色设定，生成中英双语绘画提示词。"><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="preload" href="profile.json" as="fetch" crossorigin><link rel="preload" href="assets/portrait.avif" as="image" type="image/avif" fetchpriority="high"><link rel="preload" href="assets/fonts/noto-serif-sc-display.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/cormorant-italic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body>
+<header><div class="navwrap"><a class="brand" href="#studio"><span class="brandmark" aria-hidden="true">☾<b>✦</b></span><span class="brand-name">月光剧场</span></a><nav aria-label="主导航"><a href="#studio" data-page="studio"><i data-icon="sliders"></i>创作台</a><a href="#library" data-page="library"><i data-icon="book"></i>设计库</a><a href="#history" data-page="history"><i data-icon="history"></i>历史记录</a><a href="#settings" data-page="settings"><i data-icon="tune"></i>设置</a></nav><span class="local"><b></b> 本地工作区</span></div></header>
 <main><section id="studio">
-<div class="hero"><div class="hero-copy"><div class="hero-kicker"><span>✧</span> MOONLIGHT THEATER</div><h1>角色提示词生成器</h1><p>搭配造型、配色与神态，为下一个原创角色写下设定。</p><div class="actions"><button class="primary" id="generate"><i data-icon="dice"></i>随机生成</button><button class="ghost" id="fresh"><i data-icon="spark"></i>全新角色</button></div></div></div>
-<section class="panel settings"><div class="section-heading"><span class="iconbox"><i data-icon="sliders"></i></span><h2>生成设置</h2><div class="settings-actions"><button class="subtle right" id="toggleImageStudio" type="button" aria-expanded="true" aria-controls="imageStudio">隐藏生图</button><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div></div>
+<div class="hero">
+  <p class="hero-title" aria-hidden="true">月光剧场</p>
+  <div class="hero-colophon" aria-hidden="true"><span class="seal">今夜<br>开演</span><span class="hero-act" id="heroAct">Nº</span></div>
+  <div class="hero-copy">
+    <p class="hero-kicker" lang="en">Moonlight Theater</p>
+    <h1>角色提示词<wbr>生成器</h1>
+    <p>搭配造型、配色与神态，为下一个原创角色写下设定。</p>
+    <div class="actions"><button class="primary" id="generate"><i data-icon="dice"></i>随机生成</button><button class="ghost" id="fresh"><i data-icon="spark"></i>全新角色</button></div>
+  </div>
+  <figure class="hero-dial" aria-hidden="true"><div class="dial-moon"></div><svg id="stageDial" viewBox="0 0 640 640" focusable="false"></svg></figure>
+  <i class="twinkle" aria-hidden="true" style="--x:51%;--y:12%;--d:0s;--s:.74"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:59%;--y:27%;--d:-3s;--s:.65"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:72%;--y:9%;--d:-1.6s;--s:1"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:86%;--y:14%;--d:-.7s;--s:.68"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:94%;--y:24%;--d:-4.2s;--s:.86"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:98%;--y:33%;--d:-2.3s;--s:.58"></i>
+  <i class="twinkle" aria-hidden="true" style="--x:64%;--y:6%;--d:-3.7s;--s:.42"></i>
+</div>
+<section class="panel settings"><div class="section-heading"><span class="act" aria-hidden="true">I</span><h2>生成设置</h2><span class="aside" lang="en" aria-hidden="true">Staging</span><div class="settings-actions"><button class="subtle right" id="toggleImageStudio" type="button" aria-expanded="true" aria-controls="imageStudio">隐藏生图</button><button class="subtle" id="moreSettings"><i data-icon="tune"></i>高级设置</button></div></div>
 <div class="fields"><label>风格分支<select id="branch"></select></label><label>绘制画风<select id="style"></select></label><label>探索度 <b class="number" id="exploreValue">18%</b><input type="range" min="0" max="100" id="explore"></label><label><span id="seedLabel">随机种子</span> <span class="seedinput"><input id="seed" aria-labelledby="seedLabel" placeholder="输入种子" maxlength="128"><button type="button" id="replay" title="按种子重现" aria-label="按种子重现"><i data-icon="repeat"></i></button></span></label></div></section>
-<div class="workgrid" id="workgrid"><div class="work-input"><section class="panel design"><div class="section-heading"><span class="iconbox"><i data-icon="layers"></i></span><h2>角色设计</h2><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
-<section class="panel prompt"><div class="section-heading"><span class="iconbox"><i data-icon="text"></i></span><h2>完整提示词</h2><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
+<div class="workgrid" id="workgrid"><div class="work-input"><section class="panel design"><div class="section-heading"><span class="act" aria-hidden="true">II</span><h2>角色设计</h2><span class="aside" lang="en" aria-hidden="true">Dramatis Personæ</span><button class="subtle right" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div><div id="slots"></div><button id="expand" class="more"></button></section>
+<section class="panel prompt"><div class="section-heading"><span class="act" aria-hidden="true">III</span><h2>完整提示词</h2><span class="aside" lang="en" aria-hidden="true">The Script</span><div class="seg right"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div></div><div class="promptmeta"><span><b></b> 可编辑文本</span><span id="counter"></span></div><textarea id="output" aria-label="完整提示词" spellcheck="false"></textarea><div class="promptactions"><button class="copy" id="copy"><i data-icon="copy"></i>复制提示词</button></div><div class="rating"><span>角色设定评价</span><div id="ratings"></div></div></section></div>
 <section id="imageStudio" class="panel image-studio" aria-labelledby="imageHeading">
   <div class="section-heading">
-    <span class="iconbox"><i data-icon="spark"></i></span>
+    <span class="act" aria-hidden="true">IV</span>
     <h2 id="imageHeading">图片生成</h2>
+    <span class="aside" lang="en" aria-hidden="true">The Stage</span>
     <a class="subtle right image-settings-link" href="#settings">配置接口</a>
   </div>
   <div class="image-workspace">
@@ -58,10 +76,10 @@
 </section>
 </div>
 </section>
-<section id="library" hidden><div class="pagehead"><div><small>MATERIAL LIBRARY</small><h1>设计库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入设计库</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出设计库</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="iconbox"><i data-icon="book"></i></span><h2>素材与抽取权重</h2></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
+<section id="library" hidden><div class="pagehead"><div><small lang="en" aria-hidden="true">The Wardrobe</small><h1>设计库</h1></div><div class="actions"><button class="secondary" id="import"><i data-icon="upload"></i>导入设计库</button><button class="secondary" id="exportConfig"><i data-icon="download"></i>导出设计库</button></div></div><input type="file" accept=".json,application/json" hidden id="file"><div class="panel"><div class="section-heading"><span class="act" aria-hidden="true">✦</span><h2>素材与抽取权重</h2><span class="aside" lang="en" aria-hidden="true">Inventory</span></div><div id="libtabs" class="tabs"></div><div id="materials"></div></div></section>
 <section id="history" hidden>
   <div class="pagehead history-heading">
-    <h1>历史记录</h1>
+    <div><small lang="en" aria-hidden="true">The Archive</small><h1>历史记录</h1></div>
     <div class="seg history-switch" role="tablist" aria-label="记录类型">
       <button type="button" id="promptHistoryTab" role="tab" aria-selected="true" aria-controls="promptHistory" class="selected">提示词记录</button>
       <button type="button" id="imageHistoryTab" role="tab" aria-selected="false" aria-controls="imageHistory" tabindex="-1">生图记录</button>
@@ -96,7 +114,7 @@
 </section>
 <section id="settings" aria-labelledby="settingsHeading" hidden>
   <div class="pagehead resources-heading">
-    <div><h1 id="settingsHeading">API 资源库</h1><p>资源配置只保存在当前浏览器。</p></div>
+    <div><small lang="en" aria-hidden="true">Backstage</small><h1 id="settingsHeading">API 资源库</h1><p>资源配置只保存在当前浏览器。</p></div>
     <div class="actions">
       <button class="copy" id="addApiResource" type="button" disabled>添加 API 资源</button>
       <a class="secondary" href="#historyBackup">历史设置</a>
@@ -175,7 +193,7 @@
   </section>
 </section>
 <footer class="site-footer">
-  <span>☾ &nbsp; 月光剧场</span>
+  <span><span class="footer-moon" aria-hidden="true">☾</span> &nbsp; 月光剧场</span>
   <div class="site-footer-links"><a href="privacy.html">隐私政策</a><a href="terms.html">服务条款</a></div>
   <span lang="en">Moonlight Theater</span>
 </footer></main><dialog id="dialog" aria-labelledby="dtitle" closedby="any"><div class="dialoghead"><h2 id="dtitle"></h2><button id="close" aria-label="关闭"><i data-icon="x"></i></button></div><div id="dbody"></div><p id="dstatus" class="note" role="status"></p></dialog>
