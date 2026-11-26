@@ -1,5 +1,7 @@
 // A drawn menu in front of a native <select>. The select stays the source of truth:
 // choosing an option sets its value and dispatches the same change event app code listens for.
+// Every single-choice select on the page is enhanced, including ones added later (dialogs, editors);
+// code that sets .value, .selectedIndex, the options or disabled is mirrored without extra calls.
 const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg>';
 const check = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 const enhanced = new Map();
@@ -141,8 +143,39 @@ export function enhanceSelect(select) {
       trigger.focus();
     }
   });
+  // Mirror programmatic changes: value setters on this instance, and option or disabled mutations.
+  for (const key of ['value', 'selectedIndex']) {
+    const native = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, key);
+    Object.defineProperty(select, key, {
+      configurable: true,
+      get() { return native.get.call(this); },
+      set(next) { native.set.call(this, next); refresh(this); }
+    });
+  }
+  new MutationObserver(() => refresh(select)).observe(select, {childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'selected', 'label']});
+  // The hidden select cannot show a validation bubble; point the person at the drawn control instead.
+  select.addEventListener('invalid', () => trigger.focus());
+  if (select.autofocus || document.activeElement === select) trigger.focus();
   const reposition = () => { if (menu.matches(':popover-open')) place(state); };
   addEventListener('resize', reposition);
   addEventListener('scroll', reposition, {passive: true, capture: true});
   select.addEventListener('change', () => refresh(select));
+}
+
+const eligible = select => !select.multiple && !(select.size > 1) && !select.closest('[data-native-select]');
+
+export function enhanceAll(root = document) {
+  for (const select of root.querySelectorAll('select')) if (eligible(select)) enhanceSelect(select);
+}
+
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  enhanceAll();
+  new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches('select')) { if (eligible(node)) enhanceSelect(node); } else enhanceAll(node);
+      }
+    }
+  }).observe(document.body, {childList: true, subtree: true});
 }
