@@ -126,6 +126,7 @@ export function initializeHistoryBackup({readPrompts, mergePrompts, applyPromptL
   }
 
   function render() {
+    importDialog.closedBy = busy ? 'none' : 'closerequest';
     const connected = Boolean(auth && auth.expires > Date.now());
     byId('driveHistoryState').textContent = connected ? '已连接' : '未连接';
     byId('driveHistoryState').classList.toggle('resource-ready', connected);

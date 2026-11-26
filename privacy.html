@@ -44,6 +44,7 @@
 
       <h2>生图请求</h2>
       <p>浏览器将提示词、生图参数、你提供的参考图和编辑素材，以及适用的 API 密钥或 Google OAuth 访问令牌，直接发送给你配置的服务（OpenAI、Google Gemini API、Google Vertex AI 或自定义网关）。如需了解相关服务如何处理请求，请查看该服务的条款和隐私政策。</p>
+      <p>如果服务返回图片网址而非图片数据，浏览器会直接从该地址下载图片，不携带 Cookie，也不发送来源页信息（Referrer）。</p>
 
       <h2>Google 用户数据</h2>
       <p>Google Drive 备份和云图库只请求 <code>https://www.googleapis.com/auth/drive.appdata</code> 权限。该权限仅允许应用访问它在你的 Drive 中专用的隐藏应用数据文件夹。浏览器将访问令牌直接发送给 Google Drive，仅为提供历史备份和云图库功能而访问其中的文件及其元数据（如文件标识、大小和创建时间），包括保存、列出、查看和恢复。</p>
@@ -72,6 +73,7 @@
 
       <h3>Image generation requests</h3>
       <p>Your browser sends the prompt, generation settings, any reference images and editing materials you supply, and the applicable API key or Google OAuth access token directly to the service you configure (OpenAI, Google Gemini API, Google Vertex AI, or a custom gateway). See that service's terms and privacy policy for how it handles these requests.</p>
+      <p>If the service returns an image URL instead of image data, your browser downloads the image directly from that address without cookies or a referrer.</p>
 
       <h3>Google user data</h3>
       <p>Google Drive backup and the cloud gallery request only the <code>https://www.googleapis.com/auth/drive.appdata</code> scope, which gives the app access only to its own hidden application-data folder in your Drive. The browser sends the access token directly to Google Drive. The app accesses files and metadata (such as file IDs, sizes, and creation times) in that folder only to provide history backup and cloud gallery features, including storing, listing, viewing, and restoring data.</p>
@@ -100,6 +102,7 @@
 
       <h3>画像生成時に送信するデータ</h3>
       <p>ブラウザーは、プロンプト、生成設定、利用者が指定した参照画像や編集用の素材、必要に応じて API キーまたは Google OAuth アクセストークンを、設定先のサービス（OpenAI、Google Gemini API、Google Vertex AI、またはカスタムゲートウェイ）に直接送信します。リクエストの取り扱いについては、そのサービスの利用規約とプライバシーポリシーをご確認ください。</p>
+      <p>サービスが画像データではなく画像 URL を返す場合、ブラウザーは Cookie やリファラーを送信せず、そのアドレスから画像を直接ダウンロードします。</p>
 
       <h3>Google ユーザーデータ</h3>
       <p>Google Drive のバックアップとクラウドギャラリーがリクエストするスコープは <code>https://www.googleapis.com/auth/drive.appdata</code> のみです。このスコープでアクセスできるのは、利用者の Drive にある、このアプリ専用の非表示のアプリケーションデータフォルダだけです。ブラウザーはアクセストークンを Google Drive に直接送信します。アプリがこのフォルダ内のファイルとメタデータ（ファイル ID、サイズ、作成日時など）にアクセスするのは、保存、一覧表示、閲覧、復元など、履歴バックアップとクラウドギャラリーの機能を提供するためだけです。</p>

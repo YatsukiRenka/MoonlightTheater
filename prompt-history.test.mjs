@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {generate} from './engine.mjs';
-import {makePromptBackup, mergePromptBackup, trimPromptHistory, validatePromptBackup} from './prompt-history.mjs';
+import {makePromptBackup, matchesRating, mergePromptBackup, trimPromptHistory, validatePromptBackup} from './prompt-history.mjs';
 
 const profile = JSON.parse(readFileSync(new URL('./profile.json', import.meta.url), 'utf8'));
 const manualId = 'manual-history-fixture';
@@ -57,4 +57,39 @@ test('a zero retention count clears history while leaving the current design ava
   assert.deepEqual(Object.keys(result.profiles), ['initial', 'previous']);
   assert.equal(result.archivedManualMaterials[manualId].zh, '自定义发型');
   assert.throws(() => validatePromptBackup({records: [record('bad\0id', 1)], profiles: {initial: profile}, manualMaterials: {}}), /格式无效/);
+});
+
+const ratedRecords = [
+  {id: '喜欢', feedback: {rating: '喜欢'}},
+  {id: '一般', feedback: {rating: '一般'}},
+  {id: '不喜欢', feedback: {rating: '不喜欢'}},
+  {id: '未评价'},
+  {id: '评价缺少rating', feedback: {}},
+];
+
+test('matchesRating with empty filter includes rated and unrated records', () => {
+  assert.deepEqual(ratedRecords.filter(entry => matchesRating(entry, '')).map(entry => entry.id),
+    ['喜欢', '一般', '不喜欢', '未评价', '评价缺少rating']);
+});
+
+for (const rating of ['喜欢', '一般', '不喜欢']) {
+  test(`matchesRating filters for ${rating}`, () => {
+    assert.deepEqual(ratedRecords.filter(entry => matchesRating(entry, rating)).map(entry => entry.id), [rating]);
+  });
+}
+
+test('matchesRating with none includes only unrated records', () => {
+  assert.deepEqual(ratedRecords.filter(entry => matchesRating(entry, 'none')).map(entry => entry.id),
+    ['未评价', '评价缺少rating']);
+});
+
+test('matchesRating with unknown filter includes every record', () => {
+  assert.deepEqual(ratedRecords.filter(entry => matchesRating(entry, 'unknown')).map(entry => entry.id),
+    ratedRecords.map(entry => entry.id));
+});
+
+test('matchesRating treats feedback without rating as unrated', () => {
+  const entry = ratedRecords.find(item => item.id === '评价缺少rating');
+  assert(matchesRating(entry, 'none'));
+  for (const rating of ['喜欢', '一般', '不喜欢']) assert(!matchesRating(entry, rating));
 });

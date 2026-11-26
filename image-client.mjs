@@ -221,7 +221,8 @@ async function outbound(url, options, send, timeout) {
   } catch (error) {
     throw new Error(isResponseTimeout(error, signal)
       ? '连接接口超时。'
-      : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。', {cause: error});
+      : '无法从浏览器直连接口。请检查网络，以及接口是否允许本站跨域访问（CORS）。'
+        + (url.startsWith('http://') ? '本机服务还需在浏览器网站设置中允许本站访问本机网络。' : ''), {cause: error});
   }
   if (!response.ok) {
     await response.body?.cancel().catch(() => {});
@@ -361,22 +362,22 @@ function inline(data, output) {
   return blob ? {mime: blob.type, blob} : null;
 }
 
-async function linkedImage(value, origin, send) {
+async function linkedImage(value, origin, send, allowLoopback) {
   const url = endpoint(value, origin);
-  if (!url) throw new Error('接口返回了无效的外部图片地址。');
+  if (!url || (url.protocol === 'http:' && !allowLoopback)) throw new Error('接口返回了无效的外部图片地址。');
   const data = await boundedBlob(await outbound(url.href, {}, send, downloadTimeout));
   const mime = rasterMime(String.fromCharCode(...new Uint8Array(await data.slice(0, 12).arrayBuffer())));
   if (!mime) throw new Error('外部图片地址没有返回受支持的图片。');
   return {mime, blob: data.slice(0, data.size, mime)};
 }
 
-async function extractImages(response, format, origin, send, output) {
+async function extractImages(response, format, origin, send, output, allowLoopback) {
   if (format === 'openai') {
     const images = [];
     for (const item of array(response.data)) {
       const image = inline(item?.b64_json, output);
       if (image) images.push(image);
-      else if (item?.url) images.push(await linkedImage(item.url, origin, send));
+      else if (item?.url) images.push(await linkedImage(item.url, origin, send, allowLoopback));
     }
     return images;
   }
@@ -523,7 +524,7 @@ export async function generateImage({provider, model: requestedModel, aspect, pr
         await readStreamingImages(request, onPartial, receive);
       } else {
         const result = await readAPIJSON(request);
-        receive(await extractImages(result, format, origin, send, params.output_format), result);
+        receive(await extractImages(result, format, origin, send, params.output_format, url.startsWith('http://')), result);
         if (format === 'gemini') {
           const details = geminiDetails(result);
           if (details.text) texts.push(details.text);

@@ -19,15 +19,25 @@ const output = new URL('./dist/', import.meta.url);
 await rm(output, {recursive: true, force: true});
 await mkdir(new URL('assets/', output), {recursive: true});
 await Promise.all(assets.map(path => cp(new URL(path, import.meta.url), new URL(path, output))));
-if (driveClientId) {
-  const page = new URL('index.html', output);
-  const html = await readFile(page, 'utf8');
-  if (!html.includes('</head>')) throw new Error('找不到可加入 Drive 客户端 ID 的页面头部。');
-  await writeFile(page, html.replace('</head>', `<meta name="moonlight-drive-client-id" content="${driveClientId}"></head>`));
+const page = new URL('index.html', output);
+let html = await readFile(page, 'utf8');
+if (!html.includes('</head>')) {
+  if (driveClientId) throw new Error('找不到可加入 Drive 客户端 ID 的页面头部。');
+  throw new Error('找不到可加入 modulepreload 的页面头部。');
 }
+const modulePreloads = assets
+  .filter(path => path.endsWith('.mjs') && path !== 'app.mjs')
+  .map(path => `  <link rel="modulepreload" href="${path}">`)
+  .join('\n');
+html = html.replace('</head>', `${modulePreloads}\n</head>`);
+if (driveClientId) html = html.replace('</head>', `<meta name="moonlight-drive-client-id" content="${driveClientId}"></head>`);
+await writeFile(page, html);
 await writeFile(new URL('_headers', output), [
   '/*',
   '  Cross-Origin-Opener-Policy: same-origin-allow-popups',
   '  Referrer-Policy: no-referrer',
+  "  Content-Security-Policy: frame-ancestors 'none'",
+  '  X-Frame-Options: DENY',
+  '  X-Content-Type-Options: nosniff',
   '',
 ].join('\n'));

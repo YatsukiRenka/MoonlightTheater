@@ -149,6 +149,7 @@ export function initializeImageSettings({verify, save, remove, google}) {
   }
 
   function render() {
+    dialog.closedBy = busy ? 'none' : 'closerequest';
     renderList();
     if (dialog.open) renderEditor();
   }

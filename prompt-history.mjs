@@ -1,6 +1,7 @@
 import {labels, optional, validate} from './engine.mjs';
 
 const slots = Object.keys(labels);
+const feedbackRatings = ['喜欢', '一般', '不喜欢'];
 const settingFields = ['exploration', 'branchAffinityMultiplier', 'accessoryProbability', 'nonhumanProbability',
   'propProbability', 'historySize', 'candidateCount', 'similarityThreshold', 'defaultStyle', 'defaultPresentation'];
 const plainRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -57,7 +58,7 @@ function copyRecord(value) {
     algorithmVersion: 1, selection: copySelection(value.selection), prompt: pick(value.prompt, ['zh', 'en']),
     edits: Object.fromEntries(['zh', 'en'].filter(key => typeof value.edits?.[key] === 'string').map(key => [key, value.edits[key]])),
   };
-  if (['喜欢', '一般', '不喜欢'].includes(value.feedback?.rating)) {
+  if (feedbackRatings.includes(value.feedback?.rating)) {
     entry.feedback = {rating: value.feedback.rating, target: value.feedback.target === 'image' ? 'image' : 'design',
       note: typeof value.feedback.note === 'string' ? value.feedback.note.slice(0, 500) : '',
       time: Number.isFinite(value.feedback.time) ? value.feedback.time : entry.time,
@@ -68,6 +69,11 @@ function copyRecord(value) {
 
 function referencedRecords(state) {
   return state.current ? [...state.history, state.current] : state.history;
+}
+
+export function matchesRating(record, filter) {
+  if (filter === 'none') return record.feedback?.rating === undefined;
+  return !feedbackRatings.includes(filter) || record.feedback?.rating === filter;
 }
 
 export function trimPromptHistory(state, limit) {

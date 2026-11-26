@@ -6,7 +6,7 @@ import {importDesignLibrary} from './design-library.mjs';
 import {initializeHistoryBackup} from './history-backup.mjs';
 import {createCloudHistory} from './cloud-history.mjs';
 import {readHistoryLimits} from './history-limits.mjs';
-import {makePromptBackup, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
+import {makePromptBackup, matchesRating, mergePromptBackup, trimPromptHistory} from './prompt-history.mjs';
 const $=id=>document.getElementById(id),storage='yue-atelier-v1',base=validate(await (await fetch('./profile.json')).json());
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const opt=(k,t)=>'<option value="'+esc(k)+'">'+esc(t)+'</option>';
@@ -21,7 +21,7 @@ model.library ??= model.active;
 model.active = model.current?.profileId ?? model.library;
 validate(model.profiles[model.library]);
 const pref=model.prefs;
-let expanded=false,libKey='branch',messageTimer;
+let expanded=false,libKey='branch',messageTimer,dialogOpener;
 const rowKeys=['palette','hair','expression','outfit','pose','silhouette','face','hairColor','eyeColor','headAccessory','nonhuman','legwear','footwear','prop','branch','style','presentation'];
 const rowIcons={palette:'palette',hair:'hair',expression:'face',outfit:'outfit',pose:'pose',silhouette:'pose',face:'face',hairColor:'palette',eyeColor:'eye',style:'layers'};
 const newSeed=()=>crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase().padStart(8,'0');
@@ -115,25 +115,32 @@ function configControls(){
 }
 function draw(){
  const s=sel();configControls();$('seed').value=cur().seed;
- const rows=expanded?rowKeys:rowKeys.slice(0,5);$('slots').innerHTML=rows.map(k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel">'+labels[k]+'</span><button class="slotval" data-edit="'+k+'" title="'+esc(labelFor(k,s))+'" aria-label="设置'+labels[k]+'">'+(k==='palette'?swatches(s.palette):'')+esc(short(k,s))+'</button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" title="'+(locked?'解锁':'锁定')+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'}).join('');
+ const rows=expanded?rowKeys:rowKeys.slice(0,5);$('slots').innerHTML=rows.map(k=>{const locked=model.locks.includes(k);return '<div class="slot"><span class="sloticon">'+icon(rowIcons[k]||'star')+'</span><span class="slotlabel" id="slot-label-'+k+'">'+labels[k]+'</span><button class="slotval" id="slot-value-'+k+'" data-edit="'+k+'" title="'+esc(labelFor(k,s))+'" aria-labelledby="slot-label-'+k+' slot-value-'+k+'">'+(k==='palette'?swatches(s.palette):'')+esc(short(k,s))+'</button><span class="slottools"><button class="mini '+(locked?'on':'')+'" data-lock="'+k+'" aria-pressed="'+locked+'" aria-label="锁定'+labels[k]+'" title="锁定'+labels[k]+'">'+icon(locked?'lock':'unlock')+'</button><button class="mini" data-roll="'+k+'" aria-label="重抽'+labels[k]+'" title="重抽'+labels[k]+'" '+(locked?'disabled':'')+'>'+icon('repeat')+'</button></span></div>'}).join('');
  $('expand').innerHTML=expanded?'收起其余设定 '+icon('down'):'展开全部设定（'+rowKeys.length+'） '+icon('down');
  $('output').value=cur().edits?.[pref.lang]??cur().prompt[pref.lang];count();document.querySelectorAll('[data-lang]').forEach(b=>{b.classList.toggle('selected',b.dataset.lang===pref.lang);b.setAttribute('aria-pressed',b.dataset.lang===pref.lang)});
  $('ratings').innerHTML=['喜欢','一般','不喜欢'].map((r,i)=>'<button class="'+(cur().feedback?.rating===r?'selected':'')+'" data-rate="'+r+'">'+icon(['heart','dot','x'][i])+r+'</button>').join('')
 }
 function count(){$('counter').textContent=$('output').value.length+' 字符'}
-function showDialog(title,content){$('dtitle').textContent=title;$('dbody').innerHTML=content;$('dialog').showModal()}
+function restoreButtonFocus(button) {
+ if(!button?.matches('button')||button.isConnected)return;
+ for(const attr of ['data-lock','data-roll','data-edit','data-lib']){
+  const value=button.getAttribute(attr);
+  if(value!==null){document.querySelector('button['+attr+'="'+CSS.escape(value)+'"]')?.focus();return}
+ }
+}
+function showDialog(title,content){dialogOpener=document.activeElement;$('dtitle').textContent=title;$('dbody').innerHTML=content;$('dstatus').textContent='';$('dialog').showModal()}
 function closeDialog(){$('dialog').close()}
 function choose(key) {
  if (model.locks.includes(key)) throw Error('请先解锁'+labels[key]);
  const current = sel()[key];
- const list = [...(model.manualMaterials[key] || [])].reverse().concat(pool(libraryProfile(),key,sel(),manualFor(sel())));
+ const list = (model.manualMaterials[key] || []).toReversed().concat(pool(libraryProfile(),key,sel(),manualFor(sel())));
  const selected = choicesFor(key,sel()).find(entry=>entry.id===current);
  if (key in optional) list.unshift({id: null, zh: '无', en: 'None'});
  const manualForm = '<form class="manual-choice" id="manualChoice" method="post">'
   + '<label class="settinglabel">手动输入<input id="manualChoiceText" required maxlength="'+manualTextLimit+'" value="'+esc(selected?.zh)+'"></label>'
   + '<label class="settinglabel">英文（选填）<input id="manualChoiceEnglish" maxlength="'+manualTextLimit+'" placeholder="留空使用输入的文字" value="'+esc(selected?.manual&&selected.en!==selected.zh?selected.en:'')+'"></label>'
   + '<button type="submit" class="copy">使用手动输入</button><p class="note" id="manualChoiceError" role="status" hidden></p></form>';
- const options = list.map((entry, index) => '<button type="button" data-choice="'+index+'" class="'+(entry.id===current?'selected':'')+'">'
+ const options = list.map((entry, index) => '<button type="button" data-choice="'+index+'" class="'+(entry.id===current?'selected':'')+'"'+(entry.id===current?' autofocus':'')+'>'
   +esc(entry.zh)+(entry.id===current?'　✓':'')+(entry.manual?'<span class="choice-manual">手动条目</span>':'')+'</button>').join('');
  showDialog('设置'+labels[key], manualForm+'<h3 class="choice-title">从素材中选择</h3><div class="choices">'+options+'</div>');
  $('manualChoice').onsubmit = event => {
@@ -164,12 +171,13 @@ function libraryPalette(profile){
  const s=sel();
  return profile.palettes.some(entry=>entry.id===s.palette)||model.manualMaterials.palette?.some(entry=>entry.id===s.palette)?s:{palette:profile.palettes[0].id};
 }
-function libraries(){const profile=libraryProfile();const keys=Object.keys(labels);$('libtabs').innerHTML=keys.map(k=>'<button class="'+(libKey===k?'selected':'')+'" data-lib="'+k+'">'+labels[k]+'</button>').join('');
+function libraries(){const profile=libraryProfile();const keys=Object.keys(labels);$('libtabs').innerHTML=keys.map(k=>'<button class="'+(libKey===k?'selected':'')+'" data-lib="'+k+'" aria-pressed="'+(libKey===k)+'">'+labels[k]+'</button>').join('');
  $('materials').innerHTML=materialChoices(profile,libKey,libraryPalette(profile),model.manualMaterials).map((e,i)=>'<div class="material"><div>'+esc(e.zh)+'<small>'+esc(e.manual?'手动条目'+(e.en!==e.zh?' · '+e.en:''):e.en||e.preferredTags?.join(' · '))+'</small></div>'+('weight' in e?'<label>权重 <input aria-label="'+esc(e.zh)+'权重" type="number" min="0" step="any" data-weight="'+i+'" value="'+e.weight+'"></label>':'')+'</div>').join('')}
-function records(){$('records').innerHTML=model.history.slice().reverse().map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('')}
+function records(){const rating=$('ratingFilter').value,filtered=model.history.filter(e=>matchesRating(e,rating)).toReversed();$('records').innerHTML=model.history.length&&!filtered.length?'<p class="note">没有符合筛选条件的提示词记录。</p>':filtered.map(e=>{const cfg=model.profiles[e.profileId],s=e.selection;return '<article class="record"><div><strong>'+swatches(s.palette)+esc(short('palette',s,cfg))+' · '+esc(labelFor('branch',s,cfg))+'</strong><p>'+esc(labelFor('hair',s,cfg))+' / '+esc(labelFor('outfit',s,cfg))+'</p><small>'+esc(new Date(e.time).toLocaleString('zh-CN'))+'　Seed '+esc(e.seed)+(e.feedback?'　'+esc(e.feedback.rating):'')+'</small></div><button class="secondary" data-restore="'+esc(e.id)+'">恢复</button></article>'}).join('')}
 function page() {
  const anchor=location.hash.slice(1);
  const key=anchor==='historyBackup'?'settings':['library','history','settings'].includes(anchor)?anchor:'studio';
+ document.title={studio:'月光剧场 · 角色提示词生成器',library:'设计库 · 月光剧场',history:'历史记录 · 月光剧场',settings:'设置 · 月光剧场'}[key];
  for (const id of ['studio','library','history','settings']) $(id).hidden=id!==key;
  document.querySelectorAll('[data-page]').forEach(link=>{
   const active=link.dataset.page===key;
@@ -186,20 +194,21 @@ function page() {
  }
  if(anchor==='historyBackup')$('historyBackup').scrollIntoView({block:'start'});
 }
-function attempt(fn){try{fn()}catch(e){notify(e.message)}}
+function showError(message){if($('dialog').open)$('dstatus').textContent=message;else notify(message)}
+function attempt(fn){try{fn()}catch(e){showError(e.message)}}
 document.querySelectorAll('[data-icon]').forEach(el=>el.replaceWith(document.createRange().createContextualFragment(icon(el.dataset.icon))));
 for(const [id,type] of [['generate','new'],['fresh','fresh'],['replay','replay']])$(id).onclick=()=>attempt(()=>make(type));
 $('branch').onchange=()=>{const v=$('branch').value;if(model.locks.includes('branch')&&v!==sel().branch){notify('请先解锁风格分支');configControls();return}pref.branch=v;persist()};
 $('style').onchange=()=>{const old=pref.style;try{setSlot('style',$('style').value)}catch(e){pref.style=old;configControls();notify(e.message)}};
 $('explore').oninput=()=>{pref.exploration=+$('explore').value/100;$('exploreValue').textContent=$('explore').value+'%';persist()};
 $('unlock').onclick=()=>{model.locks=[];pref.branch='';persist();draw();notify('已解除全部锁定')};
-$('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}})};
+$('slots').onclick=e=>{let b=e.target.closest('button');if(!b)return;const focused=document.activeElement;attempt(()=>{if(b.dataset.edit)choose(b.dataset.edit);if(b.dataset.roll)setSlot(b.dataset.roll,null,true);if(b.dataset.lock){let k=b.dataset.lock;model.locks=model.locks.includes(k)?model.locks.filter(x=>x!==k):[...model.locks,k];if(k==='branch'&&model.locks.includes(k))pref.branch=sel().branch;persist();draw()}});restoreButtonFocus(focused)};
 $('expand').onclick=()=>{expanded=!expanded;draw()};
 document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{pref.lang=b.dataset.lang;persist();draw()});
 $('output').oninput=()=>{cur().edits[pref.lang]=$('output').value;count();saveCurrent()};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('output').value);notify('已复制当前提示词')}catch{$('output').select();notify(document.execCommand('copy')?'已复制当前提示词':'已选中提示词，可手动复制')}};
-$('ratings').onclick=e=>{let b=e.target.closest('[data-rate]');if(!b)return;const rating=b.dataset.rate;showDialog('记录评价 · '+rating,'<label class="settinglabel">评价对象<select id="rateTarget">'+opt('design','角色设定')+opt('image','实际成图')+'</select></label><label class="settinglabel">备注（选填）<input id="rateNote" maxlength="500" placeholder="哪些细节合你的口味？"></label><button class="copy" id="saveRate">保存评价</button>');$('rateTarget').value=cur().feedback?.target||'design';$('rateNote').value=cur().feedback?.note||'';$('saveRate').onclick=()=>{cur().feedback={rating,target:$('rateTarget').value,note:$('rateNote').value,time:Date.now(),selection:{...sel()}};saveCurrent();closeDialog();draw();notify('评价已保存')}};
-$('libtabs').onclick=e=>{const b=e.target.closest('[data-lib]');if(b){libKey=b.dataset.lib;libraries()}};
+$('ratings').onclick=e=>{let b=e.target.closest('[data-rate]');if(!b)return;const rating=b.dataset.rate;showDialog('记录评价 · '+rating,'<label class="settinglabel">评价对象<select id="rateTarget" autofocus>'+opt('design','角色设定')+opt('image','实际成图')+'</select></label><label class="settinglabel">备注（选填）<input id="rateNote" maxlength="500" placeholder="哪些细节合你的口味？"></label><button class="copy" id="saveRate">保存评价</button>');$('rateTarget').value=cur().feedback?.target||'design';$('rateNote').value=cur().feedback?.note||'';$('saveRate').onclick=()=>{cur().feedback={rating,target:$('rateTarget').value,note:$('rateNote').value,time:Date.now(),selection:{...sel()}};saveCurrent();closeDialog();draw();notify('评价已保存')}};
+$('libtabs').onclick=e=>{const b=e.target.closest('[data-lib]');if(b){const focused=document.activeElement;libKey=b.dataset.lib;libraries();restoreButtonFocus(focused)}};
 $('materials').onchange=e=>{if(!e.target.matches('[data-weight]'))return;try{const next=structuredClone(libraryProfile());const v=e.target.valueAsNumber;pool(next,libKey,libraryPalette(next))[+e.target.dataset.weight].weight=v;saveLibrary(validate(next));notify('抽取权重已保存，将用于后续生成')}catch(err){notify(err.message);libraries()}};
 $('exportConfig').onclick=()=>{
  const {schemaVersion,profileVersion,note,branches,palettes,styles,presentations,pools,settings,rules}=libraryProfile();
@@ -238,8 +247,9 @@ $('file').onchange=async()=>{
     notify(mode==='merge'?'已合并设计库':'已替换设计库');
    });
   };
- }catch(error){notify('导入失败：'+error.message)}
+ }catch(error){showError('导入失败：'+error.message)}
 };
+$('ratingFilter').onchange=records;
 $('records').onclick=event=>{
  const button=event.target.closest('[data-restore]');if(!button)return;
  const record=model.history.find(entry=>entry.id===button.dataset.restore);
@@ -251,14 +261,35 @@ $('records').onclick=event=>{
 $('moreSettings').onclick=()=>{
  const keys={accessoryProbability:'头饰出现概率',nonhumanProbability:'非人特征出现概率',propProbability:'道具出现概率',similarityThreshold:'历史相似度阈值'};
  const settings=libraryProfile().settings;
- showDialog('高级设置',Object.entries(keys).map(([k,t])=>'<label class="settinglabel">'+t+'（%）<input type="number" min="0" max="100" value="'+Math.round(settings[k]*100)+'" id="'+k+'"></label>').join('')+'<p class="note">新设置用于后续生成。重现种子时使用当前设置，并跳过历史查重。</p><button id="saveSettings" class="copy">保存设置</button>');
- $('saveSettings').onclick=()=>attempt(()=>{
-  const next=structuredClone(libraryProfile());
-  for(const k of Object.keys(keys))next.settings[k]=$(k).valueAsNumber/100;
-  saveLibrary(validate(next));closeDialog();notify('生成设置已保存');
- });
+ showDialog('高级设置','<form id="settingsForm" method="post">'+Object.entries(keys).map(([k,t])=>'<label class="settinglabel">'+t+'（%）<input type="number" min="0" max="100" required step="any" value="'+Math.round(settings[k]*1e4)/100+'" id="'+k+'"></label>').join('')+'<p class="note">新设置用于后续生成。重现种子时使用当前设置，并跳过历史查重。</p><button type="submit" id="saveSettings" class="copy">保存设置</button></form>');
+ $('settingsForm').onsubmit=event=>{
+  event.preventDefault();
+  attempt(()=>{
+   const next=structuredClone(libraryProfile());
+   for(const k of Object.keys(keys))next.settings[k]=$(k).valueAsNumber/100;
+   saveLibrary(validate(next));closeDialog();notify('生成设置已保存');
+  });
+ };
 };
-$('close').onclick=closeDialog;$('dialog').onclose=()=>{$('dbody').onclick=null};$('dialog').onclick=e=>{if(e.target===$('dialog')){const rect=$('dialog').getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeDialog()}};
+const dialog=$('dialog');
+$('close').onclick=closeDialog;
+dialog.onclose=()=>{
+ $('dbody').onclick=null;
+ const active=document.activeElement;
+ if(!active||active===document.body||dialog.contains(active))restoreButtonFocus(dialogOpener);
+ dialogOpener=null;
+};
+if(!('closedBy' in HTMLDialogElement.prototype)){
+ const outside=e=>{const rect=dialog.getBoundingClientRect();return e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom};
+ let outsidePointer;
+ dialog.onpointerdown=e=>{if(e.isPrimary&&e.button===0)outsidePointer=outside(e)?e.pointerId:undefined};
+ dialog.onpointerup=e=>{
+  if(e.pointerId!==outsidePointer)return;
+  outsidePointer=undefined;
+  if(outside(e))closeDialog();
+ };
+ dialog.onpointercancel=e=>{if(e.pointerId===outsidePointer)outsidePointer=undefined};
+}
 if(!cur())make('new');else draw();
 const cloudHistory=createCloudHistory();
 const imageViews=initializeImages(()=>({prompt:$('output').value,seed:cur().seed,language:pref.lang}),cloudHistory);
@@ -282,6 +313,7 @@ function showHistoryTab(index, focus=false) {
 historyTabs.forEach((tab,index)=>{
  tab.onclick=()=>showHistoryTab(index);
  tab.onkeydown=event=>{
+  if(event.altKey||event.ctrlKey||event.metaKey)return;
   const target={ArrowLeft:1-index,ArrowRight:1-index,Home:0,End:1}[event.key];
   if(target===undefined)return;
   event.preventDefault();

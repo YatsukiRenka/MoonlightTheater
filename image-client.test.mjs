@@ -134,6 +134,58 @@ test('gateway pricing is saved during verification and used with returned image 
 const fixturePNG = 'iVBORw0KGgoAAAANSUhEUg==';
 const referenceFile = name => new File([Uint8Array.from(atob(fixturePNG), char => char.charCodeAt(0))], name, {type: 'image/png'});
 
+test('linked image URLs follow the configured endpoint protocol', async t => {
+  const model = 'fixture-model';
+  const resources = url => ({custom: {url, format: 'openai', models: [model], model}});
+  const request = {provider: 'custom', model, aspect: 'auto', prompt: 'A character'};
+  const png = Uint8Array.from(atob(fixturePNG), char => char.charCodeAt(0));
+
+  await t.test('remote HTTPS endpoint rejects loopback image URLs without requesting them', async () => {
+    const sent = [];
+    await assert.rejects(generateImage(request, resources('https://gateway.example/v1/images/generations'), null, {
+      origin, send: async url => {
+        sent.push(url);
+        return Response.json({data: [{url: 'http://127.0.0.1:8765/image.png'}]});
+      },
+    }), {message: '接口返回了无效的外部图片地址。'});
+    assert.deepEqual(sent, ['https://gateway.example/v1/images/generations']);
+  });
+
+  await t.test('remote HTTPS endpoint accepts HTTPS image URLs', async () => {
+    const sent = [];
+    const result = await generateImage(request, resources('https://gateway.example/v1/images/generations'), null, {
+      origin, send: async url => {
+        sent.push(url);
+        return sent.length === 1
+          ? Response.json({data: [{url: 'https://images.example/image.png'}]})
+          : new Response(png, {headers: {'Content-Type': 'image/png'}});
+      },
+    });
+    assert.deepEqual(sent, [
+      'https://gateway.example/v1/images/generations', 'https://images.example/image.png',
+    ]);
+    assert.equal(result.images.length, 1);
+    assert.equal(result.images[0].mime, 'image/png');
+  });
+
+  await t.test('loopback HTTP endpoint accepts loopback image URLs', async () => {
+    const sent = [];
+    const result = await generateImage(request, resources('http://127.0.0.1:8765/v1/images/generations'), null, {
+      origin, send: async url => {
+        sent.push(url);
+        return sent.length === 1
+          ? Response.json({data: [{url: 'http://127.0.0.1:8766/image.png'}]})
+          : new Response(png, {headers: {'Content-Type': 'image/png'}});
+      },
+    });
+    assert.deepEqual(sent, [
+      'http://127.0.0.1:8765/v1/images/generations', 'http://127.0.0.1:8766/image.png',
+    ]);
+    assert.equal(result.images.length, 1);
+    assert.equal(result.images[0].mime, 'image/png');
+  });
+});
+
 test('OpenAI reference images go to edits as multipart and streamed images report final usage', async () => {
   const model = 'gpt-image-2.6-flare';
   const partials = [];
