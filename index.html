@@ -11,7 +11,7 @@
     </header>
     <div class="plate" id="plate">
       <h2 class="plate-title"><span class="aside" lang="en" aria-hidden="true">Dramatis Personæ</span>角色设计</h2>
-      <figure class="hero-dial" aria-hidden="true"><div class="dial-moon" id="dialMoon"><i class="moon-swirl"></i><i class="moon-shade"></i></div><svg id="stageDial" viewBox="0 0 640 640" focusable="false"></svg></figure>
+      <figure class="hero-dial" aria-hidden="true"><svg class="svg-defs" width="0" height="0" focusable="false"><filter id="moonMarble" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".006 .011" numOctaves="3" seed="11" result="flow"/><feDisplacementMap in="SourceGraphic" in2="flow" scale="120" xChannelSelector="R" yChannelSelector="G"/></filter></svg><div class="dial-moon" id="dialMoon"><i class="moon-swirl"></i><i class="moon-shade"></i></div><svg id="stageDial" viewBox="0 0 640 640" focusable="false"></svg></figure>
       <div id="slots"></div>
     </div>
     <div class="plate-tools"><button id="expand" class="more"></button><button class="subtle" id="unlock"><i data-icon="unlock"></i>全部解锁</button></div>
@@ -270,4 +270,4 @@
   <div class="dialoghead"><h2 id="imagePreviewTitle">角色图预览</h2><button type="button" id="closeImagePreview" aria-label="关闭预览"><i data-icon="x"></i></button></div>
   <div id="imagePreviewAsset"></div>
 </dialog>
-<div role="status" id="toast"></div><script type="module" src="prefs.mjs"></script><script type="module" src="ambient.mjs"></script><script type="module" src="app.mjs"></script></body></html>
+<div role="status" id="toast"></div><script type="module" src="prefs.mjs"></script><script type="module" src="ambient.mjs"></script><script type="module" src="sky.mjs"></script><script type="module" src="moon-gl.mjs"></script><script type="module" src="app.mjs"></script></body></html>

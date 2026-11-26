@@ -13,7 +13,7 @@ const assets = [
   'image-options.mjs', 'image-controls.mjs', 'image-stream.mjs', 'image-deck.mjs', 'design-library.mjs',
   'history-limits.mjs', 'history-archive.mjs', 'history-backup.mjs', 'prompt-history.mjs', 'google-oauth.mjs', 'drive-history.mjs', 'image-file.mjs',
   'cloud-history.mjs', 'cloud-image-store.mjs', 'image-renditions.mjs', 'vendor/noble-sha256.mjs',
-  'profile.json', 'boot.js', 'prefs.mjs', 'i18n.mjs', 'i18n-dict.mjs', 'fancy-select.mjs', 'ambient.mjs', 'assets/grain.svg',
+  'profile.json', 'boot.js', 'prefs.mjs', 'i18n.mjs', 'i18n-dict.mjs', 'fancy-select.mjs', 'ambient.mjs', 'moon-gl.mjs', 'sky.mjs', 'gl-kit.mjs', 'assets/grain.svg',
   'assets/fonts/noto-serif-sc-display.woff2', 'assets/fonts/cormorant.woff2', 'assets/fonts/cormorant-italic.woff2',
   'assets/fonts/OFL-NotoSerifSC.txt', 'assets/fonts/OFL-CormorantGaramond.txt', 'assets/fonts/README.md',
 ];

@@ -720,8 +720,32 @@ header nav a :is(svg, i),
 @property --p3x { syntax: "<percentage>"; inherits: true; initial-value: 66%; }
 @property --p3y { syntax: "<percentage>"; inherits: true; initial-value: 70%; }
 
+.stage {
+  transition: --m-light 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-mid 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-deep 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-angle 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-x 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-y 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-tx 1.8s cubic-bezier(.2, .7, .1, 1),
+    --m-ty 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p0x 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p0y 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p1x 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p1y 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p2x 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p2y 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p3x 1.8s cubic-bezier(.2, .7, .1, 1),
+    --p3y 1.8s cubic-bezier(.2, .7, .1, 1);
+}
+
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 .dial-moon {
-  --m-ease: 1.8s cubic-bezier(.2, .7, .1, 1);
   position: absolute;
   inset: 19%;
   overflow: hidden;
@@ -732,10 +756,6 @@ header nav a :is(svg, i),
     0 0 0 1px color-mix(in srgb, var(--moon) 28%, transparent),
     0 0 3rem color-mix(in srgb, var(--m-light) 26%, transparent),
     0 0 9rem color-mix(in srgb, var(--m-mid) 22%, transparent);
-  transition: --m-light var(--m-ease), --m-mid var(--m-ease), --m-deep var(--m-ease), --m-angle var(--m-ease),
-    --m-x var(--m-ease), --m-y var(--m-ease), --m-tx var(--m-ease), --m-ty var(--m-ease),
-    --p0x var(--m-ease), --p0y var(--m-ease), --p1x var(--m-ease), --p1y var(--m-ease),
-    --p2x var(--m-ease), --p2y var(--m-ease), --p3x var(--m-ease), --p3y var(--m-ease);
 }
 
 .dial-moon > i {
@@ -752,7 +772,7 @@ header nav a :is(svg, i),
     radial-gradient(closest-side at var(--p2x) var(--p2y), color-mix(in oklab, var(--m-light) 70%, var(--m-mid)), transparent),
     radial-gradient(closest-side at var(--p3x) var(--p3y), color-mix(in oklab, var(--m-deep) 60%, var(--m-mid)), transparent),
     linear-gradient(var(--m-angle), var(--m-light), var(--m-mid) 55%, var(--m-deep));
-  filter: blur(1.25rem) saturate(1.08);
+  filter: url("#moonMarble") blur(.625rem) saturate(1.08);
 }
 
 /* Lighting: a lit highlight, a soft limb, and the drawing style's own shadow. */
@@ -773,7 +793,7 @@ header nav a :is(svg, i),
 }
 
 /* Graphic cel: manga screentone dots gather on the shadow side. */
-.dial-moon[data-variant="graphic"] .moon-swirl { filter: blur(.375rem) saturate(1.2) contrast(1.1); }
+.dial-moon[data-variant="graphic"] .moon-swirl { filter: url("#moonMarble") blur(.25rem) saturate(1.2) contrast(1.1); }
 
 .dial-moon[data-variant="graphic"] .moon-shade {
   background:
@@ -783,8 +803,23 @@ header nav a :is(svg, i),
   mask-image: linear-gradient(var(--m-angle), transparent 34%, #000 82%);
 }
 
+.dial-moon::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(closest-side, transparent 88%, color-mix(in oklab, var(--m-light) 55%, white) 99.4%, transparent);
+  content: "" / "";
+  -webkit-mask-image: linear-gradient(var(--m-angle), #000, transparent 55%);
+  mask-image: linear-gradient(var(--m-angle), #000, transparent 55%);
+  mix-blend-mode: screen;
+  opacity: .75;
+  pointer-events: none;
+}
+
 .dial-moon::after {
   position: absolute;
+  z-index: 2;
   inset: 0;
   border-radius: inherit;
   background: url("assets/grain.svg") 0 0 / 7rem;
@@ -3495,9 +3530,9 @@ dialog.resource-editor {
 
   @supports (animation-timeline: scroll()) and (animation-range: 0 70vh) {
     svg#stageDial {
-      animation: dial-drift linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 70vh;
+      animation: dial-drift linear both, dial-spin 300s linear infinite;
+      animation-timeline: scroll(root), auto;
+      animation-range: 0 70vh, normal;
     }
 
     @keyframes dial-drift {
@@ -4068,8 +4103,6 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
 :is(.copy, .secondary, .primary):not(:disabled):active { scale: .97; }
 
 /* The cast button: a ring of moonlight runs around it, and it leans toward the hand. */
-@property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-
 .console-actions .primary {
   position: relative;
   isolation: isolate;
@@ -4084,7 +4117,7 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   inset: -5px;
   padding: 1px;
   border-radius: inherit;
-  background: conic-gradient(from var(--ring-angle), transparent 0 55%, var(--glow) 75%, var(--moon) 80%, transparent 92%);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--glow) 30%, transparent), var(--moon) 45%, color-mix(in srgb, var(--glow) 30%, transparent) 80%);
   content: "";
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -4109,6 +4142,10 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   inset: 0;
   background: radial-gradient(26rem 26rem at var(--spot-x, 50%) var(--spot-y, 40%), color-mix(in srgb, var(--glow) 12%, transparent), transparent 70%);
   content: "";
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12rem, #000 calc(100% - 12rem), transparent), linear-gradient(transparent, #000 8rem, #000 calc(100% - 8rem), transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 12rem, #000 calc(100% - 12rem), transparent), linear-gradient(transparent, #000 8rem, #000 calc(100% - 8rem), transparent);
+  mask-composite: intersect;
   opacity: 0;
   pointer-events: none;
   transition: opacity .8s ease;
@@ -4133,11 +4170,77 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   pointer-events: none;
 }
 
+.hero-dial::after {
+  position: absolute;
+  z-index: -1;
+  inset: -42%;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side at 34% 40%, color-mix(in oklab, var(--m-mid) 26%, transparent), transparent),
+    radial-gradient(closest-side at 68% 62%, color-mix(in oklab, var(--m-light) 16%, transparent), transparent),
+    radial-gradient(closest-side at 56% 30%, color-mix(in oklab, var(--m-deep) 22%, transparent), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+/* The celestial sphere (sky.mjs) replaces the CSS star field when WebGL2 is available. */
+.sky-gl {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+:root.has-sky body::after { content: none; }
+
+:root.has-sky .twinkle { display: none; }
+
+@media (forced-colors: active) {
+  .sky-gl,
+  .moon-gl { display: none; }
+}
+
+/* The shader moon (moon-gl.mjs) sits over the CSS moon, which stays as the fallback. */
+.moon-gl {
+  position: absolute;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  pointer-events: none;
+}
+
+/* The CSS moon keeps its box (the shader reads its size) but paints and animates nothing.
+   In forced colours the canvases are hidden and the CSS moon returns. */
+@media (forced-colors: none) {
+  :root.has-moon-gl .dial-moon { visibility: hidden; box-shadow: none; }
+
+  :root.has-moon-gl .dial-moon > i,
+  :root.has-moon-gl .dial-moon::before,
+  :root.has-moon-gl .dial-moon::after,
+  :root.has-moon-gl .hero-dial::before { display: none; }
+}
+
+/* With the shader moon the colours change without CSS transitions, and the sky draws the aura;
+   repainting gradients across the stage for every frame of a new cast stalls the GPU. */
+:root.has-moon-gl .stage { transition: none; }
+
+:root.has-sky .hero-dial::after,
+:root.has-sky .stage::before { display: none; }
+
+/* Over a live sky a backdrop blur would be recomputed every frame; the rail is nearly opaque anyway. */
+:root.has-sky body > header {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in oklab, var(--ink) 94%, transparent);
+}
+
 /* Leader-line sparks start hidden; motion below sends them toward the moon. */
 .plate .slot::before { content: none; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .console-actions .primary::before { animation: ring-run 5s linear infinite; }
+  .console-actions .primary::before { animation: ring-breathe 4.8s ease-in-out infinite alternate; }
 
   .console-actions .primary:hover::after,
   .console-actions .primary.is-near::after { animation: sheen 1.6s cubic-bezier(.4, 0, .2, 1) infinite; }
@@ -4146,7 +4249,10 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
     transition: background-color .25s, border-color .25s, box-shadow .35s, translate .5s cubic-bezier(.2, .7, .1, 1), scale .15s;
   }
 
-  @keyframes ring-run { to { --ring-angle: 360deg; } }
+  @keyframes ring-breathe {
+    from { opacity: .25; }
+    to { opacity: .8; }
+  }
 
   @keyframes sheen {
     0% { background-position: -150% 0; }
@@ -4154,6 +4260,10 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   }
 
   .hero-dial::before { animation: halo-breathe 7s ease-in-out infinite alternate; }
+
+  .hero-dial::after { animation: aura-turn 120s linear infinite; }
+
+  @keyframes aura-turn { to { rotate: 360deg; } }
 
   @keyframes halo-breathe {
     from { opacity: .55; scale: .94; }
@@ -4163,25 +4273,15 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   .moon-swirl { translate: calc(var(--lean-x, 0) * -3%) calc(var(--lean-y, 0) * -3%); transition: translate 1.8s cubic-bezier(.2, .7, .1, 1); }
 
   /* The astrolabe never quite stops turning. */
-  #stageDial .dial-ring { animation: opening-ring 1.4s ease-out .15s both, dial-spin 300s linear infinite; }
-
-  @keyframes dial-spin { to { rotate: 360deg; } }
-
-  #stageDial .dial-star {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: star-glint var(--glint, 4.5s) ease-in-out infinite alternate;
+  /* The astrolabe turns as one composited layer: animating a group inside the SVG would repaint it every frame. */
+  svg#stageDial {
+    will-change: transform;
+    animation: dial-spin 300s linear infinite;
   }
 
-  #stageDial .dial-star.draw-in { animation: dial-star-in .5s ease var(--star-delay, 0ms) both, star-glint var(--glint, 4.5s) ease-in-out infinite alternate; }
-
-  #stageDial .dial-star:nth-child(3n + 1) { --glint: 3.2s; }
-
-  #stageDial .dial-star:nth-child(3n + 2) { --glint: 5.6s; }
-
-  @keyframes star-glint {
-    from { scale: .7; }
-    to { scale: 1.25; }
+  @keyframes dial-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   /* A spark of light runs down each leader line now and then. */
@@ -4306,7 +4406,9 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--lilac); outline-
   .console-actions .primary::before,
   .console-actions .primary::after,
   .stage::before,
-  .hero-dial::before { display: none; }
+  .hero-dial::before,
+  .hero-dial::after,
+  .dial-moon::before { display: none; }
 }
 
 /* The script: a manuscript page under the stage, not a boxed form. */

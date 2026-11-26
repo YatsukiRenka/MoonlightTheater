@@ -552,7 +552,10 @@ function paintMoon({seed, colors, selection}) {
   if (!moon) return;
   const art = moonArt({seed, palette: selection?.palette, colors, style: selection?.style});
   moon.dataset.variant = art.variant;
-  for (const [name, value] of Object.entries(art.vars)) moon.style.setProperty(name, value);
+  // The colours live on the stage so the halo, the room light and the moon change together.
+  const room = moon.closest('.stage') ?? moon;
+  for (const [name, value] of Object.entries(art.vars)) room.style.setProperty(name, value);
+  document.dispatchEvent(new CustomEvent('moon:paint', {detail: {seed, art}}));
 }
 
 export function setExploration(value) {
